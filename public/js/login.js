@@ -1,34 +1,125 @@
-// Initialize Supabase Client
-// Note: These keys will be provided by the user via environment variables or a config file later
 const supabaseUrl = 'https://mrjtkxwenqswbjplmzko.supabase.co';
 const supabaseKey = 'sb_publishable_KbaspJKanVVEPMzUxMSmXw_nQyzfNyf';
 
-// Only initialize if keys are replaced
 let supabase = null;
-if (supabaseUrl !== 'YOUR_SUPABASE_URL') {
+if (supabaseUrl && supabaseKey) {
     supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
 }
 
-document.getElementById('google-login-btn').addEventListener('click', async () => {
-    if (!supabase) {
-        alert("Supabase keys are not configured yet! Redirecting to app for now...");
-        window.location.href = '/';
+// DOM Elements
+const stepEmail = document.getElementById('step-email');
+const stepOtp = document.getElementById('step-otp');
+const emailInput = document.getElementById('email-input');
+const otpInput = document.getElementById('otp-input');
+const sendCodeBtn = document.getElementById('send-code-btn');
+const verifyCodeBtn = document.getElementById('verify-code-btn');
+const backBtn = document.getElementById('back-btn');
+const errorMsg = document.getElementById('error-message');
+const successMsg = document.getElementById('success-message');
+const subtitleText = document.getElementById('subtitle-text');
+
+let currentEmail = '';
+
+// Helper to show errors
+const showError = (msg) => {
+    errorMsg.innerText = msg;
+    errorMsg.style.display = 'block';
+    successMsg.style.display = 'none';
+};
+
+const showSuccess = (msg) => {
+    successMsg.innerText = msg;
+    successMsg.style.display = 'block';
+    errorMsg.style.display = 'none';
+};
+
+const clearMessages = () => {
+    errorMsg.style.display = 'none';
+    successMsg.style.display = 'none';
+};
+
+// Send OTP
+sendCodeBtn.addEventListener('click', async () => {
+    clearMessages();
+    const email = emailInput.value.trim();
+    if (!email || !email.includes('@')) {
+        showError('Please enter a valid email address.');
         return;
     }
-    const { error } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
+
+    if (!supabase) {
+        showError('Supabase not configured.');
+        return;
+    }
+
+    sendCodeBtn.innerText = 'Sending...';
+    sendCodeBtn.disabled = true;
+
+    const { error } = await supabase.auth.signInWithOtp({
+        email: email,
+        options: {
+            // Usually you'd set emailRedirectTo to your app URL
+        }
     });
-    if (error) console.error('Error logging in with Google:', error.message);
+
+    sendCodeBtn.innerText = 'Send Login Code';
+    sendCodeBtn.disabled = false;
+
+    if (error) {
+        showError(error.message);
+    } else {
+        currentEmail = email;
+        showSuccess('Code sent! Check your inbox.');
+        // Switch UI to OTP step
+        stepEmail.classList.add('hidden');
+        stepOtp.classList.remove('hidden');
+        subtitleText.innerText = `Enter the code sent to ${email}`;
+    }
 });
 
-document.getElementById('apple-login-btn').addEventListener('click', async () => {
-    if (!supabase) {
-        alert("Supabase keys are not configured yet! Redirecting to app for now...");
-        window.location.href = '/';
+// Verify OTP
+verifyCodeBtn.addEventListener('click', async () => {
+    clearMessages();
+    const token = otpInput.value.trim();
+    
+    if (token.length !== 6) {
+        showError('Please enter the 6-digit code.');
         return;
     }
-    const { error } = await supabase.auth.signInWithOAuth({
-        provider: 'apple',
+
+    verifyCodeBtn.innerText = 'Verifying...';
+    verifyCodeBtn.disabled = true;
+
+    const { data, error } = await supabase.auth.verifyOtp({
+        email: currentEmail,
+        token: token,
+        type: 'email'
     });
-    if (error) console.error('Error logging in with Apple:', error.message);
+
+    verifyCodeBtn.innerText = 'Verify Code';
+    verifyCodeBtn.disabled = false;
+
+    if (error) {
+        showError(error.message);
+    } else {
+        showSuccess('Logged in successfully! Redirecting...');
+        // Store user info in localStorage for the main app
+        localStorage.setItem('flow_user', JSON.stringify({
+            id: data.user.id,
+            email: data.user.email
+        }));
+        
+        setTimeout(() => {
+            window.location.href = '/';
+        }, 1000);
+    }
+});
+
+// Back Button
+backBtn.addEventListener('click', () => {
+    clearMessages();
+    stepOtp.classList.add('hidden');
+    stepEmail.classList.remove('hidden');
+    subtitleText.innerText = 'Enter your email to log in or sign up.';
+    otpInput.value = '';
 });
