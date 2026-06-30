@@ -170,9 +170,7 @@ const handleJoin = async () => {
             UI.updateRoomInfo(roomId, Object.keys(partners).length + 1);
             
             if (Object.keys(partners).length === 0) {
-                UI.UI.partnerEmptyState.classList.remove('hidden');
-                UI.UI.partnerTaskList.innerHTML = '';
-                UI.updateTaskStatsUI({total:0, completed:0}, UI.UI.partnerTaskProgressText, UI.UI.partnerTaskProgressFill);
+                // Partner empty state removed in new UI
             }
         },
         onSignal: (data) => {
