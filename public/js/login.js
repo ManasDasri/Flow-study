@@ -1,7 +1,7 @@
 // Initialize Supabase Client
 // Note: These keys will be provided by the user via environment variables or a config file later
-const supabaseUrl = 'YOUR_SUPABASE_URL';
-const supabaseKey = 'YOUR_SUPABASE_ANON_KEY';
+const supabaseUrl = 'https://mrjtkxwenqswbjplmzko.supabase.co';
+const supabaseKey = 'sb_publishable_KbaspJKanVVEPMzUxMSmXw_nQyzfNyf';
 
 // Only initialize if keys are replaced
 let supabase = null;
