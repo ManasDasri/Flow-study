@@ -7,18 +7,13 @@ if (supabaseUrl && supabaseKey) {
 }
 
 // DOM Elements
-const stepEmail = document.getElementById('step-email');
-const stepOtp = document.getElementById('step-otp');
+// DOM Elements
 const emailInput = document.getElementById('email-input');
-const otpInput = document.getElementById('otp-input');
-const sendCodeBtn = document.getElementById('send-code-btn');
-const verifyCodeBtn = document.getElementById('verify-code-btn');
-const backBtn = document.getElementById('back-btn');
+const passwordInput = document.getElementById('password-input');
+const loginBtn = document.getElementById('login-btn');
+const signupBtn = document.getElementById('signup-btn');
 const errorMsg = document.getElementById('error-message');
 const successMsg = document.getElementById('success-message');
-const subtitleText = document.getElementById('subtitle-text');
-
-let currentEmail = '';
 
 // Helper to show errors
 const showError = (msg) => {
@@ -38,88 +33,54 @@ const clearMessages = () => {
     successMsg.style.display = 'none';
 };
 
-// Send OTP
-sendCodeBtn.addEventListener('click', async () => {
+const handleAuth = async (action) => {
     clearMessages();
     const email = emailInput.value.trim();
+    const password = passwordInput.value;
+
     if (!email || !email.includes('@')) {
         showError('Please enter a valid email address.');
         return;
     }
-
+    if (password.length < 6) {
+        showError('Password must be at least 6 characters.');
+        return;
+    }
     if (!supabase) {
         showError('Supabase not configured.');
         return;
     }
 
-    sendCodeBtn.innerText = 'Sending...';
-    sendCodeBtn.disabled = true;
+    const btn = action === 'login' ? loginBtn : signupBtn;
+    const originalText = btn.innerText;
+    btn.innerText = 'Processing...';
+    btn.disabled = true;
 
-    const { error } = await supabase.auth.signInWithOtp({
-        email: email,
-        options: {
-            // Usually you'd set emailRedirectTo to your app URL
-        }
-    });
-
-    sendCodeBtn.innerText = 'Send Login Code';
-    sendCodeBtn.disabled = false;
-
-    if (error) {
-        showError(error.message);
+    let result;
+    if (action === 'login') {
+        result = await supabase.auth.signInWithPassword({ email, password });
     } else {
-        currentEmail = email;
-        showSuccess('Code sent! Check your inbox.');
-        // Switch UI to OTP step
-        stepEmail.classList.add('hidden');
-        stepOtp.classList.remove('hidden');
-        subtitleText.innerText = `Enter the code sent to ${email}`;
-    }
-});
-
-// Verify OTP
-verifyCodeBtn.addEventListener('click', async () => {
-    clearMessages();
-    const token = otpInput.value.trim();
-    
-    if (token.length !== 6) {
-        showError('Please enter the 6-digit code.');
-        return;
+        result = await supabase.auth.signUp({ email, password });
     }
 
-    verifyCodeBtn.innerText = 'Verifying...';
-    verifyCodeBtn.disabled = true;
+    btn.innerText = originalText;
+    btn.disabled = false;
 
-    const { data, error } = await supabase.auth.verifyOtp({
-        email: currentEmail,
-        token: token,
-        type: 'email'
-    });
-
-    verifyCodeBtn.innerText = 'Verify Code';
-    verifyCodeBtn.disabled = false;
-
-    if (error) {
-        showError(error.message);
+    if (result.error) {
+        showError(result.error.message);
     } else {
-        showSuccess('Logged in successfully! Redirecting...');
+        showSuccess(action === 'login' ? 'Logged in successfully! Redirecting...' : 'Account created successfully! Redirecting...');
         // Store user info in localStorage for the main app
         localStorage.setItem('flow_user', JSON.stringify({
-            id: data.user.id,
-            email: data.user.email
+            id: result.data.user.id,
+            email: result.data.user.email
         }));
         
         setTimeout(() => {
             window.location.href = '/';
         }, 1000);
     }
-});
+};
 
-// Back Button
-backBtn.addEventListener('click', () => {
-    clearMessages();
-    stepOtp.classList.add('hidden');
-    stepEmail.classList.remove('hidden');
-    subtitleText.innerText = 'Enter your email to log in or sign up.';
-    otpInput.value = '';
-});
+loginBtn.addEventListener('click', () => handleAuth('login'));
+signupBtn.addEventListener('click', () => handleAuth('signup'));

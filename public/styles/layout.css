@@ -104,20 +104,23 @@
 
 .video-wrapper {
     position: relative;
+    width: 100%;
+    height: 100%;
     border-radius: var(--radius-md);
     overflow: hidden;
     border: var(--border-width) solid var(--border-color);
-    background: #000;
+    background: #111;
     display: flex;
     justify-content: center;
     align-items: center;
     box-shadow: 2px 2px 0px var(--border-color);
+    aspect-ratio: 16 / 9;
 }
 
 .video-wrapper video {
     width: 100%;
     height: 100%;
-    object-fit: cover; /* THIS FIXES THE BLACK BARS! Edge-to-edge video */
+    object-fit: contain;
 }
 
 /* Layout Overrides for Mobile / Tablet */

@@ -71,27 +71,23 @@
         <div class="logo-large">FLOW</div>
         <p class="subtitle" id="subtitle-text">Enter your email to log in or sign up.</p>
         
-        <!-- Step 1: Email Input -->
-        <div id="step-email">
+        <!-- Standard Email + Password Input -->
+        <div id="step-auth">
             <input type="email" id="email-input" class="brutal-input mb-4" placeholder="you@example.com" required>
-            <button id="send-code-btn" class="btn btn-primary" style="width: 100%; font-size: 1.1rem; padding: 14px;">
-                Send Login Code
-            </button>
-        </div>
-
-        <!-- Step 2: OTP Input (Hidden initially) -->
-        <div id="step-otp" class="hidden">
-            <input type="text" id="otp-input" class="brutal-input mb-4" placeholder="6-digit code" style="text-align: center; font-size: 1.2rem; letter-spacing: 4px;" maxlength="6">
-            <button id="verify-code-btn" class="btn btn-secondary" style="width: 100%; font-size: 1.1rem; padding: 14px;">
-                Verify Code
-            </button>
-            <button id="back-btn" class="btn mt-4" style="background: transparent; border: none; box-shadow: none; color: var(--text-secondary); text-decoration: underline;">
-                Back to email
-            </button>
+            <input type="password" id="password-input" class="brutal-input mb-4" placeholder="Password (min 6 chars)" required>
+            
+            <div style="display: flex; gap: 8px;">
+                <button id="login-btn" class="btn btn-secondary" style="flex: 1; font-size: 1.1rem; padding: 14px;">Log In</button>
+                <button id="signup-btn" class="btn btn-primary" style="flex: 1; font-size: 1.1rem; padding: 14px;">Sign Up</button>
+            </div>
+            
+            <div class="mt-4 text-muted" style="font-size: 0.9rem;">
+                Don't have an account? Click Sign Up to create one instantly!
+            </div>
         </div>
 
         <div id="error-message" class="error-msg"></div>
-        <div id="success-message" class="success-msg">Code sent to your email!</div>
+        <div id="success-message" class="success-msg">Success!</div>
 
     </div>
 
