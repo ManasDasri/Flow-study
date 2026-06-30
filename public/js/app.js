@@ -103,6 +103,18 @@ const initApp = async () => {
     document.getElementById('leave-btn').addEventListener('click', () => {
         window.location.reload();
     });
+
+    // Tab Logic
+    const tabBtns = document.querySelectorAll('.tab-btn');
+    tabBtns.forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            tabBtns.forEach(b => b.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+            
+            e.target.classList.add('active');
+            document.getElementById(e.target.dataset.tab).classList.add('active');
+        });
+    });
 };
 
 const handleJoin = async () => {
@@ -199,18 +211,6 @@ const handleJoin = async () => {
         
         // Refresh my presence UI when tasks change
         UI.updateMyPresenceUI(getPresenceState(), getTaskStats(), currentUsername);
-        
-        // Tab Logic
-        const tabBtns = document.querySelectorAll('.tab-btn');
-        tabBtns.forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                tabBtns.forEach(b => b.classList.remove('active'));
-                document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-                
-                e.target.classList.add('active');
-                document.getElementById(e.target.dataset.tab).classList.add('active');
-            });
-        });
     });
 
     initPresence(roomId, (presenceState) => {
@@ -222,10 +222,7 @@ const handleJoin = async () => {
     // Helper to extract current local presence for UI refresh
     function getPresenceState() {
         return {
-            status: UI.UI.myStatusText.innerText,
-            currentTask: UI.UI.myCurrentTask.innerText,
-            focusTime: parseInt(UI.UI.myFocusTime.innerText) || 0, // Mock
-            nowPlaying: UI.UI.myNowPlaying.innerText !== 'Lofi Girl • Snowfall' ? UI.UI.myNowPlaying.innerText : null
+            status: UI.UI.myStatusText.innerText
         };
     }
 };

@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Flow | Login</title>
+    
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;700;800&family=Space+Mono:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+    
+    <!-- Styles -->
+    <link rel="stylesheet" href="/styles/global.css">
+    <link rel="stylesheet" href="/styles/components.css">
+    <style>
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background-color: var(--bg-main);
+            /* Retro grid */
+            background-image: radial-gradient(var(--border-color) 1px, transparent 1px);
+            background-size: 20px 20px;
+        }
+
+        .login-card {
+            width: 100%;
+            max-width: 420px;
+            padding: 40px;
+            text-align: center;
+        }
+
+        .logo-large {
+            font-size: 3rem;
+            font-weight: 800;
+            letter-spacing: -0.05em;
+            color: var(--border-color);
+            margin-bottom: 8px;
+            text-shadow: 4px 4px 0px var(--primary);
+        }
+
+        .subtitle {
+            font-weight: 500;
+            color: var(--text-secondary);
+            margin-bottom: 32px;
+            font-size: 1.1rem;
+        }
+
+        .auth-btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            width: 100%;
+            padding: 14px;
+            margin-bottom: 16px;
+            font-size: 1.1rem;
+        }
+
+        .auth-btn img {
+            width: 24px;
+            height: 24px;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="brutal-card login-card scale-in">
+        <div class="logo-large">FLOW</div>
+        <p class="subtitle">Study Better. Together.</p>
+        
+        <button id="google-login-btn" class="btn btn-secondary auth-btn">
+            <svg width="24" height="24" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>
+            Continue with Google
+        </button>
+
+        <button id="apple-login-btn" class="btn btn-primary auth-btn">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M12 2C6.477 2 2 6.477 2 12s4.477 10 10 10 10-4.477 10-10S17.523 2 12 2zm3.36 12.82c-.01.59.39 1.15.93 1.41-.34 1-.84 1.94-1.46 2.83-.62.88-1.28 1.83-2.2 1.84h-.05c-.32 0-.66-.08-1.01-.17-.37-.09-.76-.19-1.18-.19-.4 0-.79.09-1.16.19-.34.09-.69.17-1.02.17h-.06c-.92 0-1.57-.96-2.18-1.84-.94-1.37-1.66-3.23-1.68-5.18-.01-1.32.48-2.67 1.35-3.66.86-.98 2.02-1.56 3.25-1.58h.08c.35.01.71.12 1.09.25.35.12.7.24 1.01.24s.66-.12 1-.24c.38-.13.75-.24 1.1-.25h.06c.86 0 1.69.34 2.37.93a4.73 4.73 0 00-2.23 4.02c0 1.54 1.25 2.94 2.87 3.27l-.02.06a4.29 4.29 0 01-.86 1.9zM14.28 7.3c-.69.83-1.65 1.36-2.65 1.35-.12-1.01.32-2.02.99-2.83.67-.81 1.6-1.35 2.58-1.37.13 1.02-.27 2.02-.92 2.85z"/></svg>
+            Continue with Apple
+        </button>
+
+        <p style="margin-top: 24px; font-size: 0.85rem; color: var(--text-secondary); font-weight: 500;">
+            By continuing, you agree to our Terms of Service and Privacy Policy.
+        </p>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script type="module" src="/js/login.js"></script>
+</body>
+</html>

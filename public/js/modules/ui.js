@@ -7,26 +7,12 @@ const els = {
     timeDisplay: document.getElementById('time-display'),
     timerToggleBtn: document.getElementById('timer-toggle-btn'),
     timerModes: document.querySelectorAll('.mode-btn'),
-    progressCircle: document.querySelector('.progress-ring__circle'),
-    
-    myTaskList: document.getElementById('my-task-list'),
-    myTaskProgressText: document.getElementById('my-task-progress-text'),
-    myTaskProgressFill: document.getElementById('my-task-progress-fill'),
-    
-    partnerTaskList: document.getElementById('partner-task-list'),
-    partnerTaskProgressText: document.getElementById('partner-task-progress-text'),
-    partnerTaskProgressFill: document.getElementById('partner-task-progress-fill'),
-    partnerEmptyState: document.getElementById('partner-empty-state'),
     
     partnerPresenceContainer: document.getElementById('partner-presence-container'),
     
     myStatusText: document.getElementById('my-status-text'),
-    myCurrentTask: document.getElementById('my-current-task'),
-    myFocusTime: document.getElementById('my-focus-time'),
-    myCompletedTasks: document.getElementById('my-completed-tasks'),
     myUsername: document.getElementById('my-username'),
-    myAvatar: document.getElementById('my-avatar'),
-    myNowPlaying: document.getElementById('my-now-playing')
+    myAvatar: document.getElementById('my-avatar')
 };
 
 export const updateRoomInfo = (roomId, count) => {
@@ -40,21 +26,12 @@ export const updateTimerUI = (state) => {
     const s = (state.timeLeft % 60).toString().padStart(2, '0');
     els.timeDisplay.innerText = `${m}:${s}`;
 
-    // Update ring progress
-    const radius = els.progressCircle.r.baseVal.value;
-    const circumference = radius * 2 * Math.PI;
-    const percent = state.timeLeft / state.duration;
-    const offset = circumference - percent * circumference;
-    
-    els.progressCircle.style.strokeDasharray = `${circumference} ${circumference}`;
-    els.progressCircle.style.strokeDashoffset = offset;
-
     // Update Button
-    els.timerToggleBtn.innerText = state.isRunning ? 'Pause' : 'Start Focus';
+    els.timerToggleBtn.innerHTML = state.isRunning ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16"></rect><rect x="14" y="4" width="4" height="16"></rect></svg>' : '<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>';
     if(state.isRunning) {
-        els.timerToggleBtn.classList.add('shadow-glow');
+        els.timerToggleBtn.classList.add('active');
     } else {
-        els.timerToggleBtn.classList.remove('shadow-glow');
+        els.timerToggleBtn.classList.remove('active');
     }
 
     // Update Modes
@@ -71,7 +48,7 @@ export const renderTaskList = (container, tasks, isReadOnly, onToggle, onDelete)
     container.innerHTML = '';
     
     if (tasks.length === 0 && !isReadOnly) {
-        container.innerHTML = `<li class="text-muted" style="text-align: center; padding: 20px 0;">No tasks yet. Add one above!</li>`;
+        container.innerHTML = `<li class="text-muted" style="text-align: center; padding: 20px 0; font-weight:600;">No tasks yet. Add one above!</li>`;
         return;
     }
 
@@ -80,21 +57,20 @@ export const renderTaskList = (container, tasks, isReadOnly, onToggle, onDelete)
         li.className = `task-item scale-in ${task.completed ? 'completed' : ''}`;
         
         li.innerHTML = `
-            <label class="custom-checkbox">
-                <input type="checkbox" ${task.completed ? 'checked' : ''} ${isReadOnly ? 'disabled' : ''}>
-                <span class="checkmark"></span>
-            </label>
-            <div class="task-content">
+            <div class="task-checkbox" ${isReadOnly ? '' : 'style="cursor:pointer;"'}>
+                ${task.completed ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3"><polyline points="20 6 9 17 4 12"></polyline></svg>' : ''}
+            </div>
+            <div class="task-content" style="flex:1; font-weight:600;">
                 <div class="task-title">${escapeHTML(task.title)}</div>
             </div>
-            ${!isReadOnly ? `<button class="icon-btn small delete-btn" aria-label="Delete Task"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button>` : ''}
+            ${!isReadOnly ? `<button class="icon-btn" style="width:28px; height:28px; color:var(--danger);" aria-label="Delete Task"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button>` : ''}
         `;
 
         if (!isReadOnly) {
-            const checkbox = li.querySelector('input');
-            checkbox.addEventListener('change', () => onToggle(task.id));
+            const checkbox = li.querySelector('.task-checkbox');
+            checkbox.addEventListener('click', () => onToggle(task.id));
             
-            const deleteBtn = li.querySelector('.delete-btn');
+            const deleteBtn = li.querySelector('.icon-btn');
             deleteBtn.addEventListener('click', () => onDelete(task.id));
         }
 
@@ -104,8 +80,8 @@ export const renderTaskList = (container, tasks, isReadOnly, onToggle, onDelete)
 
 export const updateTaskStatsUI = (stats, progressTextEl, progressFillEl) => {
     const percentage = stats.total === 0 ? 0 : Math.round((stats.completed / stats.total) * 100);
-    progressTextEl.innerText = `${percentage}%`;
-    progressFillEl.style.width = `${percentage}%`;
+    if(progressTextEl) progressTextEl.innerText = `${percentage}%`;
+    if(progressFillEl) progressFillEl.style.width = `${percentage}%`;
     return percentage;
 };
 
@@ -114,16 +90,6 @@ export const updateMyPresenceUI = (state, stats, username) => {
     els.myAvatar.innerText = username.charAt(0).toUpperCase();
     
     els.myStatusText.innerText = state.status;
-    els.myCurrentTask.innerText = state.currentTask;
-    els.myFocusTime.innerText = formatFocusTime(state.focusTime);
-    els.myCompletedTasks.innerText = `${stats.completed} / ${stats.total} Tasks`;
-    
-    if (state.nowPlaying) {
-        els.myNowPlaying.innerText = state.nowPlaying;
-        els.myNowPlaying.parentElement.classList.remove('hidden');
-    } else {
-        els.myNowPlaying.parentElement.classList.add('hidden');
-    }
     
     const dot = els.myStatusText.previousElementSibling;
     dot.className = `dot ${state.status.includes('Break') ? 'yellow' : 'green'}`;
@@ -135,31 +101,20 @@ export const renderPartnerPresenceCard = (userId, userData) => {
     if (!card) {
         card = document.createElement('div');
         card.id = `presence-${userId}`;
-        card.className = 'glass-card profile-card mt-4 fade-in';
+        card.className = 'brutal-card profile-card fade-in';
         els.partnerPresenceContainer.appendChild(card);
     }
     
     card.innerHTML = `
         <div class="profile-header">
-            <div class="avatar" style="background: linear-gradient(135deg, var(--green), #059669)">${userData.username.charAt(0).toUpperCase()}</div>
+            <div class="avatar">${userData.username.charAt(0).toUpperCase()}</div>
             <div class="profile-info">
                 <h3>${escapeHTML(userData.username)}</h3>
                 <div class="status-indicator">
                     <span class="dot green"></span>
-                    <span>${userData.presence?.status || '🟢 Online'}</span>
+                    <span>${userData.presence?.status || 'Online'}</span>
                 </div>
             </div>
-        </div>
-        <div class="presence-details mt-4">
-            <div class="detail-row">
-                <span class="label">Status:</span>
-                <span class="value">${userData.presence?.status || 'Online'}</span>
-            </div>
-            ${userData.presence?.nowPlaying ? `
-            <div class="detail-row">
-                <span class="label">Listening to:</span>
-                <span class="value now-playing">${escapeHTML(userData.presence.nowPlaying)}</span>
-            </div>` : ''}
         </div>
     `;
 };
@@ -173,6 +128,7 @@ export const removePartnerPresenceCard = (userId) => {
 
 // Utils
 function escapeHTML(str) {
+    if (!str) return '';
     return str.replace(/[&<>'"]/g, 
         tag => ({
             '&': '&amp;',
