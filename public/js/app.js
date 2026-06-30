@@ -95,9 +95,13 @@ const initApp = async () => {
     });
 
     // Copy Invite
-    document.getElementById('copy-btn').addEventListener('click', () => {
+    document.getElementById('share-link-btn').addEventListener('click', () => {
         navigator.clipboard.writeText(currentRoomId);
         // Simple toast or feedback here
+        const btn = document.getElementById('share-link-btn');
+        const originalText = btn.innerText;
+        btn.innerText = 'Copied!';
+        setTimeout(() => { btn.innerText = originalText; }, 2000);
     });
 
     document.getElementById('leave-btn').addEventListener('click', () => {
@@ -129,7 +133,7 @@ const handleJoin = async () => {
     modalOverlay.classList.add('hidden');
     appContainer.classList.remove('hidden');
     
-    document.getElementById('room-code-display').innerText = roomId;
+    document.getElementById('header-room-code').innerText = roomId;
     
     // Initialize Local Media
     const localVideo = document.getElementById('local-video');
