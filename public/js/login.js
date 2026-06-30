@@ -61,6 +61,13 @@ const handleAuth = async (action) => {
         result = await supabase.auth.signInWithPassword({ email, password });
     } else {
         result = await supabase.auth.signUp({ email, password });
+        // Supabase returns an empty identities array if the email already exists
+        if (result.data && result.data.user && result.data.user.identities && result.data.user.identities.length === 0) {
+            btn.innerText = originalText;
+            btn.disabled = false;
+            showError('An account with this email already exists. Please log in.');
+            return;
+        }
     }
 
     btn.innerText = originalText;
