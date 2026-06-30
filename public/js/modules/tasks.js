@@ -20,47 +20,43 @@ export const setSharedTasks = (tasks) => {
 
 export const addTask = (title) => {
     if (!title.trim()) return;
+    const user = JSON.parse(localStorage.getItem('flow_user'));
     
-    const newTask = {
-        id: Date.now().toString(),
-        title: title.trim(),
-        completed: false,
-        createdAt: Date.now()
-    };
-    
-    roomTasks.push(newTask);
-    broadcastTasks();
-    renderTasks();
-    
-    // Auto-update presence if this is the first uncompleted task
-    updateCurrentTaskPresence();
+    import('./socket.js').then(module => {
+        module.socket.emit('task-add', {
+            roomId: roomId,
+            title: title.trim(),
+            userId: user ? user.id : null
+        });
+    });
 };
 
 export const toggleTask = (taskId) => {
     const task = roomTasks.find(t => t.id === taskId);
     if (task) {
-        task.completed = !task.completed;
-        broadcastTasks();
-        renderTasks();
-        updateCurrentTaskPresence();
+        import('./socket.js').then(module => {
+            module.socket.emit('task-toggle', {
+                roomId: roomId,
+                taskId: taskId,
+                completed: !task.completed
+            });
+        });
     }
 };
 
 export const deleteTask = (taskId) => {
-    roomTasks = roomTasks.filter(t => t.id !== taskId);
-    broadcastTasks();
-    renderTasks();
-    updateCurrentTaskPresence();
+    import('./socket.js').then(module => {
+        module.socket.emit('task-delete', {
+            roomId: roomId,
+            taskId: taskId
+        });
+    });
 };
 
 export const getStats = () => {
     const total = roomTasks.length;
     const completed = roomTasks.filter(t => t.completed).length;
     return { total, completed };
-};
-
-const broadcastTasks = () => {
-    socketUpdateTasks(roomId, roomTasks);
 };
 
 const renderTasks = () => {

@@ -3,8 +3,8 @@
 
 const { createClient } = require('@supabase/supabase-js');
 
-const supabaseUrl = process.env.SUPABASE_URL;
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY; // For backend operations
+const supabaseUrl = process.env.SUPABASE_URL || 'https://mrjtkxwenqswbjplmzko.supabase.co';
+const supabaseKey = process.env.SUPABASE_ANON_KEY || 'sb_publishable_KbaspJKanVVEPMzUxMSmXw_nQyzfNyf';
 
 let supabase = null;
 

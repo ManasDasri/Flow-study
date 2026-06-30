@@ -5,20 +5,29 @@ module.exports = (io) => {
     io.on('connection', (socket) => {
         console.log('New client connected:', socket.id);
 
-        socket.on('join-room', (roomId, userData) => {
+        socket.on('join-room', async (roomId, userData) => {
             socket.join(roomId);
+            
+            // Sync tasks from Supabase on join
+            const supabase = require('../db/supabase');
+            const { data: tasks } = await supabase
+                .from('tasks')
+                .select('*')
+                .eq('room_id', roomId)
+                .order('created_at', { ascending: true });
+                
             rooms.joinRoom(roomId, socket.id, userData);
+            rooms.updateRoomTasks(roomId, tasks || []);
+            
+            // Send current room state to the newly joined user
+            const roomState = rooms.getRoomState(roomId);
+            socket.emit('room-state', roomState);
             
             // Notify others in the room
             socket.to(roomId).emit('user-joined', {
                 userId: socket.id,
                 userData
             });
-
-            // Send current room state to the newly joined user
-            const roomState = rooms.getRoomState(roomId);
-            socket.emit('room-state', roomState);
-            
             console.log(`User ${socket.id} joined room ${roomId}`);
         });
 
@@ -41,14 +50,65 @@ module.exports = (io) => {
             }
         });
 
-        // Task Events
-        socket.on('task-update', (data) => {
-            const { roomId, tasks } = data;
-            rooms.updateRoomTasks(roomId, tasks);
+        // Task Events (Database Integrated)
+        socket.on('task-add', async (data) => {
+            const { roomId, title, userId } = data;
+            const supabase = require('../db/supabase');
             
-            socket.to(roomId).emit('room-tasks-update', {
-                tasks
-            });
+            // Insert into Supabase
+            const { error } = await supabase
+                .from('tasks')
+                .insert([{ room_id: roomId, title: title, created_by: userId }]);
+                
+            if (!error) {
+                // Fetch updated tasks
+                const { data: tasks } = await supabase
+                    .from('tasks')
+                    .select('*')
+                    .eq('room_id', roomId)
+                    .order('created_at', { ascending: true });
+                    
+                rooms.updateRoomTasks(roomId, tasks || []);
+                io.to(roomId).emit('room-tasks-update', { tasks: tasks || [] });
+            }
+        });
+
+        socket.on('task-toggle', async (data) => {
+            const { roomId, taskId, completed } = data;
+            const supabase = require('../db/supabase');
+            
+            await supabase
+                .from('tasks')
+                .update({ completed: completed })
+                .eq('id', taskId);
+                
+            const { data: tasks } = await supabase
+                .from('tasks')
+                .select('*')
+                .eq('room_id', roomId)
+                .order('created_at', { ascending: true });
+                
+            rooms.updateRoomTasks(roomId, tasks || []);
+            io.to(roomId).emit('room-tasks-update', { tasks: tasks || [] });
+        });
+
+        socket.on('task-delete', async (data) => {
+            const { roomId, taskId } = data;
+            const supabase = require('../db/supabase');
+            
+            await supabase
+                .from('tasks')
+                .delete()
+                .eq('id', taskId);
+                
+            const { data: tasks } = await supabase
+                .from('tasks')
+                .select('*')
+                .eq('room_id', roomId)
+                .order('created_at', { ascending: true });
+                
+            rooms.updateRoomTasks(roomId, tasks || []);
+            io.to(roomId).emit('room-tasks-update', { tasks: tasks || [] });
         });
 
         // Presence Events
