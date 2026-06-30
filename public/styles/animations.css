@@ -1,0 +1,57 @@
+/* Animations (Framer Motion style via CSS) */
+
+@keyframes float {
+    0% { transform: translateY(0px); }
+    50% { transform: translateY(-10px); }
+    100% { transform: translateY(0px); }
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes pulse-glow {
+    0% { box-shadow: 0 0 10px rgba(108, 99, 255, 0.4); }
+    50% { box-shadow: 0 0 20px rgba(108, 99, 255, 0.8), 0 0 40px rgba(108, 99, 255, 0.4); }
+    100% { box-shadow: 0 0 10px rgba(108, 99, 255, 0.4); }
+}
+
+@keyframes scaleIn {
+    from { opacity: 0; transform: scale(0.95); }
+    to { opacity: 1; transform: scale(1); }
+}
+
+.fade-in {
+    animation: fadeIn 0.4s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+.scale-in {
+    animation: scaleIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+}
+
+.shadow-glow {
+    animation: pulse-glow 3s infinite;
+}
+
+/* Hover Effects */
+.glass-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
+}
+
+.task-item {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Staggered loading for lists */
+.task-list .task-item:nth-child(1) { animation-delay: 0.1s; }
+.task-list .task-item:nth-child(2) { animation-delay: 0.2s; }
+.task-list .task-item:nth-child(3) { animation-delay: 0.3s; }
+.task-list .task-item:nth-child(4) { animation-delay: 0.4s; }
+.task-list .task-item:nth-child(5) { animation-delay: 0.5s; }
+
+/* Progress Ring Animation */
+.progress-ring__circle {
+    transition: stroke-dashoffset 1s linear;
+}

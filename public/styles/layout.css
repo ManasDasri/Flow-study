@@ -1,0 +1,175 @@
+/* Layout Architecture */
+
+.app-container {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    overflow: hidden;
+}
+
+/* Header */
+.glass-header {
+    height: 72px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0 var(--sp-6);
+    background: var(--glass-bg);
+    backdrop-filter: blur(30px);
+    -webkit-backdrop-filter: blur(30px);
+    border-bottom: 1px solid var(--glass-border);
+    z-index: 10;
+}
+
+.header-left, .header-right {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-5);
+}
+
+.logo {
+    font-size: 24px;
+    font-weight: 700;
+    color: var(--primary);
+    letter-spacing: -0.5px;
+}
+
+.room-info {
+    display: flex;
+    gap: var(--sp-4);
+    font-size: 14px;
+    color: var(--text-muted);
+}
+
+.room-info .highlight {
+    color: var(--text-main);
+    font-weight: 500;
+}
+
+/* Workspace Grid */
+.workspace-grid {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+    padding: var(--sp-6);
+    gap: var(--sp-6);
+}
+
+/* Sidebar */
+.sidebar {
+    width: 320px;
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-4);
+    overflow-y: auto;
+    /* Custom scrollbar hiding */
+    -ms-overflow-style: none;  /* IE and Edge */
+    scrollbar-width: none;  /* Firefox */
+}
+
+.sidebar::-webkit-scrollbar {
+    display: none;
+}
+
+/* Main Workspace */
+.main-workspace {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+    /* Hide scrollbar */
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+}
+.main-workspace::-webkit-scrollbar {
+    display: none;
+}
+
+.top-row {
+    display: flex;
+    gap: var(--sp-6);
+    min-height: 300px;
+}
+
+.video-container {
+    flex: 2;
+    display: flex;
+    flex-direction: column;
+    padding: 0; /* Videos reach edges */
+    overflow: hidden;
+}
+
+.timer-container {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Task Boards */
+.tasks-section {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+.desk-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--sp-6);
+    flex: 1;
+}
+
+.desk-container {
+    display: flex;
+    flex-direction: column;
+    max-height: 500px;
+}
+
+/* Modals */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(11, 16, 32, 0.8);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 100;
+}
+
+.modal {
+    width: 100%;
+    max-width: 400px;
+    padding: var(--sp-6);
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-4);
+    text-align: center;
+}
+
+/* Responsive */
+@media (max-width: 1024px) {
+    .workspace-grid {
+        flex-direction: column;
+    }
+    .sidebar {
+        width: 100%;
+        flex-direction: row;
+        overflow-x: auto;
+    }
+    .sidebar > * {
+        min-width: 300px;
+    }
+    .top-row {
+        flex-direction: column;
+    }
+    .desk-grid {
+        grid-template-columns: 1fr;
+    }
+}
