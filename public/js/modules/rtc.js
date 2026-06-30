@@ -2,6 +2,7 @@ import { sendSignal } from './socket.js';
 
 let localStream = null;
 const peers = {};
+const candidateQueues = {};
 
 const ICE_SERVERS = {
     iceServers: [
@@ -75,17 +76,36 @@ export const handleSignal = async (data, onRemoteStream) => {
     let pc = peers[from];
     if (!pc) {
         pc = createPeerConnection(from, onRemoteStream);
+        candidateQueues[from] = [];
     }
 
-    if (signal.type === 'offer') {
-        await pc.setRemoteDescription(new RTCSessionDescription(signal.offer));
-        const answer = await pc.createAnswer();
-        await pc.setLocalDescription(answer);
-        sendSignal(from, { type: 'answer', answer });
-    } else if (signal.type === 'answer') {
-        await pc.setRemoteDescription(new RTCSessionDescription(signal.answer));
-    } else if (signal.type === 'candidate') {
-        await pc.addIceCandidate(new RTCIceCandidate(signal.candidate));
+    try {
+        if (signal.type === 'offer') {
+            await pc.setRemoteDescription(new RTCSessionDescription(signal.offer));
+            const answer = await pc.createAnswer();
+            await pc.setLocalDescription(answer);
+            sendSignal(from, { type: 'answer', answer });
+            
+            // Process queued candidates
+            if (candidateQueues[from]) {
+                for (let c of candidateQueues[from]) {
+                    await pc.addIceCandidate(c);
+                }
+                delete candidateQueues[from];
+            }
+        } else if (signal.type === 'answer') {
+            await pc.setRemoteDescription(new RTCSessionDescription(signal.answer));
+        } else if (signal.type === 'candidate') {
+            const candidate = new RTCIceCandidate(signal.candidate);
+            if (pc.remoteDescription && pc.remoteDescription.type) {
+                await pc.addIceCandidate(candidate);
+            } else {
+                if (!candidateQueues[from]) candidateQueues[from] = [];
+                candidateQueues[from].push(candidate);
+            }
+        }
+    } catch (err) {
+        console.error("WebRTC Signal Error:", err);
     }
 };
 

@@ -1,7 +1,7 @@
 import { initSocket, getSocket } from './modules/socket.js';
 import { initMedia, toggleAudio, toggleVideo, handleSignal, removePeer, callUser } from './modules/rtc.js';
-import { initTimer, toggleTimer, resetTimer, setMode, syncState } from './modules/timer.js';
-import { initTasks, addTask, toggleTask, deleteTask, getStats as getTaskStats } from './modules/tasks.js';
+import { initTimer, toggleTimer, resetTimer, setMode, syncState, setTimerSettings } from './modules/timer.js';
+import { initTasks, addTask, toggleTask, deleteTask, getStats as getTaskStats, setSharedTasks } from './modules/tasks.js';
 import { initPresence, updatePresence, startFocusTracking, stopFocusTracking } from './modules/presence.js';
 import { initChat, handleIncomingMessage } from './modules/chat.js';
 import * as UI from './modules/ui.js';
@@ -51,6 +51,34 @@ const initApp = async () => {
         btn.addEventListener('click', (e) => {
             setMode(e.target.dataset.mode);
         });
+    });
+
+    // Timer Settings Modal
+    const timerSettingsModal = document.getElementById('timer-settings-modal');
+    document.getElementById('open-timer-settings-btn').addEventListener('click', () => {
+        modalOverlay.classList.remove('hidden');
+        timerSettingsModal.classList.remove('hidden');
+        document.getElementById('join-modal').classList.add('hidden'); // Ensure join is hidden
+    });
+    
+    document.getElementById('close-timer-settings-btn').addEventListener('click', () => {
+        modalOverlay.classList.add('hidden');
+        timerSettingsModal.classList.add('hidden');
+    });
+
+    document.getElementById('save-timer-settings-btn').addEventListener('click', () => {
+        const focus = parseInt(document.getElementById('setting-focus-duration').value) || 25;
+        const shortBreak = parseInt(document.getElementById('setting-short-break-duration').value) || 5;
+        const longBreak = parseInt(document.getElementById('setting-long-break-duration').value) || 15;
+        
+        setTimerSettings({
+            focus: focus * 60,
+            shortBreak: shortBreak * 60,
+            longBreak: longBreak * 60
+        });
+        
+        modalOverlay.classList.add('hidden');
+        timerSettingsModal.classList.add('hidden');
     });
 
     // Task Controls
@@ -146,12 +174,8 @@ const handleJoin = async () => {
                 updatePresence({ status: '🟢 Online' });
             }
         },
-        onPartnerTaskUpdate: (data) => {
-            if (partners[data.userId]) {
-                partners[data.userId].tasks = data.tasks;
-                partners[data.userId].stats = data.stats;
-                updatePartnerUI(data.userId);
-            }
+        onRoomTasksUpdate: (data) => {
+            setSharedTasks(data.tasks);
         },
         onPartnerPresenceUpdate: (data) => {
             if (partners[data.userId]) {
@@ -170,11 +194,23 @@ const handleJoin = async () => {
     });
 
     initTasks(roomId, [], (tasks, stats) => {
-        UI.renderTaskList(UI.UI.myTaskList, tasks, false, toggleTask, deleteTask);
-        UI.updateTaskStatsUI(stats, UI.UI.myTaskProgressText, UI.UI.myTaskProgressFill);
+        UI.renderTaskList(document.getElementById('room-task-list'), tasks, false, toggleTask, deleteTask);
+        UI.updateTaskStatsUI(stats, document.getElementById('room-task-progress-text'), document.getElementById('room-task-progress-fill'));
         
-        // Always refresh my presence UI when tasks change
+        // Refresh my presence UI when tasks change
         UI.updateMyPresenceUI(getPresenceState(), getTaskStats(), currentUsername);
+        
+        // Tab Logic
+        const tabBtns = document.querySelectorAll('.tab-btn');
+        tabBtns.forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                tabBtns.forEach(b => b.classList.remove('active'));
+                document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+                
+                e.target.classList.add('active');
+                document.getElementById(e.target.dataset.tab).classList.add('active');
+            });
+        });
     });
 
     initPresence(roomId, (presenceState) => {
@@ -226,13 +262,8 @@ const updatePartnerUI = (userId) => {
     const partner = partners[userId];
     if (!partner) return;
     
-    // Assuming 1 on 1 for simple task view, or display the latest active partner's tasks
-    UI.UI.partnerEmptyState.classList.add('hidden');
-    UI.renderTaskList(UI.UI.partnerTaskList, partner.tasks || [], true, null, null);
-    UI.updateTaskStatsUI(partner.stats || {total:0, completed:0}, UI.UI.partnerTaskProgressText, UI.UI.partnerTaskProgressFill);
-    
     // Update presence card
-    UI.renderPartnerPresenceCard(userId, partner, partner.tasks, partner.stats);
+    UI.renderPartnerPresenceCard(userId, partner);
 };
 
 // Start

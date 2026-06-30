@@ -1,16 +1,21 @@
 import { updateTasks as socketUpdateTasks } from './socket.js';
 import { updatePresence } from './presence.js';
 
-let myTasks = [];
+let roomTasks = [];
 let roomId = null;
 let updateUI = null;
 
 export const initTasks = (rId, initialTasks, uiCallback) => {
     roomId = rId;
-    myTasks = initialTasks || [];
+    roomTasks = initialTasks || [];
     updateUI = uiCallback;
-    broadcastTasks();
     renderTasks();
+};
+
+export const setSharedTasks = (tasks) => {
+    roomTasks = tasks;
+    renderTasks();
+    updateCurrentTaskPresence();
 };
 
 export const addTask = (title) => {
@@ -23,7 +28,7 @@ export const addTask = (title) => {
         createdAt: Date.now()
     };
     
-    myTasks.push(newTask);
+    roomTasks.push(newTask);
     broadcastTasks();
     renderTasks();
     
@@ -32,7 +37,7 @@ export const addTask = (title) => {
 };
 
 export const toggleTask = (taskId) => {
-    const task = myTasks.find(t => t.id === taskId);
+    const task = roomTasks.find(t => t.id === taskId);
     if (task) {
         task.completed = !task.completed;
         broadcastTasks();
@@ -42,30 +47,30 @@ export const toggleTask = (taskId) => {
 };
 
 export const deleteTask = (taskId) => {
-    myTasks = myTasks.filter(t => t.id !== taskId);
+    roomTasks = roomTasks.filter(t => t.id !== taskId);
     broadcastTasks();
     renderTasks();
     updateCurrentTaskPresence();
 };
 
 export const getStats = () => {
-    const total = myTasks.length;
-    const completed = myTasks.filter(t => t.completed).length;
+    const total = roomTasks.length;
+    const completed = roomTasks.filter(t => t.completed).length;
     return { total, completed };
 };
 
 const broadcastTasks = () => {
-    socketUpdateTasks(roomId, myTasks, getStats());
+    socketUpdateTasks(roomId, roomTasks);
 };
 
 const renderTasks = () => {
     if (updateUI) {
-        updateUI(myTasks, getStats());
+        updateUI(roomTasks, getStats());
     }
 };
 
 const updateCurrentTaskPresence = () => {
-    const currentTask = myTasks.find(t => !t.completed);
+    const currentTask = roomTasks.find(t => !t.completed);
     if (currentTask) {
         updatePresence({ currentTask: currentTask.title });
     } else {

@@ -4,11 +4,17 @@ const userRoomMap = new Map();
 function createDefaultRoomState() {
     return {
         users: {},
+        tasks: [], // Shared Room Tasks
         timer: {
             mode: 'focus', // 'focus', 'shortBreak', 'longBreak'
             timeLeft: 25 * 60,
             isRunning: false,
-            sessionCount: 0
+            sessionCount: 0,
+            durations: {
+                focus: 25 * 60,
+                shortBreak: 5 * 60,
+                longBreak: 15 * 60
+            }
         }
     };
 }
@@ -22,8 +28,6 @@ module.exports = {
         const room = activeRooms.get(roomId);
         room.users[userId] = {
             ...userData,
-            tasks: [],
-            stats: { completed: 0, total: 0 },
             presence: {
                 status: '🟢 Online',
                 nowPlaying: null
@@ -84,6 +88,13 @@ module.exports = {
                 room.timer.timeLeft = payload.duration;
                 room.timer.isRunning = false;
                 break;
+            case 'settings_change':
+                room.timer.durations = payload.durations;
+                // Update current timeLeft if not running
+                if (!room.timer.isRunning) {
+                    room.timer.timeLeft = room.timer.durations[room.timer.mode];
+                }
+                break;
             case 'session_complete':
                 room.timer.sessionCount++;
                 break;
@@ -92,11 +103,9 @@ module.exports = {
         return room.timer;
     },
 
-    updateUserTasks: (roomId, userId, tasks, stats) => {
-        if (activeRooms.has(roomId) && activeRooms.get(roomId).users[userId]) {
-            const user = activeRooms.get(roomId).users[userId];
-            user.tasks = tasks;
-            user.stats = stats;
+    updateRoomTasks: (roomId, tasks) => {
+        if (activeRooms.has(roomId)) {
+            activeRooms.get(roomId).tasks = tasks;
         }
     },
 

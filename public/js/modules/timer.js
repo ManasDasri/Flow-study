@@ -5,7 +5,8 @@ let state = {
     timeLeft: 25 * 60,
     isRunning: false,
     duration: 25 * 60,
-    sessionCount: 0
+    sessionCount: 0,
+    durations: { focus: 25 * 60, shortBreak: 5 * 60, longBreak: 15 * 60 }
 };
 
 let timerInterval = null;
@@ -13,9 +14,9 @@ let roomId = null;
 let updateUI = null;
 
 const MODES = {
-    focus: 25 * 60,
-    shortBreak: 5 * 60,
-    longBreak: 15 * 60
+    focus: () => state.durations.focus,
+    shortBreak: () => state.durations.shortBreak,
+    longBreak: () => state.durations.longBreak
 };
 
 export const initTimer = (rId, uiCallback) => {
@@ -26,8 +27,8 @@ export const initTimer = (rId, uiCallback) => {
 
 export const syncState = (serverState) => {
     state = { ...state, ...serverState };
-    if (state.mode) {
-        state.duration = MODES[state.mode];
+    if (state.mode && state.durations) {
+        state.duration = MODES[state.mode]();
     }
     
     if (state.isRunning && !timerInterval) {
@@ -48,13 +49,17 @@ export const toggleTimer = () => {
 };
 
 export const resetTimer = () => {
-    socketUpdateTimer(roomId, 'reset', { duration: MODES[state.mode] });
+    socketUpdateTimer(roomId, 'reset', { duration: MODES[state.mode]() });
 };
 
 export const setMode = (mode) => {
     if (MODES[mode]) {
-        socketUpdateTimer(roomId, 'mode_change', { mode, duration: MODES[mode] });
+        socketUpdateTimer(roomId, 'mode_change', { mode, duration: MODES[mode]() });
     }
+};
+
+export const setTimerSettings = (durations) => {
+    socketUpdateTimer(roomId, 'settings_change', { durations });
 };
 
 const startLocalTick = () => {

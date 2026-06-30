@@ -28,8 +28,8 @@ export const initSocket = (roomId, username, handlers) => {
         handlers.onTimerUpdated(timerData);
     });
 
-    socket.on('partner-task-update', (data) => {
-        handlers.onPartnerTaskUpdate(data);
+    socket.on('room-tasks-update', (data) => {
+        handlers.onRoomTasksUpdate(data);
     });
 
     socket.on('partner-presence-update', (data) => {

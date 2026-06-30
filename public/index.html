@@ -22,12 +22,35 @@
 
     <!-- Modals Overlay -->
     <div id="modal-overlay" class="modal-overlay">
+        <!-- Join Room Modal -->
         <div id="join-modal" class="modal glass-panel">
             <h2>Join a Flow Room</h2>
             <p>Enter a room code to study together.</p>
             <input type="text" id="room-code-input" placeholder="Room Code" class="glass-input">
             <input type="text" id="username-input" placeholder="Your Name" class="glass-input">
             <button id="join-btn" class="btn btn-primary">Join Room</button>
+        </div>
+        
+        <!-- Timer Settings Modal (Initially hidden) -->
+        <div id="timer-settings-modal" class="modal glass-panel hidden">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                <h2 style="margin: 0; font-size: 1.25rem;">Timer Settings</h2>
+                <button id="close-timer-settings-btn" class="icon-btn"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button>
+            </div>
+            
+            <div class="settings-group">
+                <label>Focus (minutes)</label>
+                <input type="number" id="setting-focus-duration" class="glass-input" value="25" min="1" max="120">
+            </div>
+            <div class="settings-group mt-2">
+                <label>Short Break (minutes)</label>
+                <input type="number" id="setting-short-break-duration" class="glass-input" value="5" min="1" max="60">
+            </div>
+            <div class="settings-group mt-2 mb-4">
+                <label>Long Break (minutes)</label>
+                <input type="number" id="setting-long-break-duration" class="glass-input" value="15" min="1" max="60">
+            </div>
+            <button id="save-timer-settings-btn" class="btn btn-primary">Save Changes</button>
         </div>
     </div>
 
@@ -43,16 +66,13 @@
                 </div>
             </div>
             <div class="header-right">
-                <button class="icon-btn" aria-label="Settings">
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 15a3 3 0 100-6 3 3 0 000 6z"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
-                </button>
                 <button id="leave-btn" class="btn btn-danger-outline">Leave Room</button>
             </div>
         </header>
 
         <div class="workspace-grid">
-            <!-- Sidebar -->
-            <aside class="sidebar">
+            <!-- LEFT SIDEBAR: Presence, Invites, Media -->
+            <aside class="sidebar left-sidebar">
                 <!-- User Profile / Presence Card -->
                 <div class="glass-card profile-card" id="my-presence-card">
                     <div class="profile-header">
@@ -75,20 +95,11 @@
                             <span class="label">Focus Time Today:</span>
                             <span class="value" id="my-focus-time">0h 0m</span>
                         </div>
-                        <div class="detail-row">
-                            <span class="label">Completed:</span>
-                            <span class="value" id="my-completed-tasks">0 / 0 Tasks</span>
-                        </div>
-                    </div>
-                    
-                    <div class="now-playing mt-4 glass-panel-inner">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18V5l12-2v13"></path><circle cx="6" cy="18" r="3"></circle><circle cx="18" cy="16" r="3"></circle></svg>
-                        <span id="my-now-playing">Lofi Girl • Snowfall</span>
                     </div>
                 </div>
 
-                <!-- Partner Presence Cards (Dynamically inserted) -->
-                <div id="partner-presence-container"></div>
+                <!-- Partner Presence Cards -->
+                <div id="partner-presence-container" class="mt-4"></div>
                 
                 <!-- Invite Card -->
                 <div class="glass-card mt-4 invite-card">
@@ -100,121 +111,99 @@
                 </div>
 
                 <!-- Spotify Embed -->
-                <div class="glass-card mt-4 p-0" style="padding: 0; overflow: hidden;">
+                <div class="glass-card mt-4 p-0" style="padding: 0; overflow: hidden; flex-shrink: 0;">
                     <iframe style="border-radius:12px; display:block;" src="https://open.spotify.com/embed/playlist/0vvXsWCC9xrXsKd4FyS8kM?utm_source=generator&theme=0" width="100%" height="152" frameBorder="0" allowfullscreen="" allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" loading="lazy"></iframe>
                 </div>
             </aside>
 
-            <!-- Main Content Area -->
-            <main class="main-workspace">
-                <div class="top-row">
-                    <!-- Video Call Area -->
-                    <div class="glass-card video-container">
-                        <div class="video-grid" id="video-grid">
-                            <div class="video-wrapper">
-                                <video id="local-video" autoplay muted playsinline></video>
-                                <div class="video-overlay">
-                                    <span class="name-tag">You</span>
-                                    <div class="controls">
-                                        <button id="toggle-mic" class="icon-btn round active"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z"/><path d="M19 10v2a7 7 0 01-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg></button>
-                                        <button id="toggle-cam" class="icon-btn round active"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg></button>
-                                    </div>
-                                </div>
+            <!-- CENTER STAGE: Video Grid -->
+            <main class="main-workspace center-stage glass-card">
+                <div class="video-grid" id="video-grid">
+                    <div class="video-wrapper">
+                        <video id="local-video" autoplay muted playsinline></video>
+                        <div class="video-overlay">
+                            <span class="name-tag">You</span>
+                            <div class="controls">
+                                <button id="toggle-mic" class="icon-btn round active"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z"/><path d="M19 10v2a7 7 0 01-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg></button>
+                                <button id="toggle-cam" class="icon-btn round active"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg></button>
                             </div>
-                            <!-- Remote videos injected here -->
                         </div>
                     </div>
-
-                    <!-- Pomodoro Timer -->
-                    <div class="glass-card timer-container">
-                        <div class="timer-header">
-                            <div class="timer-modes">
-                                <button class="mode-btn active" data-mode="focus">Focus</button>
-                                <button class="mode-btn" data-mode="shortBreak">Short Break</button>
-                                <button class="mode-btn" data-mode="longBreak">Long Break</button>
-                            </div>
-                        </div>
-                        
-                        <div class="timer-display">
-                            <div class="progress-ring">
-                                <svg class="progress-ring__svg" width="200" height="200">
-                                    <circle class="progress-ring__circle-bg" stroke="rgba(255,255,255,0.1)" stroke-width="8" fill="transparent" r="90" cx="100" cy="100"/>
-                                    <circle class="progress-ring__circle" stroke="#6C63FF" stroke-width="8" fill="transparent" r="90" cx="100" cy="100"/>
-                                </svg>
-                                <div class="time-text" id="time-display">25:00</div>
-                            </div>
-                        </div>
-
-                        <div class="timer-controls">
-                            <button id="timer-toggle-btn" class="btn btn-primary large shadow-glow">Start Focus</button>
-                            <button id="timer-reset-btn" class="icon-btn round"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 109-9 9.75 9.75 0 00-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg></button>
-                        </div>
-                        
-                        <div class="session-tracker mt-4">
-                            <span class="session-dot completed"></span>
-                            <span class="session-dot"></span>
-                            <span class="session-dot"></span>
-                            <span class="session-dot"></span>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Task Boards -->
-                <div class="tasks-section mt-6">
-                    <div class="desk-grid">
-                        <!-- My Desk -->
-                        <div class="glass-card desk-container my-desk">
-                            <div class="desk-header">
-                                <h3>Your Desk</h3>
-                                <div class="desk-stats">
-                                    <span class="progress-text" id="my-task-progress-text">0%</span>
-                                    <div class="mini-progress-bar"><div class="fill" id="my-task-progress-fill" style="width: 0%"></div></div>
-                                </div>
-                            </div>
-                            
-                            <div class="add-task-container">
-                                <input type="text" id="new-task-input" class="glass-input clear" placeholder="What are you working on?">
-                                <button id="add-task-btn" class="btn btn-primary small">Add</button>
-                            </div>
-
-                            <ul class="task-list" id="my-task-list">
-                                <!-- Tasks injected here -->
-                            </ul>
-                        </div>
-
-                        <!-- Partner Desk -->
-                        <div class="glass-card desk-container partner-desk">
-                            <div class="desk-header">
-                                <h3>Partner's Desk</h3>
-                                <div class="desk-stats">
-                                    <span class="progress-text" id="partner-task-progress-text">0%</span>
-                                    <div class="mini-progress-bar"><div class="fill" id="partner-task-progress-fill" style="width: 0%"></div></div>
-                                </div>
-                            </div>
-                            <div class="partner-empty-state" id="partner-empty-state">
-                                Waiting for partner to join...
-                            </div>
-                            <ul class="task-list read-only" id="partner-task-list">
-                                <!-- Partner tasks injected here -->
-                            </ul>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Chat & AI Section -->
-                <div class="chat-section mt-6 glass-card" style="display: flex; flex-direction: column; height: 300px; padding: 0;">
-                    <div class="desk-header" style="padding: 16px; border-bottom: 1px solid rgba(255,255,255,0.05); margin: 0;">
-                        <h3>Room Chat (Type /ai to ask the assistant)</h3>
-                    </div>
-                    <div id="chat-messages" style="flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 8px;">
-                        <!-- Messages injected here -->
-                    </div>
-                    <div style="padding: 16px; border-top: 1px solid rgba(255,255,255,0.05); display: flex; gap: 8px;">
-                        <input type="text" id="chat-input" class="glass-input clear" placeholder="Send a message...">
-                        <button id="send-chat-btn" class="btn btn-primary small">Send</button>
-                    </div>
+                    <!-- Remote videos injected here -->
                 </div>
             </main>
+
+            <!-- RIGHT SIDEBAR: Tools (Timer, Tasks, Chat) -->
+            <aside class="sidebar right-sidebar">
+                <!-- Pomodoro Timer -->
+                <div class="glass-card timer-container" style="position: relative;">
+                    <button id="open-timer-settings-btn" class="icon-btn" style="position: absolute; top: 12px; right: 12px;">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.7)" stroke-width="2"><path d="M12 15a3 3 0 100-6 3 3 0 000 6z"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+                    </button>
+                    <div class="timer-modes" style="margin-top: 24px;">
+                        <button class="mode-btn active" data-mode="focus">Focus</button>
+                        <button class="mode-btn" data-mode="shortBreak">Break</button>
+                        <button class="mode-btn" data-mode="longBreak">Long</button>
+                    </div>
+                    
+                    <div class="timer-display mt-2">
+                        <div class="progress-ring">
+                            <svg class="progress-ring__svg" width="160" height="160">
+                                <circle class="progress-ring__circle-bg" stroke="rgba(255,255,255,0.05)" stroke-width="6" fill="transparent" r="70" cx="80" cy="80"/>
+                                <circle class="progress-ring__circle" stroke="var(--primary)" stroke-width="6" fill="transparent" r="70" cx="80" cy="80"/>
+                            </svg>
+                            <div class="time-text" id="time-display" style="font-size: 2.5rem;">25:00</div>
+                        </div>
+                    </div>
+
+                    <div class="timer-controls">
+                        <button id="timer-toggle-btn" class="btn btn-primary large shadow-glow">Start Focus</button>
+                        <button id="timer-reset-btn" class="icon-btn round" title="Reset Timer"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.59-8.31l5.67-5.67"/></svg></button>
+                    </div>
+                </div>
+
+                <!-- Tabbed Panel (Tasks / Chat) -->
+                <div class="glass-card mt-4 tabbed-container" style="flex: 1; display: flex; flex-direction: column; overflow: hidden; padding: 0;">
+                    
+                    <!-- Tabs Header -->
+                    <div class="tabs-header">
+                        <button class="tab-btn active" data-tab="tasks-tab">Room Tasks</button>
+                        <button class="tab-btn" data-tab="chat-tab">Room Chat</button>
+                    </div>
+
+                    <!-- Tasks Tab -->
+                    <div id="tasks-tab" class="tab-content active" style="flex: 1; display: flex; flex-direction: column; overflow: hidden; padding: 16px;">
+                        <div class="add-task-container">
+                            <input type="text" id="new-task-input" class="glass-input clear" placeholder="Add a shared task...">
+                            <button id="add-task-btn" class="btn btn-primary small">Add</button>
+                        </div>
+                        
+                        <!-- Shared Task Progress -->
+                        <div class="task-progress mt-2 mb-2" style="display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--text-secondary);">
+                            <div style="flex: 1; height: 6px; background: rgba(255,255,255,0.1); border-radius: 3px; overflow: hidden;">
+                                <div id="room-task-progress-fill" style="height: 100%; width: 0%; background: var(--green); transition: width 0.3s;"></div>
+                            </div>
+                            <span id="room-task-progress-text">0%</span>
+                        </div>
+
+                        <ul class="task-list" id="room-task-list" style="overflow-y: auto; flex: 1;">
+                            <!-- Tasks injected here -->
+                        </ul>
+                    </div>
+
+                    <!-- Chat Tab -->
+                    <div id="chat-tab" class="tab-content" style="flex: 1; display: flex; flex-direction: column; overflow: hidden; padding: 16px;">
+                        <div id="chat-messages" style="flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px;">
+                            <!-- Messages injected here -->
+                        </div>
+                        <div style="display: flex; gap: 8px;">
+                            <input type="text" id="chat-input" class="glass-input clear" placeholder="/ai to ask bot..." style="font-size: 13px;">
+                            <button id="send-chat-btn" class="btn btn-primary small">Send</button>
+                        </div>
+                    </div>
+
+                </div>
+            </aside>
         </div>
     </div>
 

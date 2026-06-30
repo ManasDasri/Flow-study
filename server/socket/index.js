@@ -43,13 +43,11 @@ module.exports = (io) => {
 
         // Task Events
         socket.on('task-update', (data) => {
-            const { roomId, tasks, stats } = data;
-            rooms.updateUserTasks(roomId, socket.id, tasks, stats);
+            const { roomId, tasks } = data;
+            rooms.updateRoomTasks(roomId, tasks);
             
-            socket.to(roomId).emit('partner-task-update', {
-                userId: socket.id,
-                tasks,
-                stats
+            socket.to(roomId).emit('room-tasks-update', {
+                tasks
             });
         });
 

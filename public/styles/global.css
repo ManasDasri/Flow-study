@@ -1,36 +1,35 @@
 :root {
-    /* Color Palette */
-    --bg-dark: #0B1020;
-    --surface: #131A2B;
-    --glass-bg: rgba(20, 25, 40, 0.55);
-    --glass-border: rgba(255, 255, 255, 0.08);
-    --primary: #6C63FF;
-    --primary-hover: #8B7CFF;
-    --green: #22C55E;
-    --red: #EF4444;
-    --yellow: #F59E0B;
-    --text-main: #F8FAFC;
-    --text-muted: #94A3B8;
-
-    /* Shadows & Radii */
-    --shadow-soft: 0 8px 32px rgba(0, 0, 0, 0.3);
-    --shadow-glow: 0 0 20px rgba(108, 99, 255, 0.4);
-    --radius-lg: 24px;
-    --radius-md: 16px;
-    --radius-sm: 8px;
-    --radius-round: 50%;
-
-    /* Typography */
-    --font-main: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    /* Color Palette (Deep, ultra-dark Glassmorphism) */
+    --bg-dark: #05050A; /* Extremely dark baseline */
+    --surface: #0a0b10;
+    --glass-bg: rgba(20, 22, 30, 0.6);
+    --glass-bg-hover: rgba(30, 32, 45, 0.75);
+    --glass-border: rgba(255, 255, 255, 0.05);
+    --glass-border-light: rgba(255, 255, 255, 0.1);
     
-    /* Spacing */
-    --sp-1: 4px;
-    --sp-2: 8px;
-    --sp-3: 12px;
-    --sp-4: 16px;
-    --sp-5: 24px;
-    --sp-6: 32px;
-    --sp-8: 48px;
+    /* Neon Accents (Discord/Notion vibe) */
+    --primary: #5865F2; /* Blurple */
+    --primary-hover: #4752C4;
+    --green: #23a559; /* Discord green */
+    --green-glow: rgba(35, 165, 89, 0.4);
+    --red: #da373c;
+    --red-glow: rgba(218, 55, 60, 0.4);
+    --accent: #eb459e; /* Neon pink accent */
+    
+    /* Text */
+    --text-primary: #F2F3F5;
+    --text-secondary: #B5BAC1;
+    --text-muted: #80848E;
+    
+    /* Geometry */
+    --radius-sm: 6px;
+    --radius-md: 12px;
+    --radius-lg: 18px;
+    --radius-xl: 24px;
+    
+    /* Shadows */
+    --shadow-soft: 0 8px 32px 0 rgba(0, 0, 0, 0.5);
+    --shadow-glow: 0 0 16px var(--primary);
 }
 
 * {
@@ -40,60 +39,158 @@
 }
 
 body {
-    font-family: var(--font-main);
+    font-family: 'Inter', -apple-system, sans-serif;
     background-color: var(--bg-dark);
-    color: var(--text-main);
-    line-height: 1.5;
-    -webkit-font-smoothing: antialiased;
-    overflow-x: hidden;
+    color: var(--text-primary);
+    overflow: hidden;
     position: relative;
-    min-height: 100vh;
+    -webkit-font-smoothing: antialiased;
 }
 
-/* Background mesh gradient effect */
+/* Background Mesh / Glows */
 .bg-mesh {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100vw;
-    height: 100vh;
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
     z-index: -1;
     background: 
-        radial-gradient(circle at 15% 50%, rgba(108, 99, 255, 0.15), transparent 25%),
-        radial-gradient(circle at 85% 30%, rgba(34, 197, 94, 0.05), transparent 25%);
+        radial-gradient(circle at 15% 50%, rgba(88, 101, 242, 0.15), transparent 25%),
+        radial-gradient(circle at 85% 30%, rgba(235, 69, 158, 0.1), transparent 25%);
     filter: blur(60px);
 }
 
-h1, h2, h3, h4, h5, h6 {
-    font-weight: 600;
-    color: var(--text-main);
-}
+/* Typography utilities */
+h1, h2, h3, h4 { font-weight: 600; letter-spacing: -0.5px; }
+.highlight { color: var(--primary); }
+.text-muted { color: var(--text-muted); }
 
-a {
-    color: var(--primary);
-    text-decoration: none;
-}
-
-button {
-    font-family: inherit;
-    cursor: pointer;
+/* Buttons */
+.btn {
     border: none;
-    background: none;
-    outline: none;
+    border-radius: var(--radius-sm);
+    padding: 10px 16px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
 }
 
-input {
+.btn-primary {
+    background: var(--primary);
+    color: white;
+}
+
+.btn-primary:hover {
+    background: var(--primary-hover);
+    transform: translateY(-1px);
+}
+
+.btn-danger-outline {
+    background: transparent;
+    color: var(--red);
+    border: 1px solid var(--red);
+}
+
+.btn-danger-outline:hover {
+    background: var(--red);
+    color: white;
+}
+
+.btn.small {
+    padding: 6px 12px;
+    font-size: 13px;
+}
+
+.btn.large {
+    padding: 14px 28px;
+    font-size: 16px;
+    border-radius: var(--radius-md);
+}
+
+.shadow-glow:hover {
+    box-shadow: var(--shadow-glow);
+}
+
+.icon-btn {
+    background: transparent;
+    border: none;
+    color: var(--text-secondary);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+    border-radius: var(--radius-sm);
+    padding: 6px;
+}
+
+.icon-btn:hover {
+    background: rgba(255,255,255,0.1);
+    color: var(--text-primary);
+}
+
+.icon-btn.round {
+    border-radius: 50%;
+    padding: 10px;
+    background: rgba(255,255,255,0.05);
+}
+
+.icon-btn.round:hover {
+    background: rgba(255,255,255,0.15);
+}
+
+.icon-btn.active {
+    background: rgba(255,255,255,0.2);
+    color: white;
+}
+
+/* Inputs */
+.glass-input {
+    background: rgba(0,0,0,0.3);
+    border: 1px solid var(--glass-border);
+    color: var(--text-primary);
+    padding: 10px 14px;
+    border-radius: var(--radius-sm);
+    font-size: 14px;
+    outline: none;
+    transition: border-color 0.2s;
+    width: 100%;
     font-family: inherit;
 }
+
+.glass-input:focus {
+    border-color: var(--primary);
+}
+
+.glass-input.clear {
+    background: rgba(255,255,255,0.03);
+    border-color: transparent;
+}
+.glass-input.clear:focus {
+    background: rgba(255,255,255,0.08);
+    border-color: transparent;
+}
+
+/* Status dots */
+.dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    display: inline-block;
+}
+
+.dot.green { background: var(--green); box-shadow: 0 0 8px var(--green-glow); }
+.dot.yellow { background: #facc15; }
+.dot.red { background: var(--red); box-shadow: 0 0 8px var(--red-glow); }
+.dot.gray { background: var(--text-muted); }
 
 /* Utilities */
-.hidden {
-    display: none !important;
-}
-
-.mt-4 { margin-top: var(--sp-4); }
-.mt-6 { margin-top: var(--sp-6); }
-.mb-4 { margin-bottom: var(--sp-4); }
-
-.text-muted { color: var(--text-muted); }
-.text-green { color: var(--green); }
+.hidden { display: none !important; }
+.mt-2 { margin-top: 8px; }
+.mt-4 { margin-top: 16px; }
+.mt-6 { margin-top: 24px; }
+.mb-4 { margin-bottom: 16px; }
+.p-0 { padding: 0 !important; }

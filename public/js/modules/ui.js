@@ -129,7 +129,7 @@ export const updateMyPresenceUI = (state, stats, username) => {
     dot.className = `dot ${state.status.includes('Break') ? 'yellow' : 'green'}`;
 };
 
-export const renderPartnerPresenceCard = (userId, userData, tasks, stats) => {
+export const renderPartnerPresenceCard = (userId, userData) => {
     let card = document.getElementById(`presence-${userId}`);
     
     if (!card) {
@@ -138,8 +138,6 @@ export const renderPartnerPresenceCard = (userId, userData, tasks, stats) => {
         card.className = 'glass-card profile-card mt-4 fade-in';
         els.partnerPresenceContainer.appendChild(card);
     }
-    
-    const currentTask = tasks && tasks.length > 0 ? (tasks.find(t => !t.completed)?.title || 'All done!') : 'Planning...';
     
     card.innerHTML = `
         <div class="profile-header">
@@ -154,13 +152,14 @@ export const renderPartnerPresenceCard = (userId, userData, tasks, stats) => {
         </div>
         <div class="presence-details mt-4">
             <div class="detail-row">
-                <span class="label">Current Task:</span>
-                <span class="value">${escapeHTML(currentTask)}</span>
+                <span class="label">Status:</span>
+                <span class="value">${userData.presence?.status || 'Online'}</span>
             </div>
+            ${userData.presence?.nowPlaying ? `
             <div class="detail-row">
-                <span class="label">Completed:</span>
-                <span class="value">${stats?.completed || 0} / ${stats?.total || 0} Tasks</span>
-            </div>
+                <span class="label">Listening to:</span>
+                <span class="value now-playing">${escapeHTML(userData.presence.nowPlaying)}</span>
+            </div>` : ''}
         </div>
     `;
 };
