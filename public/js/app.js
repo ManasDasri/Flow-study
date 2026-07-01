@@ -20,14 +20,16 @@ const appContainer = document.getElementById('app');
 // Video Container
 const videoGrid = document.getElementById('video-grid');
 
-// Initialize App
 const initApp = async () => {
-    // Generate random code if empty
-    roomCodeInput.value = Math.random().toString(36).substring(2, 8).toUpperCase();
+    const hostBtn = document.getElementById('host-btn');
     
     joinBtn.addEventListener('click', handleJoin);
     
-    // RTC Controls
+    hostBtn.addEventListener('click', () => {
+        // Auto-generate a room code and join
+        roomCodeInput.value = Math.random().toString(36).substring(2, 8).toUpperCase();
+        handleJoin();
+    });
     document.getElementById('toggle-mic').addEventListener('click', (e) => {
         const enabled = toggleAudio();
         e.currentTarget.classList.toggle('active', enabled);
