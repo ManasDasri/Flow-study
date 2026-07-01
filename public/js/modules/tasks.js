@@ -1,4 +1,4 @@
-import { updateTasks as socketUpdateTasks } from './socket.js';
+import supabase from './supabase.js';
 import { updatePresence } from './presence.js';
 
 let roomTasks = [];
@@ -17,8 +17,6 @@ export const setSharedTasks = (tasks) => {
     renderTasks();
     updateCurrentTaskPresence();
 };
-
-import supabase from './supabase.js';
 
 export const addTask = async (title) => {
     if (!title.trim()) return;
