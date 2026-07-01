@@ -18,39 +18,33 @@ export const setSharedTasks = (tasks) => {
     updateCurrentTaskPresence();
 };
 
-export const addTask = (title) => {
+import supabase from './supabase.js';
+
+export const addTask = async (title) => {
     if (!title.trim()) return;
     const user = JSON.parse(localStorage.getItem('flow_user'));
     
-    import('./socket.js').then(module => {
-        module.socket.emit('task-add', {
-            roomId: roomId,
-            title: title.trim(),
-            userId: user ? user.id : null
-        });
+    await supabase.from('tasks').insert({
+        room_id: roomId,
+        title: title.trim(),
+        user_id: user ? user.id : null,
+        completed: false
     });
 };
 
-export const toggleTask = (taskId) => {
+export const toggleTask = async (taskId) => {
     const task = roomTasks.find(t => t.id === taskId);
     if (task) {
-        import('./socket.js').then(module => {
-            module.socket.emit('task-toggle', {
-                roomId: roomId,
-                taskId: taskId,
-                completed: !task.completed
-            });
-        });
+        await supabase.from('tasks')
+            .update({ completed: !task.completed })
+            .eq('id', taskId);
     }
 };
 
-export const deleteTask = (taskId) => {
-    import('./socket.js').then(module => {
-        module.socket.emit('task-delete', {
-            roomId: roomId,
-            taskId: taskId
-        });
-    });
+export const deleteTask = async (taskId) => {
+    await supabase.from('tasks')
+        .delete()
+        .eq('id', taskId);
 };
 
 export const getStats = () => {

@@ -1,60 +1,132 @@
-let socket = null;
+import supabase from './supabase.js';
+
+let channel = null;
+let currentRoomId = null;
+let myUserId = null;
+let myUsername = null;
 
 export const initSocket = (roomId, username, handlers) => {
-    socket = io();
+    currentRoomId = roomId;
+    myUsername = username;
+    const user = JSON.parse(localStorage.getItem('flow_user'));
+    myUserId = user ? user.id : Math.random().toString(36).substring(7);
 
-    socket.on('connect', () => {
-        console.log('Connected to socket server');
-        socket.emit('join-room', roomId, { username });
+    // Create a Supabase Channel for the room
+    channel = supabase.channel(`room:${roomId}`, {
+        config: {
+            presence: {
+                key: myUserId,
+            },
+        },
     });
 
-    socket.on('room-state', (state) => {
-        handlers.onRoomState(state);
+    // Handle Presence (Users joining/leaving)
+    channel.on('presence', { event: 'sync' }, () => {
+        const state = channel.presenceState();
+        const participants = {};
+        for (const [key, presences] of Object.entries(state)) {
+            // Get the most recent presence state for the user
+            participants[key] = presences[0];
+        }
+        handlers.onRoomState({ participants });
     });
 
-    socket.on('user-joined', (data) => {
-        handlers.onUserJoined(data);
+    channel.on('presence', { event: 'join' }, ({ key, newPresences }) => {
+        if (key !== myUserId) {
+            handlers.onUserJoined({ userId: key, ...newPresences[0] });
+        }
     });
 
-    socket.on('user-left', (userId) => {
-        handlers.onUserLeft(userId);
+    channel.on('presence', { event: 'leave' }, ({ key, leftPresences }) => {
+        if (key !== myUserId) {
+            handlers.onUserLeft(key);
+        }
     });
 
-    socket.on('signal', (data) => {
-        handlers.onSignal(data);
+    // Handle Broadcasts (Timer, Chat, WebRTC)
+    channel.on('broadcast', { event: 'signal' }, (payload) => {
+        if (payload.payload.to === myUserId) {
+            handlers.onSignal({ from: payload.payload.from, signal: payload.payload.signal });
+        }
     });
 
-    socket.on('timer-updated', (timerData) => {
-        handlers.onTimerUpdated(timerData);
+    channel.on('broadcast', { event: 'timer-updated' }, (payload) => {
+        handlers.onTimerUpdated(payload.payload);
     });
 
-    socket.on('room-tasks-update', (data) => {
-        handlers.onRoomTasksUpdate(data);
+    channel.on('broadcast', { event: 'chat-message' }, (payload) => {
+        handlers.onChatMessage(payload.payload);
+    });
+    
+    // Subscribe to Postgres Changes for tasks
+    channel.on('postgres_changes', { event: '*', schema: 'public', table: 'tasks', filter: `room_id=eq.${roomId}` }, (payload) => {
+        // We will fetch the latest tasks when any change occurs
+        fetchTasks(roomId, handlers.onRoomTasksUpdate);
     });
 
-    socket.on('partner-presence-update', (data) => {
-        handlers.onPartnerPresenceUpdate(data);
-    });
-
-    socket.on('chat-message', (data) => {
-        handlers.onChatMessage(data);
+    // Subscribe to the channel
+    channel.subscribe(async (status) => {
+        if (status === 'SUBSCRIBED') {
+            console.log('Connected to Supabase Realtime');
+            
+            // Track our presence
+            await channel.track({
+                username: myUsername,
+                status: 'Online',
+                nowPlaying: null
+            });
+            
+            // Initial task fetch
+            fetchTasks(roomId, handlers.onRoomTasksUpdate);
+        }
     });
 };
 
-export const getSocket = () => socket;
+const fetchTasks = async (roomId, callback) => {
+    const { data, error } = await supabase
+        .from('tasks')
+        .select('*')
+        .eq('room_id', roomId)
+        .order('created_at', { ascending: true });
+        
+    if (!error && data) {
+        callback({ tasks: data });
+    }
+};
+
+export const getSocket = () => channel; // Return channel so other modules can use it if needed
 
 export const sendSignal = (to, signal) => {
-    if (socket) socket.emit('signal', { to, signal });
+    if (channel) {
+        channel.send({
+            type: 'broadcast',
+            event: 'signal',
+            payload: { to, from: myUserId, signal }
+        });
+    }
 };
 
 export const updateTimer = (roomId, action, payload) => {
-    if (socket) socket.emit('timer-action', { roomId, action, payload });
+    if (channel) {
+        channel.send({
+            type: 'broadcast',
+            event: 'timer-updated',
+            payload: { action, ...payload }
+        });
+    }
 };
 
-export const updateTasks = (roomId, tasks, stats) => {
-    if (socket) socket.emit('task-update', { roomId, tasks, stats });
-};
-
-export const updatePresence = (roomId, status, nowPlaying) => {
-    if (socket) socket.emit('presence-update', { roomId, status, nowPlaying });
+export const updatePresence = async (roomId, status, nowPlaying) => {
+    if (channel) {
+        // Get current state to merge
+        const state = channel.presenceState();
+        const myState = state[myUserId] ? state[myUserId][0] : {};
+        
+        await channel.track({
+            ...myState,
+            username: myUsername,
+            status: status !== undefined ? status : myState.status,
+            nowPlaying: nowPlaying !== undefined ? nowPlaying : myState.nowPlaying
+        });
+    }
 };

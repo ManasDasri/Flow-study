@@ -1,10 +1,4 @@
-const supabaseUrl = 'https://mrjtkxwenqswbjplmzko.supabase.co';
-const supabaseKey = 'sb_publishable_KbaspJKanVVEPMzUxMSmXw_nQyzfNyf';
-
-let supabase = null;
-if (supabaseUrl && supabaseKey) {
-    supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
-}
+import supabase from './modules/supabase.js';
 
 // DOM Elements
 // DOM Elements

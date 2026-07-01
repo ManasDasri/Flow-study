@@ -1,11 +1,9 @@
 const express = require('express');
 const http = require('http');
 const path = require('path');
-const { Server } = require('socket.io');
 
 const app = express();
 const server = http.createServer(app);
-const io = new Server(server);
 
 const PORT = process.env.PORT || 3000;
 
@@ -17,9 +15,6 @@ app.get('*', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-// Import socket handlers
-require('./server/socket/index')(io);
-
 server.listen(PORT, () => {
-    console.log(`Flow server running on port ${PORT}`);
+    console.log(`Flow static server running on port ${PORT}`);
 });

@@ -28,12 +28,15 @@ const sendMessage = () => {
     const text = chatInput.value.trim();
     if (!text) return;
     
-    const socket = getSocket();
-    if (socket) {
-        socket.emit('chat-message', {
-            roomId,
-            text
+    const channel = getSocket();
+    if (channel) {
+        channel.send({
+            type: 'broadcast',
+            event: 'chat-message',
+            payload: { sender: username, text }
         });
+        // Optimistically render our own message
+        handleIncomingMessage({ sender: username, text });
     }
     
     chatInput.value = '';

@@ -142,25 +142,24 @@ const handleJoin = async () => {
     // Setup Socket
     initSocket(roomId, username, {
         onRoomState: (state) => {
-            UI.updateRoomInfo(roomId, Object.keys(state.users).length);
+            const users = state.participants || {};
+            UI.updateRoomInfo(roomId, Object.keys(users).length);
             
-            // Sync timer
-            syncState(state.timer);
-            
-            // Sync users (if we just joined)
-            Object.keys(state.users).forEach(userId => {
+            Object.keys(users).forEach(userId => {
                 if (userId !== getSocket().id) {
-                    partners[userId] = state.users[userId];
+                    partners[userId] = users[userId];
                     updatePartnerUI(userId);
-                    // Since we joined later, call existing users
                     callUser(userId, onRemoteStream);
                 }
             });
         },
         onUserJoined: (data) => {
-            partners[data.userId] = data.userData;
+            partners[data.userId] = data;
             UI.updateRoomInfo(roomId, Object.keys(partners).length + 1);
             updatePartnerUI(data.userId);
+            // Broadcast timer state to the new user
+            toggleTimer(false); // A little hack to broadcast current state without toggling
+            toggleTimer(false);
         },
         onUserLeft: (userId) => {
             delete partners[userId];
