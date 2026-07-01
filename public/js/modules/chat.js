@@ -42,8 +42,8 @@ const sendMessage = async () => {
     }
     
     // Intercept AI commands
-    if (text.startsWith('/ai ')) {
-        const query = text.replace('/ai ', '');
+    if (text.startsWith('/ai')) {
+        const query = text.replace(/^\/ai\s*/, '');
         try {
             const res = await fetch('/api/ai', {
                 method: 'POST',

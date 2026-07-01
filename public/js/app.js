@@ -98,13 +98,25 @@ const initApp = async () => {
 
     // Copy Invite
     document.getElementById('share-link-btn').addEventListener('click', () => {
-        navigator.clipboard.writeText(currentRoomId);
-        // Simple toast or feedback here
-        const btn = document.getElementById('share-link-btn');
-        const originalText = btn.innerText;
-        btn.innerText = 'Copied!';
-        setTimeout(() => { btn.innerText = originalText; }, 2000);
+        navigator.clipboard.writeText(window.location.href + '?room=' + currentRoomId);
+        alert('Room link copied to clipboard!');
     });
+    
+    // Theme Toggle
+    const themeBtn = document.getElementById('theme-toggle-btn');
+    themeBtn.addEventListener('click', () => {
+        const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+        document.documentElement.setAttribute('data-theme', isDark ? 'light' : 'dark');
+        themeBtn.innerText = isDark ? '🌙' : '☀️';
+        localStorage.setItem('flow_theme', isDark ? 'light' : 'dark');
+    });
+    
+    // Restore Theme
+    const savedTheme = localStorage.getItem('flow_theme');
+    if (savedTheme === 'dark') {
+        document.documentElement.setAttribute('data-theme', 'dark');
+        themeBtn.innerText = '☀️';
+    }
 
     document.getElementById('leave-btn').addEventListener('click', () => {
         window.location.reload();
