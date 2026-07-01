@@ -24,9 +24,11 @@ export const handleIncomingMessage = (messageData) => {
     renderMessage(messageData);
 };
 
-const sendMessage = () => {
+const sendMessage = async () => {
     const text = chatInput.value.trim();
     if (!text) return;
+    
+    chatInput.value = '';
     
     const channel = getSocket();
     if (channel) {
@@ -39,7 +41,30 @@ const sendMessage = () => {
         handleIncomingMessage({ sender: username, text });
     }
     
-    chatInput.value = '';
+    // Intercept AI commands
+    if (text.startsWith('/ai ')) {
+        const query = text.replace('/ai ', '');
+        try {
+            const res = await fetch('/api/ai', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ message: query })
+            });
+            const data = await res.json();
+            
+            // Broadcast AI response to everyone in the room!
+            if (channel) {
+                channel.send({
+                    type: 'broadcast',
+                    event: 'chat-message',
+                    payload: { sender: 'AI Assistant', text: data.text }
+                });
+            }
+            handleIncomingMessage({ sender: 'AI Assistant', text: data.text });
+        } catch (e) {
+            handleIncomingMessage({ sender: 'AI Assistant', text: 'Error connecting to brain.' });
+        }
+    }
 };
 
 const renderMessage = (msg) => {

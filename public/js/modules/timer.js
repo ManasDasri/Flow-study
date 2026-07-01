@@ -25,11 +25,13 @@ export const initTimer = (rId, uiCallback) => {
     renderTimer();
 };
 
-export const syncState = (serverState) => {
-    state = { ...state, ...serverState };
-    if (state.mode && state.durations) {
-        state.duration = MODES[state.mode]();
-    }
+export const syncState = (newState) => {
+    // If we receive a sync with the full state, update our local state
+    if (newState.durations) state.durations = newState.durations;
+    if (newState.mode) state.mode = newState.mode;
+    if (newState.duration) state.duration = newState.duration;
+    if (newState.timeLeft !== undefined) state.timeLeft = newState.timeLeft;
+    if (newState.isRunning !== undefined) state.isRunning = newState.isRunning;
     
     if (state.isRunning && !timerInterval) {
         startLocalTick();
@@ -40,26 +42,50 @@ export const syncState = (serverState) => {
     renderTimer();
 };
 
-export const toggleTimer = () => {
+const broadcastState = () => {
+    socketUpdateTimer(roomId, 'sync', state);
+};
+
+export const toggleTimer = (broadcast = true) => {
+    state.isRunning = !state.isRunning;
     if (state.isRunning) {
-        socketUpdateTimer(roomId, 'pause');
+        startLocalTick();
     } else {
-        socketUpdateTimer(roomId, 'start');
+        stopLocalTick();
     }
+    renderTimer();
+    if (broadcast) broadcastState();
 };
 
-export const resetTimer = () => {
-    socketUpdateTimer(roomId, 'reset', { duration: MODES[state.mode]() });
+export const resetTimer = (broadcast = true) => {
+    state.isRunning = false;
+    state.duration = MODES[state.mode]();
+    state.timeLeft = state.duration;
+    stopLocalTick();
+    renderTimer();
+    if (broadcast) broadcastState();
 };
 
-export const setMode = (mode) => {
+export const setMode = (mode, broadcast = true) => {
     if (MODES[mode]) {
-        socketUpdateTimer(roomId, 'mode_change', { mode, duration: MODES[mode]() });
+        state.mode = mode;
+        state.duration = MODES[mode]();
+        state.timeLeft = state.duration;
+        state.isRunning = false;
+        stopLocalTick();
+        renderTimer();
+        if (broadcast) broadcastState();
     }
 };
 
-export const setTimerSettings = (durations) => {
-    socketUpdateTimer(roomId, 'settings_change', { durations });
+export const setTimerSettings = (durations, broadcast = true) => {
+    state.durations = durations;
+    state.duration = MODES[state.mode]();
+    if (!state.isRunning) {
+        state.timeLeft = state.duration;
+    }
+    renderTimer();
+    if (broadcast) broadcastState();
 };
 
 const startLocalTick = () => {
