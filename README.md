@@ -18,7 +18,7 @@
 
 ---
 
-## ⚡️ The Vision
+## The Vision
 
 **Flow.** is not just a pomodoro timer. It is a fully decentralized, real-time virtual study room designed to connect students across the globe. Built on a massively scalable serverless architecture, Flow eliminates backend bottlenecks, allowing millions of users to study together simultaneously.
 
@@ -26,20 +26,18 @@ The UI employs a beautiful, high-contrast **Neo-Brutalist** aesthetic, making th
 
 ---
 
-## ✨ Features
+## Features
 
-- **🌐 P2P Serverless Rooms:** Join instantly using a 6-character room code. No heavy WebSockets to crash the server—all states sync via Supabase Realtime Edge nodes.
-- **🎥 WebRTC Video:** See your study partners in real-time. Built with pure WebRTC, the video feeds route directly peer-to-peer for zero-latency connection.
-- **⏱️ Synchronized Pomodoro:** A synchronized focus timer that updates seamlessly for everyone in the room. If one person pauses, everyone pauses. 
-- **🧠 Integrated AI Assistant:** Stuck on a problem? Type `/ai` in the room chat, and Google's Gemini AI will instantly respond to everyone in the room with the answer.
-- **✅ Real-Time Task Management:** Add shared goals. When a task is checked off, the progress bar updates live on everyone's screen, backed persistently by PostgreSQL.
-- **🎵 Spotify Integration:** Built-in Lo-Fi beats to keep the deep focus going.
+- **P2P Serverless Rooms:** Join instantly using a 6-character room code. No heavy WebSockets to crash the server—all states sync via Supabase Realtime Edge nodes.
+- **WebRTC Video:** See your study partners in real-time. Built with pure WebRTC, the video feeds route directly peer-to-peer for zero-latency connection.
+- **Synchronized Pomodoro:** A synchronized focus timer that updates seamlessly for everyone in the room. If one person pauses, everyone pauses. 
+- **Integrated AI Assistant:** Stuck on a problem? Type `/ai` in the room chat, and Groq's high-speed AI will instantly respond to everyone in the room with the answer.
+- **Real-Time Task Management:** Add shared goals. When a task is checked off, the progress bar updates live on everyone's screen, backed persistently by PostgreSQL.
+- **Spotify Integration:** Built-in Lo-Fi beats to keep the deep focus going.
 
 ---
 
-## 📸 Screenshots
-
-*(Replace these placeholders with actual screenshots of your app!)*
+## Screenshots
 
 | Login | Focus Room |
 | :---: | :---: |
@@ -47,7 +45,7 @@ The UI employs a beautiful, high-contrast **Neo-Brutalist** aesthetic, making th
 
 ---
 
-## 🛠 Tech Stack
+## Tech Stack
 
 Flow leverages a bleeding-edge, lightweight stack for maximum performance and zero infrastructure cost.
 
@@ -60,18 +58,18 @@ Flow leverages a bleeding-edge, lightweight stack for maximum performance and ze
 - **Node.js & Express:** Ultra-lightweight static file server & AI secure endpoint.
 - **Supabase Realtime:** Phoenix/Elixir edge nodes for millisecond-latency state syncing.
 - **Supabase PostgreSQL:** Persistent storage for user profiles and shared tasks.
-- **Google Generative AI:** Gemini 1.5 Flash model for the integrated study assistant.
+- **Groq AI:** Llama 3 model for the integrated high-speed study assistant.
 
 ---
 
-## 🚀 Getting Started
+## Getting Started
 
 Want to run Flow locally or deploy it yourself?
 
 ### Prerequisites
 - Node.js installed
 - A [Supabase](https://supabase.com/) project (Free Tier)
-- A [Google Gemini](https://aistudio.google.com/) API Key
+- A [Groq](https://console.groq.com/) API Key
 
 ### Installation
 
@@ -87,9 +85,9 @@ Want to run Flow locally or deploy it yourself?
    ```
 
 3. **Set up environment variables:**
-   Create a `.env` file in the root directory and add your Gemini API Key:
+   Create a `.env` file in the root directory and add your Groq API Key:
    ```env
-   GEMINI_API_KEY=your_gemini_api_key_here
+   GROQ_API_KEY=your_groq_api_key_here
    ```
 
 4. **Start the server:**

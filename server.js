@@ -12,15 +12,20 @@ app.use(express.static(path.join(__dirname, 'public')));
 app.use(express.json());
 
 // AI Chat Route
-const { GoogleGenerativeAI } = require('@google/generative-ai');
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || 'dummy_key_for_now');
+const Groq = require('groq-sdk');
+const groq = new Groq({ apiKey: process.env.GROQ_API_KEY || 'dummy_key_for_now' });
 
 app.post('/api/ai', async (req, res) => {
     try {
         const { message } = req.body;
-        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-        const result = await model.generateContent("You are a helpful study assistant in a virtual study room. Answer concisely. User says: " + message);
-        res.json({ text: result.response.text() });
+        const completion = await groq.chat.completions.create({
+            messages: [
+                { role: "system", content: "You are a helpful study assistant in a virtual study room. Answer concisely." },
+                { role: "user", content: message }
+            ],
+            model: "llama3-8b-8192",
+        });
+        res.json({ text: completion.choices[0].message.content });
     } catch (e) {
         console.error("AI Error:", e);
         res.status(500).json({ text: "Sorry, I am having trouble connecting to my brain right now." });
