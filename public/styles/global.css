@@ -28,19 +28,19 @@
 }
 
 [data-theme="dark"] {
-    --bg-main: #1a1a1a; /* Dark gray */
-    --surface: #2b2b2b; /* Slightly lighter gray */
+    --bg-main: #111111; 
+    --surface: #222222; 
     
-    --primary: #FF90E8; /* Keep vibrant */
+    --primary: #FF90E8;
     --secondary: #90A8FF; 
     --accent: #FFC900; 
     --green: #23C176; 
     --danger: #FF5C5C;
     
-    --text-primary: #f5f5f5;
-    --text-secondary: #cccccc;
+    --text-primary: #FFFFFF;
+    --text-secondary: #AAAAAA;
     
-    --border-color: #000000;
+    --border-color: #FFFFFF;
 }
 
 * {

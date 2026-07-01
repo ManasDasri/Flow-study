@@ -104,10 +104,20 @@ const initApp = async () => {
     
     // Theme Toggle
     const themeBtn = document.getElementById('theme-toggle-btn');
+    const iconSun = document.getElementById('icon-sun');
+    const iconMoon = document.getElementById('icon-moon');
+    
     themeBtn.addEventListener('click', () => {
         const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
-        document.documentElement.setAttribute('data-theme', isDark ? 'light' : 'dark');
-        themeBtn.innerText = isDark ? '🌙' : '☀️';
+        if (isDark) {
+            document.documentElement.setAttribute('data-theme', 'light');
+            iconSun.classList.add('hidden');
+            iconMoon.classList.remove('hidden');
+        } else {
+            document.documentElement.setAttribute('data-theme', 'dark');
+            iconSun.classList.remove('hidden');
+            iconMoon.classList.add('hidden');
+        }
         localStorage.setItem('flow_theme', isDark ? 'light' : 'dark');
     });
     
@@ -115,7 +125,8 @@ const initApp = async () => {
     const savedTheme = localStorage.getItem('flow_theme');
     if (savedTheme === 'dark') {
         document.documentElement.setAttribute('data-theme', 'dark');
-        themeBtn.innerText = '☀️';
+        iconSun.classList.remove('hidden');
+        iconMoon.classList.add('hidden');
     }
 
     document.getElementById('leave-btn').addEventListener('click', () => {
