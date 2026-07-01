@@ -111,7 +111,7 @@ CREATE TABLE tasks (
     room_id TEXT NOT NULL,
     title TEXT NOT NULL,
     completed BOOLEAN DEFAULT false,
-    user_id UUID,
+    created_by UUID,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now())
 );
 

@@ -25,7 +25,7 @@ export const addTask = async (title) => {
     const { error } = await supabase.from('tasks').insert({
         room_id: roomId,
         title: title.trim(),
-        user_id: user ? user.id : null,
+        created_by: user ? user.id : null,
         completed: false
     });
     
