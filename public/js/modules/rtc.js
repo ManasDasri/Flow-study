@@ -1,37 +1,15 @@
-import { sendSignal, getMyUserId } from './socket.js';
+import { getMyUserId } from './socket.js';
 
 let localStream = null;
-const peers = {};
-const candidateQueues = {};
+const peers = {}; // Store PeerJS 'call' objects
+let myPeer = null;
 
 export const hasPeer = (userId) => !!peers[userId];
-
-const ICE_SERVERS = {
-    iceServers: [
-        { urls: 'stun:stun.l.google.com:19302' },
-        { urls: 'stun:stun1.l.google.com:19302' },
-        { 
-            urls: 'turn:openrelay.metered.ca:80',
-            username: 'openrelayproject',
-            credential: 'openrelayproject'
-        },
-        { 
-            urls: 'turn:openrelay.metered.ca:443',
-            username: 'openrelayproject',
-            credential: 'openrelayproject'
-        },
-        { 
-            urls: 'turn:openrelay.metered.ca:443?transport=tcp',
-            username: 'openrelayproject',
-            credential: 'openrelayproject'
-        }
-    ]
-};
 
 export const initMedia = async (videoEl) => {
     try {
         if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-            alert("Camera access blocked! Your browser requires HTTPS (or localhost) to use the camera. If you are on an IP address or HTTP, the camera will not load.");
+            alert("Camera access blocked! Your browser requires HTTPS (or localhost) to use the camera.");
             return false;
         }
         localStream = await navigator.mediaDevices.getUserMedia({
@@ -43,11 +21,87 @@ export const initMedia = async (videoEl) => {
         return true;
     } catch (err) {
         console.error('Failed to get local media', err);
-        // Add explicit alert so the user knows WHY it is black
-        alert("Camera/Microphone access was denied or no device was found!\\n\\nPlease click the lock icon in your browser's address bar, allow Camera and Microphone, and refresh the page.");
+        alert("Camera/Microphone access was denied or no device was found!\n\nPlease click the lock icon in your browser's address bar, allow Camera and Microphone, and refresh the page.");
         return false;
     }
 };
+
+export const initPeer = (onRemoteStream) => {
+    if (myPeer) return;
+    
+    // We use our unique Supabase User ID as our PeerJS ID!
+    const myId = getMyUserId();
+    
+    // Initialize PeerJS with the default free cloud signaling server
+    myPeer = new Peer(myId, {
+        debug: 1 // Log errors
+    });
+
+    myPeer.on('open', (id) => {
+        console.log('PeerJS initialized perfectly with ID:', id);
+    });
+
+    // Handle incoming calls
+    myPeer.on('call', (call) => {
+        console.log(`Receiving call from ${call.peer}...`);
+        
+        // Answer automatically with our stream
+        call.answer(localStream);
+        peers[call.peer] = call;
+
+        call.on('stream', (remoteStream) => {
+            console.log(`Received remote stream from ${call.peer}`);
+            onRemoteStream(call.peer, remoteStream);
+        });
+
+        call.on('close', () => {
+            removePeer(call.peer);
+        });
+        
+        call.on('error', (err) => {
+            console.error('PeerJS call error:', err);
+        });
+    });
+    
+    myPeer.on('error', (err) => {
+        console.error('PeerJS internal error:', err);
+    });
+};
+
+export const callUser = (userId, onRemoteStream) => {
+    if (!myPeer || !localStream) {
+        console.warn('Cannot call: PeerJS or localStream not initialized.');
+        return;
+    }
+    
+    console.log(`Calling ${userId}...`);
+    // Initiate the call
+    const call = myPeer.call(userId, localStream);
+    peers[userId] = call;
+
+    call.on('stream', (remoteStream) => {
+        console.log(`Received remote stream from ${userId}`);
+        onRemoteStream(userId, remoteStream);
+    });
+
+    call.on('close', () => {
+        removePeer(userId);
+    });
+    
+    call.on('error', (err) => {
+        console.error('PeerJS call error:', err);
+    });
+};
+
+export const removePeer = (userId) => {
+    if (peers[userId]) {
+        peers[userId].close();
+        delete peers[userId];
+    }
+};
+
+// Deprecated since we use PeerJS now, but kept for compatibility with app.js
+export const handleSignal = (data, onRemoteStream) => {};
 
 export const toggleAudio = () => {
     if (localStream) {
@@ -69,131 +123,4 @@ export const toggleVideo = () => {
         }
     }
     return false;
-};
-
-export const createPeerConnection = (userId, onRemoteStream) => {
-    const pc = new RTCPeerConnection(ICE_SERVERS);
-    peers[userId] = pc;
-
-    if (localStream) {
-        localStream.getTracks().forEach(track => {
-            pc.addTrack(track, localStream);
-        });
-    }
-
-    pc.onicecandidate = (event) => {
-        if (event.candidate) {
-            if (!pc._candidateBatch) pc._candidateBatch = [];
-            pc._candidateBatch.push(event.candidate);
-            
-            if (!pc._batchTimer) {
-                pc._batchTimer = setTimeout(() => {
-                    sendSignal(userId, { type: 'candidate-batch', candidates: pc._candidateBatch });
-                    pc._candidateBatch = [];
-                    pc._batchTimer = null;
-                }, 250);
-            }
-        }
-    };
-
-    pc.ontrack = (event) => {
-        onRemoteStream(userId, event.streams[0]);
-    };
-
-    pc.onconnectionstatechange = () => {
-        console.log(`Connection state with ${userId}:`, pc.connectionState);
-        if (pc.connectionState === 'failed' || pc.connectionState === 'disconnected') {
-            console.log('WebRTC failed or disconnected. Attempting auto-reconnect...');
-            // If we are the designated caller, we wait a moment and try again
-            if (getMyUserId() < userId) {
-                setTimeout(() => {
-                    removePeer(userId); // Use removePeer to cleanly close
-                    callUser(userId, onRemoteStream);
-                }, 2000);
-            }
-        }
-    };
-
-    return pc;
-};
-
-export const handleSignal = async (data, onRemoteStream) => {
-    const { from, signal } = data;
-    
-    // If the remote user is sending a new offer, they have started a fresh connection.
-    // We MUST destroy any stale peer connection we have for them, otherwise renegotiation will fail.
-    if (signal.type === 'offer') {
-        if (peers[from]) {
-            console.log(`Received new offer from ${from}. Destroying stale peer connection.`);
-            peers[from].close();
-            delete peers[from];
-        }
-    }
-
-    let pc = peers[from];
-    if (!pc) {
-        pc = createPeerConnection(from, onRemoteStream);
-        candidateQueues[from] = [];
-    }
-
-    try {
-        if (signal.type === 'offer') {
-            await pc.setRemoteDescription(new RTCSessionDescription(signal.offer));
-            const answer = await pc.createAnswer();
-            await pc.setLocalDescription(answer);
-            sendSignal(from, { type: 'answer', answer });
-            
-            // Process queued candidates
-            if (candidateQueues[from]) {
-                for (let c of candidateQueues[from]) {
-                    await pc.addIceCandidate(c);
-                }
-                delete candidateQueues[from];
-            }
-        } else if (signal.type === 'answer') {
-            await pc.setRemoteDescription(new RTCSessionDescription(signal.answer));
-            
-            // Process queued candidates that arrived before the answer
-            if (candidateQueues[from]) {
-                for (let c of candidateQueues[from]) {
-                    await pc.addIceCandidate(c);
-                }
-                delete candidateQueues[from];
-            }
-        } else if (signal.type === 'candidate') {
-            const candidate = new RTCIceCandidate(signal.candidate);
-            if (pc.remoteDescription && pc.remoteDescription.type) {
-                await pc.addIceCandidate(candidate);
-            } else {
-                if (!candidateQueues[from]) candidateQueues[from] = [];
-                candidateQueues[from].push(candidate);
-            }
-        } else if (signal.type === 'candidate-batch') {
-            for (let cand of signal.candidates) {
-                const candidate = new RTCIceCandidate(cand);
-                if (pc.remoteDescription && pc.remoteDescription.type) {
-                    await pc.addIceCandidate(candidate);
-                } else {
-                    if (!candidateQueues[from]) candidateQueues[from] = [];
-                    candidateQueues[from].push(candidate);
-                }
-            }
-        }
-    } catch (err) {
-        console.error("WebRTC Signal Error:", err);
-    }
-};
-
-export const callUser = async (userId, onRemoteStream) => {
-    const pc = createPeerConnection(userId, onRemoteStream);
-    const offer = await pc.createOffer({ offerToReceiveAudio: true, offerToReceiveVideo: true });
-    await pc.setLocalDescription(offer);
-    sendSignal(userId, { type: 'offer', offer });
-};
-
-export const removePeer = (userId) => {
-    if (peers[userId]) {
-        peers[userId].close();
-        delete peers[userId];
-    }
 };

@@ -1,5 +1,5 @@
 import { initSocket, getSocket, getMyUserId } from './modules/socket.js';
-import { initMedia, toggleAudio, toggleVideo, handleSignal, removePeer, callUser, hasPeer } from './modules/rtc.js';
+import { initMedia, toggleAudio, toggleVideo, handleSignal, removePeer, callUser, hasPeer, initPeer } from './modules/rtc.js';
 import { initTimer, toggleTimer, resetTimer, setMode, syncState, setTimerSettings } from './modules/timer.js';
 import { initTasks, addTask, toggleTask, deleteTask, getStats as getTaskStats, setSharedTasks } from './modules/tasks.js';
 import { initPresence, updatePresence, startFocusTracking, stopFocusTracking } from './modules/presence.js';
@@ -270,6 +270,9 @@ const handleJoin = async () => {
             handleIncomingMessage(messageData);
         }
     });
+
+    // Initialize rock-solid PeerJS connections now that myUserId is set by initSocket
+    initPeer(onRemoteStream);
 
     // Initialize Modules
     initTimer(roomId, (timerState) => {
