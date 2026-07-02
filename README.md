@@ -105,18 +105,29 @@ Want to run Flow locally or deploy it yourself?
 If you are setting this up from scratch, execute the following SQL in your Supabase SQL Editor:
 
 ```sql
--- Create Tasks Table
-CREATE TABLE tasks (
+-- 1. Clean up old tables if they exist
+DROP TABLE IF EXISTS public.tasks CASCADE;
+DROP TABLE IF EXISTS public.rooms CASCADE;
+DROP TABLE IF EXISTS public.profiles CASCADE;
+
+-- 2. Create the Tasks Table (Simplified for MVP)
+CREATE TABLE public.tasks (
     id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
     room_id TEXT NOT NULL,
     title TEXT NOT NULL,
     completed BOOLEAN DEFAULT false,
-    created_by UUID,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now())
+    created_by TEXT, -- Changed from UUID so anonymous users don't trigger foreign key errors
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
--- Enable Realtime for Tasks
-ALTER PUBLICATION supabase_realtime ADD TABLE tasks;
+-- 3. Explicitly Disable Row Level Security (Fixes the insert error popup!)
+ALTER TABLE public.tasks DISABLE ROW LEVEL SECURITY;
+
+-- 4. Enable Realtime Broadcasting for the Tasks Table
+BEGIN;
+  DROP PUBLICATION IF EXISTS supabase_realtime;
+  CREATE PUBLICATION supabase_realtime FOR TABLE public.tasks;
+COMMIT;
 ```
 
 ---
