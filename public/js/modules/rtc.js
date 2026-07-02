@@ -22,6 +22,7 @@ export const initMedia = async (videoEl) => {
             audio: true
         });
         videoEl.srcObject = localStream;
+        await videoEl.play().catch(e => console.error("Autoplay failed:", e));
         return true;
     } catch (err) {
         console.error('Failed to get local media', err);

@@ -321,6 +321,7 @@ const ensureVideoWrapper = (userId) => {
 const onRemoteStream = (userId, stream) => {
     const videoEl = ensureVideoWrapper(userId);
     videoEl.srcObject = stream;
+    videoEl.play().catch(e => console.error('Remote video play failed:', e));
 };
 
 const removeRemoteVideo = (userId) => {
