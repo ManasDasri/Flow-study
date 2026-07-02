@@ -1,4 +1,4 @@
-import { sendSignal } from './socket.js';
+import { sendSignal, getMyUserId } from './socket.js';
 
 let localStream = null;
 const peers = {};
@@ -9,7 +9,22 @@ export const hasPeer = (userId) => !!peers[userId];
 const ICE_SERVERS = {
     iceServers: [
         { urls: 'stun:stun.l.google.com:19302' },
-        { urls: 'stun:stun1.l.google.com:19302' }
+        { urls: 'stun:stun1.l.google.com:19302' },
+        { 
+            urls: 'turn:openrelay.metered.ca:80',
+            username: 'openrelayproject',
+            credential: 'openrelayproject'
+        },
+        { 
+            urls: 'turn:openrelay.metered.ca:443',
+            username: 'openrelayproject',
+            credential: 'openrelayproject'
+        },
+        { 
+            urls: 'turn:openrelay.metered.ca:443?transport=tcp',
+            username: 'openrelayproject',
+            credential: 'openrelayproject'
+        }
     ]
 };
 
@@ -85,12 +100,36 @@ export const createPeerConnection = (userId, onRemoteStream) => {
         onRemoteStream(userId, event.streams[0]);
     };
 
+    pc.onconnectionstatechange = () => {
+        console.log(`Connection state with ${userId}:`, pc.connectionState);
+        if (pc.connectionState === 'failed' || pc.connectionState === 'disconnected') {
+            console.log('WebRTC failed or disconnected. Attempting auto-reconnect...');
+            // If we are the designated caller, we wait a moment and try again
+            if (getMyUserId() < userId) {
+                setTimeout(() => {
+                    removePeer(userId); // Use removePeer to cleanly close
+                    callUser(userId, onRemoteStream);
+                }, 2000);
+            }
+        }
+    };
+
     return pc;
 };
 
 export const handleSignal = async (data, onRemoteStream) => {
     const { from, signal } = data;
     
+    // If the remote user is sending a new offer, they have started a fresh connection.
+    // We MUST destroy any stale peer connection we have for them, otherwise renegotiation will fail.
+    if (signal.type === 'offer') {
+        if (peers[from]) {
+            console.log(`Received new offer from ${from}. Destroying stale peer connection.`);
+            peers[from].close();
+            delete peers[from];
+        }
+    }
+
     let pc = peers[from];
     if (!pc) {
         pc = createPeerConnection(from, onRemoteStream);
