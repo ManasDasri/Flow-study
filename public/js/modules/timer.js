@@ -113,17 +113,70 @@ const stopLocalTick = () => {
     }
 };
 
+const playChime = () => {
+    try {
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        if (!AudioContext) return;
+        const ctx = new AudioContext();
+        
+        // Main tone
+        const osc = ctx.createOscillator();
+        const gainNode = ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(880, ctx.currentTime); // A5
+        osc.frequency.exponentialRampToValueAtTime(440, ctx.currentTime + 0.5); // Slide down to A4
+        
+        gainNode.gain.setValueAtTime(0, ctx.currentTime);
+        gainNode.gain.linearRampToValueAtTime(0.5, ctx.currentTime + 0.05);
+        gainNode.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 1.5);
+        
+        osc.connect(gainNode);
+        gainNode.connect(ctx.destination);
+        
+        osc.start();
+        osc.stop(ctx.currentTime + 1.5);
+    } catch (e) {
+        console.warn('Audio Context not supported or failed', e);
+    }
+};
+
 const handleComplete = () => {
     stopLocalTick();
     
+    let title = "Time's Up!";
+    let msg = "Great session!";
+    
     if (state.mode === 'focus') {
         socketUpdateTimer(roomId, 'session_complete');
-        // Auto switch to break logic could go here
+        title = "Focus Complete! 🎯";
+        msg = "Awesome work! Take a well-deserved break.";
+    } else {
+        title = "Break Over! ⚡";
+        msg = "Time to get back into flow state.";
     }
     
-    // Play sound or show notification
-    const audio = new Audio('/assets/chime.mp3'); // Assuming asset exists, won't break if not
-    audio.play().catch(e => console.log('Audio play failed', e));
+    // Play sound
+    playChime();
+    
+    // Show Modal
+    const overlay = document.getElementById('modal-overlay');
+    const alertModal = document.getElementById('timer-alert-modal');
+    if (overlay && alertModal) {
+        // Hide join/settings modals just in case
+        document.getElementById('join-modal')?.classList.add('hidden');
+        document.getElementById('timer-settings-modal')?.classList.add('hidden');
+        
+        document.getElementById('timer-alert-title').innerText = title;
+        document.getElementById('timer-alert-msg').innerText = msg;
+        
+        overlay.classList.remove('hidden');
+        alertModal.classList.remove('hidden');
+        
+        document.getElementById('close-timer-alert-btn').onclick = () => {
+            overlay.classList.add('hidden');
+            alertModal.classList.add('hidden');
+        };
+    }
 };
 
 const renderTimer = () => {

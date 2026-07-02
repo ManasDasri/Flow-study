@@ -1,46 +1,37 @@
 @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;700;800&family=Space+Mono:ital,wght@0,400;0,700;1,400&display=swap');
 
 :root {
-    /* Retro Cute / Neo-Brutalist Palette */
-    --bg-main: #fcf9f2; /* Cream white */
-    --surface: #ffffff;
+    /* Glassmorphism Forest Green Palette */
+    --bg-main: #0d1a10; 
+    --bg-gradient: linear-gradient(135deg, #1e3322 0%, #0d1a10 100%);
     
-    --primary: #FF90E8; /* Hot Pastel Pink */
-    --secondary: #90A8FF; /* Soft Blue */
-    --accent: #FFC900; /* Bright Yellow */
-    --green: #23C176; /* Minty Green */
-    --danger: #FF5C5C;
+    --glass-bg: rgba(255, 255, 255, 0.05);
+    --glass-bg-hover: rgba(255, 255, 255, 0.1);
+    --glass-border: rgba(255, 255, 255, 0.1);
+    --glass-blur: blur(16px);
     
-    --text-primary: #111111;
-    --text-secondary: #444444;
+    --surface: var(--glass-bg);
     
-    --border-color: #111111;
-    --border-width: 3px;
-    
-    --radius-sm: 8px;
-    --radius-md: 12px;
-    --radius-lg: 16px;
-    --radius-pill: 9999px;
-    
-    --shadow-solid: 4px 4px 0px var(--border-color);
-    --shadow-solid-hover: 6px 6px 0px var(--border-color);
-    --shadow-solid-active: 2px 2px 0px var(--border-color);
-}
-
-[data-theme="dark"] {
-    --bg-main: #111111; 
-    --surface: #222222; 
-    
-    --primary: #FF90E8;
-    --secondary: #90A8FF; 
-    --accent: #FFC900; 
+    --primary: #C9E265; /* Lime green accent */
+    --secondary: rgba(255, 255, 255, 0.2); 
+    --accent: #C9E265; 
     --green: #23C176; 
     --danger: #FF5C5C;
     
     --text-primary: #FFFFFF;
-    --text-secondary: #AAAAAA;
+    --text-secondary: rgba(255, 255, 255, 0.7);
     
-    --border-color: #FFFFFF;
+    --border-color: var(--glass-border);
+    --border-width: 1px;
+    
+    --radius-sm: 8px;
+    --radius-md: 16px;
+    --radius-lg: 24px;
+    --radius-pill: 9999px;
+    
+    --shadow-solid: 0 8px 32px 0 rgba(0, 0, 0, 0.3); /* Soft glass shadow */
+    --shadow-solid-hover: 0 8px 32px 0 rgba(0, 0, 0, 0.4);
+    --shadow-solid-active: 0 4px 16px 0 rgba(0, 0, 0, 0.3);
 }
 
 * {
@@ -52,12 +43,10 @@
 
 body {
     background-color: var(--bg-main);
+    background-image: var(--bg-gradient);
     color: var(--text-primary);
     overflow-x: hidden;
-    /* Subtle dot grid background for that retro notebook feel */
-    background-image: radial-gradient(var(--border-color) 1px, transparent 1px);
-    background-size: 20px 20px;
-    background-position: 0 0;
+    min-height: 100vh;
 }
 
 /* Utilities */

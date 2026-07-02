@@ -21,6 +21,8 @@ export const initMedia = async (videoEl) => {
         return true;
     } catch (err) {
         console.error('Failed to get local media', err);
+        // Add explicit alert so the user knows WHY it is black
+        alert("Camera/Microphone access was denied or no device was found!\\n\\nPlease click the lock icon in your browser's address bar, allow Camera and Microphone, and refresh the page.");
         return false;
     }
 };

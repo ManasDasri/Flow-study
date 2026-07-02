@@ -191,11 +191,25 @@ const handleJoin = async () => {
             const users = state.participants || {};
             UI.updateRoomInfo(roomId, Object.keys(users).length);
             
+            // 1. Remove ghosts that are no longer in the state
+            Object.keys(partners).forEach(existingId => {
+                if (!users[existingId] && existingId !== getMyUserId()) {
+                    delete partners[existingId];
+                    removePeer(existingId);
+                    removeRemoteVideo(existingId);
+                    UI.removePartnerPresenceCard(existingId);
+                }
+            });
+
+            // 2. Add/Update current partners
             Object.keys(users).forEach(userId => {
                 if (userId !== getMyUserId()) {
+                    const isNew = !partners[userId];
                     partners[userId] = users[userId];
                     updatePartnerUI(userId);
-                    callUser(userId, onRemoteStream);
+                    if (isNew) {
+                        callUser(userId, onRemoteStream);
+                    }
                 }
             });
         },
