@@ -114,7 +114,10 @@ Since Flow requires users to log in before joining a study room, you **must disa
 Execute the following SQL in your Supabase SQL Editor:
 
 ```sql
--- 1. Clean up old tables if they exist
+-- 1. Clean up old tables and triggers if they exist
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
+DROP FUNCTION IF EXISTS public.handle_new_user();
+
 DROP TABLE IF EXISTS public.tasks CASCADE;
 DROP TABLE IF EXISTS public.rooms CASCADE;
 DROP TABLE IF EXISTS public.profiles CASCADE;
