@@ -150,9 +150,13 @@ const handleComplete = () => {
         socketUpdateTimer(roomId, 'session_complete');
         title = "Focus Complete! 🎯";
         msg = "Awesome work! Take a well-deserved break.";
+        // Auto switch to break mode
+        setMode('shortBreak');
     } else {
         title = "Break Over! ⚡";
         msg = "Time to get back into flow state.";
+        // Auto switch to focus mode
+        setMode('focus');
     }
     
     // Play sound

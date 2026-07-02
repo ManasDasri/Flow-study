@@ -288,7 +288,7 @@ const handleJoin = async () => {
     }
 };
 
-const onRemoteStream = (userId, stream) => {
+const ensureVideoWrapper = (userId) => {
     let videoEl = document.getElementById(`video-${userId}`);
     if (!videoEl) {
         const wrapper = document.createElement('div');
@@ -301,13 +301,17 @@ const onRemoteStream = (userId, stream) => {
         videoEl.playsInline = true;
         
         const overlay = document.createElement('div');
-        overlay.className = 'video-overlay';
         overlay.innerHTML = `<span class="name-tag">${partners[userId]?.username || 'Partner'}</span>`;
         
         wrapper.appendChild(videoEl);
         wrapper.appendChild(overlay);
         videoGrid.appendChild(wrapper);
     }
+    return videoEl;
+};
+
+const onRemoteStream = (userId, stream) => {
+    const videoEl = ensureVideoWrapper(userId);
     videoEl.srcObject = stream;
 };
 
@@ -319,6 +323,9 @@ const removeRemoteVideo = (userId) => {
 const updatePartnerUI = (userId) => {
     const partner = partners[userId];
     if (!partner) return;
+    
+    // Ensure their video box exists (even if their camera is off)
+    ensureVideoWrapper(userId);
     
     // Update presence card
     UI.renderPartnerPresenceCard(userId, partner);
