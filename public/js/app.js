@@ -1,5 +1,5 @@
 import { initSocket, getSocket, getMyUserId } from './modules/socket.js';
-import { initMedia, toggleAudio, toggleVideo, handleSignal, removePeer, callUser } from './modules/rtc.js';
+import { initMedia, toggleAudio, toggleVideo, handleSignal, removePeer, callUser, hasPeer } from './modules/rtc.js';
 import { initTimer, toggleTimer, resetTimer, setMode, syncState, setTimerSettings } from './modules/timer.js';
 import { initTasks, addTask, toggleTask, deleteTask, getStats as getTaskStats, setSharedTasks } from './modules/tasks.js';
 import { initPresence, updatePresence, startFocusTracking, stopFocusTracking } from './modules/presence.js';
@@ -212,10 +212,10 @@ const handleJoin = async () => {
             // 2. Add/Update current partners
             Object.keys(users).forEach(userId => {
                 if (userId !== getMyUserId()) {
-                    const isNew = !partners[userId];
                     partners[userId] = users[userId];
                     updatePartnerUI(userId);
-                    if (isNew) {
+                    
+                    if (!hasPeer(userId)) {
                         if (getMyUserId() < userId) {
                             callUser(userId, onRemoteStream);
                         }

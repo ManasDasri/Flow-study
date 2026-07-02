@@ -4,6 +4,8 @@ let localStream = null;
 const peers = {};
 const candidateQueues = {};
 
+export const hasPeer = (userId) => !!peers[userId];
+
 const ICE_SERVERS = {
     iceServers: [
         { urls: 'stun:stun.l.google.com:19302' },
