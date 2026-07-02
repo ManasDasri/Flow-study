@@ -9,17 +9,7 @@ export const hasPeer = (userId) => !!peers[userId];
 const ICE_SERVERS = {
     iceServers: [
         { urls: 'stun:stun.l.google.com:19302' },
-        { urls: 'stun:stun1.l.google.com:19302' },
-        { 
-            urls: 'turn:openrelay.metered.ca:80',
-            username: 'openrelayproject',
-            credential: 'openrelayproject'
-        },
-        { 
-            urls: 'turn:openrelay.metered.ca:443',
-            username: 'openrelayproject',
-            credential: 'openrelayproject'
-        }
+        { urls: 'stun:stun1.l.google.com:19302' }
     ]
 };
 
@@ -157,7 +147,7 @@ export const handleSignal = async (data, onRemoteStream) => {
 
 export const callUser = async (userId, onRemoteStream) => {
     const pc = createPeerConnection(userId, onRemoteStream);
-    const offer = await pc.createOffer();
+    const offer = await pc.createOffer({ offerToReceiveAudio: true, offerToReceiveVideo: true });
     await pc.setLocalDescription(offer);
     sendSignal(userId, { type: 'offer', offer });
 };

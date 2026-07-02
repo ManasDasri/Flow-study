@@ -323,7 +323,12 @@ const ensureVideoWrapper = (userId) => {
 const onRemoteStream = (userId, stream) => {
     const videoEl = ensureVideoWrapper(userId);
     videoEl.srcObject = stream;
-    videoEl.play().catch(e => console.error('Remote video play failed:', e));
+    videoEl.play().catch(e => {
+        console.error('Remote video play failed:', e);
+        // Fallback: mute the video so Safari/Chrome allows autoplay if interaction was lost
+        videoEl.muted = true;
+        videoEl.play().catch(err => console.error('Even muted autoplay failed', err));
+    });
 };
 
 const removeRemoteVideo = (userId) => {
