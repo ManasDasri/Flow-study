@@ -21,6 +21,14 @@ const appContainer = document.getElementById('app');
 const videoGrid = document.getElementById('video-grid');
 
 const initApp = async () => {
+    // Auth Guard
+    const userStr = localStorage.getItem('flow_user');
+    if (!userStr) {
+        window.location.href = '/login.html';
+        return;
+    }
+    const user = JSON.parse(userStr);
+
     const hostBtn = document.getElementById('host-btn');
     
     joinBtn.addEventListener('click', handleJoin);
@@ -29,6 +37,12 @@ const initApp = async () => {
         // Auto-generate a room code and join
         roomCodeInput.value = Math.random().toString(36).substring(2, 8).toUpperCase();
         handleJoin();
+    });
+
+    document.getElementById('logout-link').addEventListener('click', (e) => {
+        e.preventDefault();
+        localStorage.removeItem('flow_user');
+        window.location.href = '/login.html';
     });
     document.getElementById('toggle-mic').addEventListener('click', (e) => {
         const enabled = toggleAudio();
@@ -148,7 +162,11 @@ const initApp = async () => {
 
 const handleJoin = async () => {
     const roomId = roomCodeInput.value.trim().toUpperCase();
-    const username = usernameInput.value.trim() || 'Student';
+    
+    // Extract username from email
+    const userStr = localStorage.getItem('flow_user');
+    const userObj = userStr ? JSON.parse(userStr) : { email: 'student@example.com' };
+    const username = userObj.email.split('@')[0];
     
     if (!roomId) {
         alert('Please enter a 6-character Room Code to join, or click "Host Room" to create a new one!');

@@ -100,9 +100,18 @@ Want to run Flow locally or deploy it yourself?
 
 ---
 
-## 🔒 Database Schema (Supabase)
+## 📦 2. Supabase Setup (Database & Auth)
+Flow uses Supabase for Realtime WebRTC signaling, Chat, and Tasks.
 
-If you are setting this up from scratch, execute the following SQL in your Supabase SQL Editor:
+### Authentication Setup
+Since Flow requires users to log in before joining a study room, you **must disable Email Confirmations** unless you want to set up an SMTP provider (like Resend or SendGrid) to send actual verification emails.
+
+1. Go to your Supabase Dashboard.
+2. Go to **Authentication** -> **Providers** -> **Email**.
+3. Toggle **Confirm email** to **OFF** and click Save.
+
+### Database Setup
+Execute the following SQL in your Supabase SQL Editor:
 
 ```sql
 -- 1. Clean up old tables if they exist

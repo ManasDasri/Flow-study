@@ -30,22 +30,17 @@
         <!-- Join Room Modal -->
         <div id="join-modal" class="modal brutal-card">
             <h2 style="margin-bottom: 8px;">Welcome to Flow.</h2>
-            <p style="margin-bottom: 16px; font-weight: 500;">Host a new session or join a friend.</p>
+            <p style="margin-bottom: 16px; font-weight: 500;">Host a new session or join an existing room.</p>
             
-            <input type="text" id="username-input" placeholder="Your Name" class="brutal-input mb-4">
+            <input type="text" id="room-code-input" class="input-field" placeholder="Room Code (if joining)" maxlength="6" style="margin-bottom: 16px; text-transform: uppercase;">
             
-            <div style="display: flex; gap: 8px; margin-bottom: 16px;">
-                <button id="host-btn" class="btn btn-primary" style="flex: 1;">Create New Room</button>
+            <div style="display: flex; gap: 12px; margin-top: 8px;">
+                <button id="join-btn" class="btn btn-primary" style="flex: 1;">Join Room</button>
+                <button id="host-btn" class="btn btn-secondary" style="flex: 1;">Host Room</button>
             </div>
             
-            <div style="position: relative; text-align: center; margin-bottom: 16px;">
-                <span style="background: var(--surface); padding: 0 8px; font-size: 12px; color: var(--text-muted); position: relative; z-index: 1;">OR JOIN EXISTING</span>
-                <div style="position: absolute; top: 50%; left: 0; right: 0; border-top: 2px dashed var(--border-color); z-index: 0;"></div>
-            </div>
-
-            <div style="display: flex; gap: 8px;">
-                <input type="text" id="room-code-input" placeholder="Enter Room Code" class="brutal-input" style="flex: 1;">
-                <button id="join-btn" class="btn btn-secondary">Join</button>
+            <div style="text-align: center; margin-top: 16px;">
+                <a href="#" id="logout-link" style="color: var(--text-muted); font-size: 14px; text-decoration: underline;">Log out</a>
             </div>
         </div>
         
