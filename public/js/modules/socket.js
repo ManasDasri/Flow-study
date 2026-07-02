@@ -95,6 +95,7 @@ const fetchTasks = async (roomId, callback) => {
 };
 
 export const getSocket = () => channel; // Return channel so other modules can use it if needed
+export const getMyUserId = () => myUserId;
 
 export const sendSignal = (to, signal) => {
     if (channel) {

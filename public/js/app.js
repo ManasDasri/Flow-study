@@ -1,4 +1,4 @@
-import { initSocket, getSocket } from './modules/socket.js';
+import { initSocket, getSocket, getMyUserId } from './modules/socket.js';
 import { initMedia, toggleAudio, toggleVideo, handleSignal, removePeer, callUser } from './modules/rtc.js';
 import { initTimer, toggleTimer, resetTimer, setMode, syncState, setTimerSettings } from './modules/timer.js';
 import { initTasks, addTask, toggleTask, deleteTask, getStats as getTaskStats, setSharedTasks } from './modules/tasks.js';
@@ -150,7 +150,10 @@ const handleJoin = async () => {
     const roomId = roomCodeInput.value.trim().toUpperCase();
     const username = usernameInput.value.trim() || 'Student';
     
-    if (!roomId) return;
+    if (!roomId) {
+        alert('Please enter a 6-character Room Code to join, or click "Host Room" to create a new one!');
+        return;
+    }
     
     currentRoomId = roomId;
     currentUsername = username;
@@ -171,7 +174,7 @@ const handleJoin = async () => {
             UI.updateRoomInfo(roomId, Object.keys(users).length);
             
             Object.keys(users).forEach(userId => {
-                if (userId !== getSocket().id) {
+                if (userId !== getMyUserId()) {
                     partners[userId] = users[userId];
                     updatePartnerUI(userId);
                     callUser(userId, onRemoteStream);
