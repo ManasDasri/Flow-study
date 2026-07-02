@@ -158,6 +158,14 @@ const initApp = async () => {
             document.getElementById(e.target.dataset.tab).classList.add('active');
         });
     });
+
+    // Instantly drop from presence when tab is closed or refreshed
+    window.addEventListener('beforeunload', () => {
+        const socket = getSocket();
+        if (socket) {
+            socket.untrack();
+        }
+    });
 };
 
 const handleJoin = async () => {

@@ -129,6 +129,20 @@ input.brutal-input:focus {
     color: var(--text-primary);
 }
 
+.name-tag {
+    position: absolute;
+    bottom: 12px;
+    left: 12px;
+    background: var(--glass-bg);
+    backdrop-filter: var(--glass-blur);
+    border: 1px solid var(--glass-border);
+    padding: 4px 12px;
+    border-radius: var(--radius-pill);
+    font-weight: 700;
+    color: var(--text-primary);
+    box-shadow: var(--shadow-solid);
+}
+
 /* Status Dot */
 .status-indicator {
     display: flex;

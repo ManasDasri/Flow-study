@@ -13,6 +13,10 @@ const ICE_SERVERS = {
 
 export const initMedia = async (videoEl) => {
     try {
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+            alert("Camera access blocked! Your browser requires HTTPS (or localhost) to use the camera. If you are on an IP address or HTTP, the camera will not load.");
+            return false;
+        }
         localStream = await navigator.mediaDevices.getUserMedia({
             video: true,
             audio: true
