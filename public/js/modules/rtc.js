@@ -76,7 +76,16 @@ export const createPeerConnection = (userId, onRemoteStream) => {
 
     pc.onicecandidate = (event) => {
         if (event.candidate) {
-            sendSignal(userId, { type: 'candidate', candidate: event.candidate });
+            if (!pc._candidateBatch) pc._candidateBatch = [];
+            pc._candidateBatch.push(event.candidate);
+            
+            if (!pc._batchTimer) {
+                pc._batchTimer = setTimeout(() => {
+                    sendSignal(userId, { type: 'candidate-batch', candidates: pc._candidateBatch });
+                    pc._candidateBatch = [];
+                    pc._batchTimer = null;
+                }, 250);
+            }
         }
     };
 
@@ -127,6 +136,16 @@ export const handleSignal = async (data, onRemoteStream) => {
             } else {
                 if (!candidateQueues[from]) candidateQueues[from] = [];
                 candidateQueues[from].push(candidate);
+            }
+        } else if (signal.type === 'candidate-batch') {
+            for (let cand of signal.candidates) {
+                const candidate = new RTCIceCandidate(cand);
+                if (pc.remoteDescription && pc.remoteDescription.type) {
+                    await pc.addIceCandidate(candidate);
+                } else {
+                    if (!candidateQueues[from]) candidateQueues[from] = [];
+                    candidateQueues[from].push(candidate);
+                }
             }
         }
     } catch (err) {
