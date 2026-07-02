@@ -112,6 +112,14 @@ export const handleSignal = async (data, onRemoteStream) => {
             }
         } else if (signal.type === 'answer') {
             await pc.setRemoteDescription(new RTCSessionDescription(signal.answer));
+            
+            // Process queued candidates that arrived before the answer
+            if (candidateQueues[from]) {
+                for (let c of candidateQueues[from]) {
+                    await pc.addIceCandidate(c);
+                }
+                delete candidateQueues[from];
+            }
         } else if (signal.type === 'candidate') {
             const candidate = new RTCIceCandidate(signal.candidate);
             if (pc.remoteDescription && pc.remoteDescription.type) {

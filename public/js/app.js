@@ -216,7 +216,9 @@ const handleJoin = async () => {
                     partners[userId] = users[userId];
                     updatePartnerUI(userId);
                     if (isNew) {
-                        callUser(userId, onRemoteStream);
+                        if (getMyUserId() < userId) {
+                            callUser(userId, onRemoteStream);
+                        }
                     }
                 }
             });
