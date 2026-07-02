@@ -120,8 +120,10 @@ CREATE TABLE public.tasks (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
--- 3. Explicitly Disable Row Level Security (Fixes the insert error popup!)
-ALTER TABLE public.tasks DISABLE ROW LEVEL SECURITY;
+-- 3. Enable Row Level Security and Create an Allow-All Policy (Fixes permission errors!)
+ALTER TABLE public.tasks ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Allow all" ON public.tasks;
+CREATE POLICY "Allow all" ON public.tasks FOR ALL USING (true) WITH CHECK (true);
 
 -- 4. Enable Realtime Broadcasting for the Tasks Table
 BEGIN;
