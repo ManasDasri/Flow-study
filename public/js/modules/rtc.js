@@ -32,9 +32,17 @@ export const initPeer = (onRemoteStream) => {
     // We use our unique Supabase User ID as our PeerJS ID!
     const myId = getMyUserId();
     
-    // Initialize PeerJS with the default free cloud signaling server
+    // Initialize PeerJS with the default free cloud signaling server and fallback TURN servers
     myPeer = new Peer(myId, {
-        debug: 1 // Log errors
+        debug: 1, // Log errors
+        config: {
+            'iceServers': [
+                { urls: 'stun:stun.l.google.com:19302' },
+                { urls: 'turn:openrelay.metered.ca:80', username: 'openrelayproject', credential: 'openrelayproject' },
+                { urls: 'turn:openrelay.metered.ca:443', username: 'openrelayproject', credential: 'openrelayproject' },
+                { urls: 'turn:openrelay.metered.ca:443?transport=tcp', username: 'openrelayproject', credential: 'openrelayproject' }
+            ]
+        }
     });
 
     myPeer.on('open', (id) => {
@@ -45,8 +53,8 @@ export const initPeer = (onRemoteStream) => {
     myPeer.on('call', (call) => {
         console.log(`Receiving call from ${call.peer}...`);
         
-        // Answer automatically with our stream
-        call.answer(localStream);
+        // Answer automatically with our stream (pass undefined if null to prevent PeerJS crash)
+        call.answer(localStream || undefined);
         peers[call.peer] = call;
 
         call.on('stream', (remoteStream) => {
