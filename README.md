@@ -1,7 +1,7 @@
 <div align="center">
   <img src="https://capsule-render.vercel.app/api?type=waving&color=timeGradient&height=200&section=header&text=Flow.&fontSize=70&fontAlignY=35&desc=Study%20Better.%20Together.&descAlignY=55" width="100%" />
 
-  <h3>A highly scalable, neo-brutalist virtual study space built for extreme focus.</h3>
+  <h3>A highly scalable, minimalist virtual study space built for extreme focus.</h3>
   
   <p>
     <a href="#features"><strong>Explore Features</strong></a> ·
