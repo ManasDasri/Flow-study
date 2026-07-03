@@ -6,11 +6,34 @@ let myPeer = null;
 
 export const hasPeer = (userId) => !!peers[userId];
 
+const createDummyStream = () => {
+    // Create a 1x1 black canvas stream
+    const canvas = document.createElement('canvas');
+    canvas.width = 1;
+    canvas.height = 1;
+    const ctx = canvas.getContext('2d');
+    ctx.fillRect(0, 0, 1, 1);
+    const canvasStream = canvas.captureStream(15);
+    
+    // Create a silent audio stream
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    const destination = audioCtx.createMediaStreamDestination();
+    const audioStream = destination.stream;
+    
+    return new MediaStream([
+        canvasStream.getVideoTracks()[0],
+        audioStream.getAudioTracks()[0]
+    ]);
+};
+
 export const initMedia = async (videoEl) => {
     try {
         if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-            alert("Camera access blocked! Your browser requires HTTPS (or localhost) to use the camera.");
-            return false;
+            console.warn("Camera access blocked/unsupported. Using dummy stream.");
+            localStream = createDummyStream();
+            videoEl.srcObject = localStream;
+            await videoEl.play().catch(e => console.error("Autoplay failed:", e));
+            return true;
         }
         localStream = await navigator.mediaDevices.getUserMedia({
             video: true,
@@ -20,9 +43,15 @@ export const initMedia = async (videoEl) => {
         await videoEl.play().catch(e => console.error("Autoplay failed:", e));
         return true;
     } catch (err) {
-        console.error('Failed to get local media', err);
-        alert("Camera/Microphone access was denied or no device was found!\n\nPlease click the lock icon in your browser's address bar, allow Camera and Microphone, and refresh the page.");
-        return false;
+        console.warn('Failed to get local media, generating dummy stream to keep WebRTC alive.', err);
+        // Fallback to dummy stream so PeerJS doesn't crash on undefined streams
+        localStream = createDummyStream();
+        videoEl.srcObject = localStream;
+        await videoEl.play().catch(e => console.error("Autoplay failed:", e));
+        
+        // Still alert the user so they know they are using a fallback
+        alert("Camera/Microphone access was denied! You are in receive-only mode (others will see a black screen).\n\nPlease allow Camera and Microphone permissions if you wish to be seen.");
+        return true; // Return true so the app proceeds!
     }
 };
 
