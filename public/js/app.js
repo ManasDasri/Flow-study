@@ -358,11 +358,16 @@ const ensureVideoWrapper = (userId) => {
         videoEl.playsInline = true;
         
         const overlay = document.createElement('div');
-        overlay.innerHTML = `<span class="name-tag">${partners[userId]?.username || 'Partner'}</span>`;
+        overlay.innerHTML = `<span class="name-tag" id="name-tag-${userId}">${partners[userId]?.username || 'Partner'}</span>`;
         
         wrapper.appendChild(videoEl);
         wrapper.appendChild(overlay);
         videoGrid.appendChild(wrapper);
+    } else {
+        const nameTag = document.getElementById(`name-tag-${userId}`);
+        if (nameTag && partners[userId]) {
+            nameTag.innerText = partners[userId].username;
+        }
     }
     return videoEl;
 };

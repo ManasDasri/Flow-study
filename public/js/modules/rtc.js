@@ -20,17 +20,30 @@ const createDummyStream = () => {
     canvas.width = 1;
     canvas.height = 1;
     const ctx = canvas.getContext('2d');
-    ctx.fillRect(0, 0, 1, 1);
+    
+    // Draw continuously so WebRTC constantly transmits frames
+    const draw = () => {
+        ctx.fillStyle = '#000000';
+        ctx.fillRect(0, 0, 1, 1);
+        requestAnimationFrame(draw);
+    };
+    draw();
+    
     const canvasStream = canvas.captureStream(15);
     
-    // Create a silent audio stream
+    // Create a silent audio stream using an oscillator
     const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
     const destination = audioCtx.createMediaStreamDestination();
-    const audioStream = destination.stream;
+    const oscillator = audioCtx.createOscillator();
+    const gainNode = audioCtx.createGain();
+    gainNode.gain.value = 0; // completely silent
+    oscillator.connect(gainNode);
+    gainNode.connect(destination);
+    oscillator.start();
     
     return new MediaStream([
         canvasStream.getVideoTracks()[0],
-        audioStream.getAudioTracks()[0]
+        destination.stream.getAudioTracks()[0]
     ]);
 };
 
