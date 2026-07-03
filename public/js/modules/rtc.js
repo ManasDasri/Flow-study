@@ -56,10 +56,22 @@ export const initMedia = async (videoEl) => {
             await videoEl.play().catch(e => console.error("Autoplay failed:", e));
             return true;
         }
-        localStream = await navigator.mediaDevices.getUserMedia({
-            video: true,
-            audio: true
-        });
+        
+        try {
+            // Try Video + Audio
+            localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+        } catch (e) {
+            console.warn("Failed video+audio, trying video only", e);
+            try {
+                // Try Video only
+                localStream = await navigator.mediaDevices.getUserMedia({ video: true });
+            } catch (e2) {
+                console.warn("Failed video only, trying audio only", e2);
+                // Try Audio only
+                localStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            }
+        }
+        
         videoEl.srcObject = localStream;
         await videoEl.play().catch(e => console.error("Autoplay failed:", e));
         return true;
@@ -69,7 +81,7 @@ export const initMedia = async (videoEl) => {
         videoEl.srcObject = localStream;
         await videoEl.play().catch(e => console.error("Autoplay failed:", e));
         
-        alert("Camera/Microphone access was denied! You are in receive-only mode (others will see a black screen).\n\nPlease allow Camera and Microphone permissions if you wish to be seen.");
+        alert("Camera/Microphone access was denied or devices not found! You are in receive-only mode (others will see a black screen).");
         return true; 
     }
 };
@@ -127,12 +139,15 @@ export const createPeerConnection = (userId, onRemoteStream) => {
     return pc;
 };
 
+const candidateQueues = {};
+
 export const handleSignal = async (data, onRemoteStream) => {
     const { from, signal } = data;
     
     let pc = peers[from];
     if (!pc) {
         pc = createPeerConnection(from, onRemoteStream);
+        candidateQueues[from] = [];
     }
 
     try {
@@ -141,10 +156,29 @@ export const handleSignal = async (data, onRemoteStream) => {
             const answer = await pc.createAnswer();
             await pc.setLocalDescription(answer);
             sendSignal(from, { type: 'answer', answer });
+            
+            if (candidateQueues[from]) {
+                for (const candidate of candidateQueues[from]) {
+                    await pc.addIceCandidate(new RTCIceCandidate(candidate));
+                }
+                candidateQueues[from] = [];
+            }
         } else if (signal.type === 'answer') {
             await pc.setRemoteDescription(new RTCSessionDescription(signal.answer));
+            
+            if (candidateQueues[from]) {
+                for (const candidate of candidateQueues[from]) {
+                    await pc.addIceCandidate(new RTCIceCandidate(candidate));
+                }
+                candidateQueues[from] = [];
+            }
         } else if (signal.type === 'candidate') {
-            await pc.addIceCandidate(new RTCIceCandidate(signal.candidate));
+            if (pc.remoteDescription && pc.remoteDescription.type) {
+                await pc.addIceCandidate(new RTCIceCandidate(signal.candidate));
+            } else {
+                if (!candidateQueues[from]) candidateQueues[from] = [];
+                candidateQueues[from].push(signal.candidate);
+            }
         }
     } catch (err) {
         console.error("Signal handling error:", err);
