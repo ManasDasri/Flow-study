@@ -5,7 +5,7 @@ let currentRoomId = null;
 let myUserId = null;
 let myUsername = null;
 
-export const initSocket = (roomId, username, handlers) => {
+export const initSocket = (roomId, username, isDummyMedia, handlers) => {
     currentRoomId = roomId;
     myUsername = username;
     const user = JSON.parse(localStorage.getItem('flow_user'));
@@ -79,7 +79,8 @@ export const initSocket = (roomId, username, handlers) => {
             await channel.track({
                 username: myUsername,
                 status: 'Online',
-                nowPlaying: null
+                nowPlaying: null,
+                isDummyMedia: isDummyMedia
             });
             
             // Initial task fetch

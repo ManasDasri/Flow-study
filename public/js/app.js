@@ -1,5 +1,5 @@
 import { initSocket, getSocket, getMyUserId, broadcastYouTube } from './modules/socket.js';
-import { initMedia, toggleAudio, toggleVideo, handleSignal, removePeer, callUser, hasPeer, cleanupDummyStream } from './modules/rtc.js';
+import { initMedia, toggleAudio, toggleVideo, handleSignal, removePeer, callUser, hasPeer, cleanupDummyStream, isDummyMedia } from './modules/rtc.js';
 import { initTimer, toggleTimer, resetTimer, setMode, syncState, setTimerSettings, broadcastCurrentState } from './modules/timer.js';
 import { initTasks, addTask, toggleTask, deleteTask, getStats as getTaskStats, setSharedTasks } from './modules/tasks.js';
 import { initPresence, updatePresence, startFocusTracking, stopFocusTracking } from './modules/presence.js';
@@ -198,8 +198,13 @@ const handleJoin = async () => {
     const localVideo = document.getElementById('local-video');
     await initMedia(localVideo);
     
+    if (isDummyMedia) {
+        document.getElementById('local-dummy-placeholder').classList.remove('hidden');
+        document.getElementById('local-dummy-avatar').innerText = currentUsername.charAt(0).toUpperCase();
+    }
+    
     // Setup Socket
-    initSocket(roomId, username, {
+    initSocket(roomId, username, isDummyMedia, {
         onRoomState: (state) => {
             const users = state.participants || {};
             UI.updateRoomInfo(roomId, Object.keys(users).length);
@@ -332,7 +337,13 @@ const ensureVideoWrapper = (userId) => {
         videoEl.playsInline = true;
         
         const overlay = document.createElement('div');
-        overlay.innerHTML = `<span class="name-tag" id="name-tag-${userId}">${partners[userId]?.username || 'Partner'}</span>`;
+        overlay.innerHTML = `
+            <span class="name-tag" id="name-tag-${userId}">${partners[userId]?.username || 'Partner'}</span>
+            <div class="dummy-placeholder hidden" id="dummy-${userId}">
+                <div class="avatar" style="width:64px; height:64px; font-size:2rem; border-radius:50%;">${(partners[userId]?.username || '?').charAt(0).toUpperCase()}</div>
+                <div class="text">Camera Unavailable</div>
+            </div>
+        `;
         
         wrapper.appendChild(videoEl);
         wrapper.appendChild(overlay);
@@ -371,6 +382,16 @@ const updatePartnerUI = (userId) => {
     
     // Update presence card
     UI.renderPartnerPresenceCard(userId, partner);
+    
+    // Dummy UI
+    const dummyEl = document.getElementById(`dummy-${userId}`);
+    if (dummyEl) {
+        if (partner.isDummyMedia) {
+            dummyEl.classList.remove('hidden');
+        } else {
+            dummyEl.classList.add('hidden');
+        }
+    }
 };
 
 // Start

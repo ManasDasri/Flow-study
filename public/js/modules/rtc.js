@@ -14,6 +14,8 @@ const ICE_SERVERS = {
 
 export const hasPeer = (userId) => !!peers[userId];
 
+export let isDummyMedia = false;
+
 let dummyRAFId = null;
 let dummyAudioCtx = null;
 let dummyOscillator = null;
@@ -71,6 +73,7 @@ export const initMedia = async (videoEl) => {
         if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
             console.warn("Camera access blocked/unsupported. Using dummy stream.");
             localStream = createDummyStream();
+            isDummyMedia = true;
             videoEl.srcObject = localStream;
             await videoEl.play().catch(e => console.error("Autoplay failed:", e));
             return true;
@@ -97,6 +100,7 @@ export const initMedia = async (videoEl) => {
     } catch (err) {
         console.warn('Failed to get local media, generating dummy stream to keep WebRTC alive.', err);
         localStream = createDummyStream();
+        isDummyMedia = true;
         videoEl.srcObject = localStream;
         await videoEl.play().catch(e => console.error("Autoplay failed:", e));
         
