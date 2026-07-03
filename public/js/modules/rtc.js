@@ -1,8 +1,16 @@
-import { getMyUserId } from './socket.js';
+import { sendSignal } from './socket.js';
 
 let localStream = null;
-const peers = {}; // Store PeerJS 'call' objects
-let myPeer = null;
+const peers = {}; // Store RTCPeerConnection objects
+
+const ICE_SERVERS = {
+    iceServers: [
+        { urls: 'stun:stun.l.google.com:19302' },
+        { urls: 'turn:openrelay.metered.ca:80', username: 'openrelayproject', credential: 'openrelayproject' },
+        { urls: 'turn:openrelay.metered.ca:443', username: 'openrelayproject', credential: 'openrelayproject' },
+        { urls: 'turn:openrelay.metered.ca:443?transport=tcp', username: 'openrelayproject', credential: 'openrelayproject' }
+    ]
+};
 
 export const hasPeer = (userId) => !!peers[userId];
 
@@ -44,111 +52,14 @@ export const initMedia = async (videoEl) => {
         return true;
     } catch (err) {
         console.warn('Failed to get local media, generating dummy stream to keep WebRTC alive.', err);
-        // Fallback to dummy stream so PeerJS doesn't crash on undefined streams
         localStream = createDummyStream();
         videoEl.srcObject = localStream;
         await videoEl.play().catch(e => console.error("Autoplay failed:", e));
         
-        // Still alert the user so they know they are using a fallback
         alert("Camera/Microphone access was denied! You are in receive-only mode (others will see a black screen).\n\nPlease allow Camera and Microphone permissions if you wish to be seen.");
-        return true; // Return true so the app proceeds!
+        return true; 
     }
 };
-
-export const initPeer = (onRemoteStream) => {
-    if (myPeer) return;
-    
-    // We use our unique Supabase User ID as our PeerJS ID!
-    const myId = getMyUserId();
-    
-    // Initialize PeerJS with the default free cloud signaling server and fallback TURN servers
-    myPeer = new Peer(myId, {
-        debug: 1, // Log errors
-        config: {
-            'iceServers': [
-                { urls: 'stun:stun.l.google.com:19302' },
-                { urls: 'turn:openrelay.metered.ca:80', username: 'openrelayproject', credential: 'openrelayproject' },
-                { urls: 'turn:openrelay.metered.ca:443', username: 'openrelayproject', credential: 'openrelayproject' },
-                { urls: 'turn:openrelay.metered.ca:443?transport=tcp', username: 'openrelayproject', credential: 'openrelayproject' }
-            ]
-        }
-    });
-
-    myPeer.on('open', (id) => {
-        console.log('PeerJS initialized perfectly with ID:', id);
-    });
-
-    // Handle incoming calls
-    myPeer.on('call', (call) => {
-        console.log(`Receiving call from ${call.peer}...`);
-        
-        // Answer automatically with our stream (pass undefined if null to prevent PeerJS crash)
-        call.answer(localStream || undefined);
-        peers[call.peer] = call;
-
-        call.on('stream', (remoteStream) => {
-            console.log(`Received remote stream from ${call.peer}`);
-            onRemoteStream(call.peer, remoteStream);
-        });
-
-        call.on('close', () => {
-            removePeer(call.peer);
-        });
-        
-        call.on('error', (err) => {
-            console.error('PeerJS call error:', err);
-            removePeer(call.peer);
-        });
-    });
-    
-    myPeer.on('error', (err) => {
-        console.error('PeerJS internal error:', err.type, err);
-        // If we tried to call someone before they connected to PeerServer, clean up so the self-healing loop retries
-        if (err.type === 'peer-unavailable') {
-            const match = err.message.match(/Could not connect to peer (.*)/);
-            if (match && match[1]) {
-                console.log(`Cleaning up failed call to ${match[1]}, loop will retry...`);
-                removePeer(match[1]);
-            }
-        }
-    });
-};
-
-export const callUser = (userId, onRemoteStream) => {
-    if (!myPeer) {
-        console.warn('Cannot call: PeerJS not initialized.');
-        return;
-    }
-    
-    console.log(`Calling ${userId}...`);
-    // Initiate the call (pass localStream if it exists, otherwise it will be a receive-only call)
-    const call = myPeer.call(userId, localStream || undefined);
-    peers[userId] = call;
-
-    call.on('stream', (remoteStream) => {
-        console.log(`Received remote stream from ${userId}`);
-        onRemoteStream(userId, remoteStream);
-    });
-
-    call.on('close', () => {
-        removePeer(userId);
-    });
-    
-    call.on('error', (err) => {
-        console.error('PeerJS call error:', err);
-        removePeer(userId);
-    });
-};
-
-export const removePeer = (userId) => {
-    if (peers[userId]) {
-        peers[userId].close();
-        delete peers[userId];
-    }
-};
-
-// Deprecated since we use PeerJS now, but kept for compatibility with app.js
-export const handleSignal = (data, onRemoteStream) => {};
 
 export const toggleAudio = () => {
     if (localStream) {
@@ -171,3 +82,79 @@ export const toggleVideo = () => {
     }
     return false;
 };
+
+// Vanilla WebRTC logic replacing PeerJS
+export const createPeerConnection = (userId, onRemoteStream) => {
+    const pc = new RTCPeerConnection(ICE_SERVERS);
+    peers[userId] = pc;
+
+    if (localStream) {
+        localStream.getTracks().forEach(track => {
+            pc.addTrack(track, localStream);
+        });
+    }
+
+    pc.onicecandidate = (event) => {
+        if (event.candidate) {
+            sendSignal(userId, { type: 'candidate', candidate: event.candidate });
+        }
+    };
+
+    pc.ontrack = (event) => {
+        onRemoteStream(userId, event.streams[0]);
+    };
+    
+    // Automatically cleanup when connection drops
+    pc.onconnectionstatechange = () => {
+        if (pc.connectionState === 'disconnected' || pc.connectionState === 'failed' || pc.connectionState === 'closed') {
+            removePeer(userId);
+        }
+    };
+
+    return pc;
+};
+
+export const handleSignal = async (data, onRemoteStream) => {
+    const { from, signal } = data;
+    
+    let pc = peers[from];
+    if (!pc) {
+        pc = createPeerConnection(from, onRemoteStream);
+    }
+
+    try {
+        if (signal.type === 'offer') {
+            await pc.setRemoteDescription(new RTCSessionDescription(signal.offer));
+            const answer = await pc.createAnswer();
+            await pc.setLocalDescription(answer);
+            sendSignal(from, { type: 'answer', answer });
+        } else if (signal.type === 'answer') {
+            await pc.setRemoteDescription(new RTCSessionDescription(signal.answer));
+        } else if (signal.type === 'candidate') {
+            await pc.addIceCandidate(new RTCIceCandidate(signal.candidate));
+        }
+    } catch (err) {
+        console.error("Signal handling error:", err);
+    }
+};
+
+export const callUser = async (userId, onRemoteStream) => {
+    try {
+        const pc = createPeerConnection(userId, onRemoteStream);
+        const offer = await pc.createOffer();
+        await pc.setLocalDescription(offer);
+        sendSignal(userId, { type: 'offer', offer });
+    } catch (err) {
+        console.error("Failed to initiate call:", err);
+    }
+};
+
+export const removePeer = (userId) => {
+    if (peers[userId]) {
+        peers[userId].close();
+        delete peers[userId];
+    }
+};
+
+// Stub for initPeer to prevent app.js from breaking before it's updated
+export const initPeer = () => {};

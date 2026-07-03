@@ -43,10 +43,16 @@ export const initSocket = (roomId, username, handlers) => {
         }
     });
 
-    // Handle Broadcasts (Timer, Chat, WebRTC)
+    // Handle Broadcasts (Timer, Chat, WebRTC, YouTube)
     channel.on('broadcast', { event: 'signal' }, (payload) => {
         if (payload.payload.to === myUserId) {
             handlers.onSignal({ from: payload.payload.from, signal: payload.payload.signal });
+        }
+    });
+
+    channel.on('broadcast', { event: 'youtube-sync' }, (payload) => {
+        if (handlers.onYouTubeSync) {
+            handlers.onYouTubeSync(payload.payload.url);
         }
     });
 
@@ -128,6 +134,16 @@ export const updatePresence = async (roomId, status, nowPlaying) => {
             username: myUsername,
             status: status !== undefined ? status : myState.status,
             nowPlaying: nowPlaying !== undefined ? nowPlaying : myState.nowPlaying
+        });
+    }
+};
+
+export const broadcastYouTube = (url) => {
+    if (channel) {
+        channel.send({
+            type: 'broadcast',
+            event: 'youtube-sync',
+            payload: { url }
         });
     }
 };

@@ -1,5 +1,5 @@
-import { initSocket, getSocket, getMyUserId } from './modules/socket.js';
-import { initMedia, toggleAudio, toggleVideo, handleSignal, removePeer, callUser, hasPeer, initPeer } from './modules/rtc.js';
+import { initSocket, getSocket, getMyUserId, broadcastYouTube } from './modules/socket.js';
+import { initMedia, toggleAudio, toggleVideo, handleSignal, removePeer, callUser, hasPeer } from './modules/rtc.js';
 import { initTimer, toggleTimer, resetTimer, setMode, syncState, setTimerSettings } from './modules/timer.js';
 import { initTasks, addTask, toggleTask, deleteTask, getStats as getTaskStats, setSharedTasks } from './modules/tasks.js';
 import { initPresence, updatePresence, startFocusTracking, stopFocusTracking } from './modules/presence.js';
@@ -166,6 +166,36 @@ const initApp = async () => {
             socket.untrack();
         }
     });
+
+    // YouTube Sync Logic
+    const youtubeInput = document.getElementById('youtube-url-input');
+    const syncYoutubeBtn = document.getElementById('sync-youtube-btn');
+    
+    syncYoutubeBtn.addEventListener('click', () => {
+        const url = youtubeInput.value.trim();
+        if (url) {
+            broadcastYouTube(url);
+            updateYouTubeIframe(url);
+        }
+    });
+};
+
+const updateYouTubeIframe = (url) => {
+    let videoId = '';
+    // Handle youtu.be, youtube.com/watch?v=, and youtube.com/playlist?list=
+    if (url.includes('youtu.be/')) {
+        videoId = url.split('youtu.be/')[1].split('?')[0];
+    } else if (url.includes('watch?v=')) {
+        videoId = url.split('watch?v=')[1].split('&')[0];
+    } else if (url.includes('playlist?list=')) {
+        const listId = url.split('playlist?list=')[1].split('&')[0];
+        document.getElementById('youtube-iframe').src = `https://www.youtube.com/embed/videoseries?list=${listId}&autoplay=1`;
+        return;
+    }
+    
+    if (videoId) {
+        document.getElementById('youtube-iframe').src = `https://www.youtube.com/embed/${videoId}?autoplay=1`;
+    }
 };
 
 const handleJoin = async () => {
@@ -268,11 +298,12 @@ const handleJoin = async () => {
         },
         onChatMessage: (messageData) => {
             handleIncomingMessage(messageData);
+        },
+        onYouTubeSync: (url) => {
+            document.getElementById('youtube-url-input').value = url;
+            updateYouTubeIframe(url);
         }
     });
-
-    // Initialize rock-solid PeerJS connections now that myUserId is set by initSocket
-    initPeer(onRemoteStream);
     
     // Self-healing WebRTC loop: Continuously check if we are missing any connections
     setInterval(() => {
