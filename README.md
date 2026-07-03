@@ -41,7 +41,7 @@ The UI employs a beautiful, high-contrast **Neo-Brutalist** aesthetic, making th
 
 | Login | Focus Room |
 | :---: | :---: |
-| <img src="assets/login.png" width="100%" alt="Login Screen"> | <img src="assets/room.png" width="100%" alt="Flow Room"> |
+| <img src="assets/login.png" width="100%" alt="Login Screen"> | <img src="assets/flow.png" width="100%" alt="Flow Room"> |
 
 ---
 
