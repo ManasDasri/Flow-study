@@ -41,7 +41,7 @@ The UI employs a beautiful, high-contrast **Neo-Brutalist** aesthetic, making th
 
 | Login | Focus Room |
 | :---: | :---: |
-| <img src="https://placehold.co/600x400/111/fff?text=Login+Screen" width="100%"> | <img src="https://placehold.co/600x400/111/fff?text=Flow+Room" width="100%"> |
+| <img src="assets/login.png" width="100%" alt="Login Screen"> | <img src="assets/room.png" width="100%" alt="Flow Room"> |
 
 ---
 
