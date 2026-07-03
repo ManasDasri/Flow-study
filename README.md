@@ -132,10 +132,14 @@ CREATE TABLE public.tasks (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
--- 3. Enable Row Level Security and Create an Allow-All Policy (Fixes permission errors!)
+-- 3. Enable Row Level Security and setup basic authenticated access
 ALTER TABLE public.tasks ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Allow all" ON public.tasks;
-CREATE POLICY "Allow all" ON public.tasks FOR ALL USING (true) WITH CHECK (true);
+
+CREATE POLICY "Enable read access for all tasks" ON public.tasks FOR SELECT USING (true);
+CREATE POLICY "Enable insert for authenticated users" ON public.tasks FOR INSERT TO authenticated WITH CHECK (true);
+CREATE POLICY "Enable update for authenticated users" ON public.tasks FOR UPDATE TO authenticated USING (true) WITH CHECK (true);
+CREATE POLICY "Enable delete for authenticated users" ON public.tasks FOR DELETE TO authenticated USING (true);
 
 -- 4. Enable Realtime Broadcasting for the Tasks Table
 BEGIN;
@@ -143,6 +147,10 @@ BEGIN;
   CREATE PUBLICATION supabase_realtime FOR TABLE public.tasks;
 COMMIT;
 ```
+
+### Production Recommendations
+If you plan to host Flow for public use beyond a trusted circle, we highly recommend:
+- **Replacing the TURN Server:** The free `openrelay.metered.ca` TURN server configured in `public/js/modules/rtc.js` should be replaced with a paid provider (e.g., Twilio, Cloudflare Calls) to ensure reliable WebRTC video traversal on restrictive networks (like corporate or school Wi-Fi).
 
 ---
 

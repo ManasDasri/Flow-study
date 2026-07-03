@@ -5,6 +5,7 @@ import { initTasks, addTask, toggleTask, deleteTask, getStats as getTaskStats, s
 import { initPresence, updatePresence, startFocusTracking, stopFocusTracking } from './modules/presence.js';
 import { initChat, handleIncomingMessage } from './modules/chat.js';
 import * as UI from './modules/ui.js';
+import supabase from './modules/supabase.js';
 
 let currentRoomId = null;
 let currentUsername = null;
@@ -32,9 +33,26 @@ const initApp = async () => {
     
     joinBtn.addEventListener('click', handleJoin);
     
-    hostBtn.addEventListener('click', () => {
+    hostBtn.addEventListener('click', async () => {
+        const originalText = hostBtn.innerText;
+        hostBtn.innerText = 'Creating...';
+        hostBtn.disabled = true;
+        
+        let code = '';
+        let isCollision = true;
+        while (isCollision) {
+            code = Math.random().toString(36).substring(2, 8).toUpperCase();
+            const { data } = await supabase.from('tasks').select('id').eq('room_id', code).limit(1);
+            if (!data || data.length === 0) {
+                isCollision = false;
+            }
+        }
+        
+        hostBtn.innerText = originalText;
+        hostBtn.disabled = false;
+        
         // Auto-generate a room code and join
-        roomCodeInput.value = Math.random().toString(36).substring(2, 8).toUpperCase();
+        roomCodeInput.value = code;
         handleJoin();
     });
 

@@ -36,12 +36,17 @@ const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 app.post('/api/ai', aiLimiter, async (req, res) => {
     try {
         const { message } = req.body;
+        
+        if (!message || message.length > 500) {
+            return res.status(400).json({ text: "Message is too long or empty." });
+        }
+        
         const completion = await groq.chat.completions.create({
             messages: [
                 { role: "system", content: "You are a helpful study assistant in a virtual study room. Answer concisely." },
                 { role: "user", content: message }
             ],
-            model: "llama3-8b-8192",
+            model: "llama-3.1-8b-instant",
         });
         res.json({ text: completion.choices[0].message.content });
     } catch (e) {
