@@ -12,7 +12,8 @@ const els = {
     
     myStatusText: document.getElementById('my-status-text'),
     myUsername: document.getElementById('my-username'),
-    myAvatar: document.getElementById('my-avatar')
+    myAvatar: document.getElementById('my-avatar'),
+    myFocusTime: document.getElementById('my-focus-time')
 };
 
 export const updateRoomInfo = (roomId, count) => {
@@ -93,6 +94,10 @@ export const updateMyPresenceUI = (state, stats, username) => {
     
     const dot = els.myStatusText.previousElementSibling;
     dot.className = `dot ${state.status.includes('Break') ? 'yellow' : 'green'}`;
+    
+    if (els.myFocusTime && state.focusTime !== undefined) {
+        els.myFocusTime.innerText = `Today: ${state.focusTime}m focused`;
+    }
 };
 
 export const renderPartnerPresenceCard = (userId, userData) => {

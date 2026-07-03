@@ -1,4 +1,5 @@
-import { updatePresence as socketUpdatePresence } from './socket.js';
+import { updatePresence as socketUpdatePresence, getMyUserId } from './socket.js';
+import supabase from './supabase.js';
 
 let currentState = {
     status: '🟢 Online',
@@ -11,11 +12,36 @@ let roomId = null;
 let updateUI = null;
 let focusInterval = null;
 
+export const fetchDailyFocusTime = async () => {
+    const userId = getMyUserId();
+    if (!userId) return;
+    
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    const { data } = await supabase
+        .from('sessions')
+        .select('duration_seconds')
+        .eq('user_id', userId)
+        .gte('completed_at', today.toISOString());
+        
+    if (data) {
+        const totalSeconds = data.reduce((acc, curr) => acc + curr.duration_seconds, 0);
+        currentState.focusTime = Math.floor(totalSeconds / 60);
+        renderPresence();
+    }
+};
+
 export const initPresence = (rId, uiCallback) => {
     roomId = rId;
     updateUI = uiCallback;
     broadcastPresence();
     renderPresence();
+    fetchDailyFocusTime();
+    
+    document.addEventListener('session-completed', () => {
+        fetchDailyFocusTime();
+    });
 };
 
 export const updatePresence = (updates) => {

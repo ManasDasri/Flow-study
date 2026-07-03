@@ -1,6 +1,6 @@
 @import url('https://api.fontshare.com/v2/css?f[]=satoshi@900,700,500,400&family=Space+Mono:ital,wght@0,400;0,700;1,400&display=swap');
 
-:root {
+:root, [data-theme="forest"] {
     /* Glassmorphism Forest Green Palette */
     --bg-main: #0d1a10; 
     --bg-gradient: linear-gradient(135deg, #1e3322 0%, #0d1a10 100%);
@@ -32,6 +32,40 @@
     --shadow-solid: 0 8px 32px 0 rgba(0, 0, 0, 0.3); /* Soft glass shadow */
     --shadow-solid-hover: 0 8px 32px 0 rgba(0, 0, 0, 0.4);
     --shadow-solid-active: 0 4px 16px 0 rgba(0, 0, 0, 0.3);
+}
+
+[data-theme="midnight"] {
+    --bg-main: #0B0E14; 
+    --bg-gradient: linear-gradient(135deg, #1A2130 0%, #0B0E14 100%);
+    --glass-bg: rgba(255, 255, 255, 0.05);
+    --glass-bg-hover: rgba(255, 255, 255, 0.1);
+    --glass-border: rgba(255, 255, 255, 0.08);
+    --surface: var(--glass-bg);
+    --primary: #5C88FF; 
+    --secondary: rgba(255, 255, 255, 0.15); 
+    --accent: #5C88FF; 
+    --green: #23C176; 
+    --danger: #FF5C5C;
+    --text-primary: #FFFFFF;
+    --text-secondary: rgba(255, 255, 255, 0.6);
+    --border-color: var(--glass-border);
+}
+
+[data-theme="warm"] {
+    --bg-main: #2A1D1A; 
+    --bg-gradient: linear-gradient(135deg, #4A2B23 0%, #2A1D1A 100%);
+    --glass-bg: rgba(255, 255, 255, 0.06);
+    --glass-bg-hover: rgba(255, 255, 255, 0.12);
+    --glass-border: rgba(255, 255, 255, 0.1);
+    --surface: var(--glass-bg);
+    --primary: #FF8A5C; 
+    --secondary: rgba(255, 255, 255, 0.2); 
+    --accent: #FF8A5C; 
+    --green: #23C176; 
+    --danger: #FF5C5C;
+    --text-primary: #FFF0EB;
+    --text-secondary: rgba(255, 240, 235, 0.7);
+    --border-color: var(--glass-border);
 }
 
 * {

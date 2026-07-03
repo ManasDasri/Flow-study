@@ -142,3 +142,24 @@
         overflow-y: auto;
     }
 }
+
+/* Focus Mode Styles */
+.focus-active .left-sidebar,
+.focus-active .right-sidebar,
+.focus-active .app-header {
+    display: none !important;
+}
+
+.focus-active .workspace-grid {
+    grid-template-columns: 1fr !important;
+    gap: 0;
+}
+
+.focus-active .pill-timer {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 1000;
+    box-shadow: var(--shadow-solid-hover);
+}

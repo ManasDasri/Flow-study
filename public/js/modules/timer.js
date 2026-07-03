@@ -1,4 +1,5 @@
-import { updateTimer as socketUpdateTimer } from './socket.js';
+import { updateTimer as socketUpdateTimer, getMyUserId } from './socket.js';
+import supabase from './supabase.js';
 
 let state = {
     mode: 'focus', // 'focus', 'shortBreak', 'longBreak'
@@ -153,8 +154,26 @@ const handleComplete = () => {
     if (state.mode === 'focus') {
         title = "Focus Complete! 🎯";
         msg = "Awesome work! Take a well-deserved break.";
+        
+        // Log the session to Supabase
+        const userId = getMyUserId();
+        if (userId) {
+            supabase.from('sessions').insert([{
+                user_id: userId,
+                room_id: roomId,
+                mode: 'focus',
+                duration_seconds: state.duration
+            }]).then(() => {
+                // Dispatch event so UI can re-fetch stats
+                document.dispatchEvent(new Event('session-completed'));
+            }).catch(e => console.error("Failed to log session", e));
+        }
+        
         // Auto switch to break mode
         setMode('shortBreak');
+        document.body.classList.remove('focus-active');
+        const focusBtn = document.getElementById('focus-mode-toggle');
+        if(focusBtn) focusBtn.classList.remove('active');
     } else {
         title = "Break Over! ⚡";
         msg = "Time to get back into flow state.";

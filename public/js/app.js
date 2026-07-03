@@ -48,6 +48,14 @@ const initApp = async () => {
             }
         }
         
+        const pin = document.getElementById('room-pin-input').value.trim();
+        await supabase.from('rooms').insert([{
+            room_code: code,
+            host_id: user.id,
+            is_locked: !!pin,
+            pin: pin || null
+        }]);
+        
         hostBtn.innerText = originalText;
         hostBtn.disabled = false;
         
@@ -78,6 +86,11 @@ const initApp = async () => {
     
     document.getElementById('timer-reset-btn').addEventListener('click', () => {
         resetTimer();
+    });
+    
+    document.getElementById('focus-mode-toggle').addEventListener('click', (e) => {
+        document.body.classList.toggle('focus-active');
+        e.currentTarget.classList.toggle('active', document.body.classList.contains('focus-active'));
     });
     
     UI.UI.timerModes.forEach(btn => {
@@ -131,6 +144,18 @@ const initApp = async () => {
     document.getElementById('share-link-btn').addEventListener('click', () => {
         navigator.clipboard.writeText(window.location.href + '?room=' + currentRoomId);
         alert('Room link copied to clipboard!');
+    });
+    
+    // Theming Logic
+    const themePicker = document.getElementById('theme-picker');
+    const savedTheme = localStorage.getItem('flow_theme') || 'forest';
+    document.documentElement.setAttribute('data-theme', savedTheme);
+    themePicker.value = savedTheme;
+    
+    themePicker.addEventListener('change', (e) => {
+        const theme = e.target.value;
+        document.documentElement.setAttribute('data-theme', theme);
+        localStorage.setItem('flow_theme', theme);
     });
     
 
@@ -193,6 +218,7 @@ const updateYouTubeIframe = (url) => {
 
 const handleJoin = async () => {
     const roomId = roomCodeInput.value.trim().toUpperCase();
+    const pin = document.getElementById('room-pin-input').value.trim();
     
     // Extract username from email
     const userStr = localStorage.getItem('flow_user');
@@ -202,6 +228,15 @@ const handleJoin = async () => {
     if (!roomId) {
         alert('Please enter a 6-character Room Code to join, or click "Host Room" to create a new one!');
         return;
+    }
+    
+    // Verify PIN if the room is locked
+    const { data: roomData } = await supabase.from('rooms').select('is_locked, pin').eq('room_code', roomId).maybeSingle();
+    if (roomData && roomData.is_locked) {
+        if (roomData.pin !== pin) {
+            alert('Incorrect PIN for this room.');
+            return;
+        }
     }
     
     currentRoomId = roomId;
