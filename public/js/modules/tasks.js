@@ -38,25 +38,31 @@ export const addTask = async (title) => {
 export const toggleTask = async (taskId) => {
     const task = roomTasks.find(t => t.id === taskId);
     if (task) {
-        const { error } = await supabase.from('tasks')
+        const { data, error } = await supabase.from('tasks')
             .update({ completed: !task.completed })
-            .eq('id', taskId);
+            .eq('id', taskId)
+            .select();
             
         if (error) {
             console.error("Supabase Error Toggling Task:", error.message);
             alert("Database Error: " + error.message);
+        } else if (!data || data.length === 0) {
+            alert("Permission denied! Your Supabase database has strict rules blocking this. Please run the updated SQL in database_setup.md!");
         }
     }
 };
 
 export const deleteTask = async (taskId) => {
-    const { error } = await supabase.from('tasks')
+    const { data, error } = await supabase.from('tasks')
         .delete()
-        .eq('id', taskId);
+        .eq('id', taskId)
+        .select();
         
     if (error) {
         console.error("Supabase Error Deleting Task:", error.message);
         alert("Database Error: " + error.message);
+    } else if (!data || data.length === 0) {
+        alert("Permission denied! Your Supabase database has strict rules blocking this. Please run the updated SQL in database_setup.md!");
     }
 };
 
