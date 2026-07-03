@@ -84,6 +84,11 @@ export const initSocket = (roomId, username, handlers) => {
             
             // Initial task fetch
             fetchTasks(roomId, handlers.onRoomTasksUpdate);
+        } else if (status === 'CLOSED' || status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+            console.warn(`Channel status: ${status}, attempting to rejoin in 3s...`);
+            setTimeout(() => {
+                if (channel) channel.subscribe();
+            }, 3000);
         }
     });
 };

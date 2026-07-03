@@ -1,12 +1,29 @@
 require('dotenv').config();
+
+// Fast-fail if Groq API key is missing or dummy
+if (!process.env.GROQ_API_KEY || process.env.GROQ_API_KEY === 'your_groq_api_key_here') {
+    console.error("CRITICAL ERROR: GROQ_API_KEY is missing or invalid in .env file.");
+    process.exit(1);
+}
+
 const express = require('express');
 const http = require('http');
 const path = require('path');
+const rateLimit = require('express-rate-limit');
 
 const app = express();
 const server = http.createServer(app);
 
 const PORT = process.env.PORT || 3000;
+
+// Rate limiting for API endpoints
+const aiLimiter = rateLimit({
+    windowMs: 1 * 60 * 1000, // 1 minute
+    max: 10, // Limit each IP to 10 requests per `window` (here, per minute)
+    message: { text: "Too many requests to the AI endpoint, please try again after a minute." },
+    standardHeaders: true,
+    legacyHeaders: false,
+});
 
 // Serve static files from the 'public' directory
 app.use(express.static(path.join(__dirname, 'public')));
@@ -14,9 +31,9 @@ app.use(express.json());
 
 // AI Chat Route
 const Groq = require('groq-sdk');
-const groq = new Groq({ apiKey: process.env.GROQ_API_KEY || 'dummy_key_for_now' });
+const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 
-app.post('/api/ai', async (req, res) => {
+app.post('/api/ai', aiLimiter, async (req, res) => {
     try {
         const { message } = req.body;
         const completion = await groq.chat.completions.create({
@@ -33,10 +50,6 @@ app.post('/api/ai', async (req, res) => {
     }
 });
 
-// Fallback to index.html for SPA if needed (though this is a simple page right now)
-app.get('*', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'index.html'));
-});
 
 server.listen(PORT, () => {
     console.log(`Flow static server running on port ${PORT}`);

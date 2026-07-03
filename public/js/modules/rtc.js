@@ -14,6 +14,10 @@ const ICE_SERVERS = {
 
 export const hasPeer = (userId) => !!peers[userId];
 
+let dummyRAFId = null;
+let dummyAudioCtx = null;
+let dummyOscillator = null;
+
 const createDummyStream = () => {
     // Create a 1x1 black canvas stream
     const canvas = document.createElement('canvas');
@@ -25,26 +29,41 @@ const createDummyStream = () => {
     const draw = () => {
         ctx.fillStyle = '#000000';
         ctx.fillRect(0, 0, 1, 1);
-        requestAnimationFrame(draw);
+        dummyRAFId = requestAnimationFrame(draw);
     };
     draw();
     
     const canvasStream = canvas.captureStream(15);
     
     // Create a silent audio stream using an oscillator
-    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    const destination = audioCtx.createMediaStreamDestination();
-    const oscillator = audioCtx.createOscillator();
-    const gainNode = audioCtx.createGain();
+    dummyAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    const destination = dummyAudioCtx.createMediaStreamDestination();
+    dummyOscillator = dummyAudioCtx.createOscillator();
+    const gainNode = dummyAudioCtx.createGain();
     gainNode.gain.value = 0; // completely silent
-    oscillator.connect(gainNode);
+    dummyOscillator.connect(gainNode);
     gainNode.connect(destination);
-    oscillator.start();
+    dummyOscillator.start();
     
     return new MediaStream([
         canvasStream.getVideoTracks()[0],
         destination.stream.getAudioTracks()[0]
     ]);
+};
+
+export const cleanupDummyStream = () => {
+    if (dummyRAFId) {
+        cancelAnimationFrame(dummyRAFId);
+        dummyRAFId = null;
+    }
+    if (dummyOscillator) {
+        try { dummyOscillator.stop(); } catch(e) {}
+        dummyOscillator = null;
+    }
+    if (dummyAudioCtx) {
+        try { dummyAudioCtx.close(); } catch(e) {}
+        dummyAudioCtx = null;
+    }
 };
 
 export const initMedia = async (videoEl) => {
@@ -201,7 +220,8 @@ export const removePeer = (userId) => {
         peers[userId].close();
         delete peers[userId];
     }
+    
+    if (Object.keys(peers).length === 0) {
+        cleanupDummyStream();
+    }
 };
-
-// Stub for initPeer to prevent app.js from breaking before it's updated
-export const initPeer = () => {};

@@ -32,34 +32,32 @@ export const addTask = async (title) => {
     if (error) {
         console.error("Supabase Error Adding Task:", error.message);
         alert("Database Error: " + error.message + "\\n\\nDid you run the SQL from the README in your Supabase SQL Editor?");
-    } else {
-        // Optimistically reload tasks for local user if Realtime hasn't kicked in
-        const { data } = await supabase.from('tasks').select('*').eq('room_id', roomId).order('created_at', { ascending: true });
-        if (data) setSharedTasks(data);
     }
 };
 
 export const toggleTask = async (taskId) => {
     const task = roomTasks.find(t => t.id === taskId);
     if (task) {
-        await supabase.from('tasks')
+        const { error } = await supabase.from('tasks')
             .update({ completed: !task.completed })
             .eq('id', taskId);
             
-        // Optimistically reload
-        const { data } = await supabase.from('tasks').select('*').eq('room_id', roomId).order('created_at', { ascending: true });
-        if (data) setSharedTasks(data);
+        if (error) {
+            console.error("Supabase Error Toggling Task:", error.message);
+            alert("Database Error: " + error.message);
+        }
     }
 };
 
 export const deleteTask = async (taskId) => {
-    await supabase.from('tasks')
+    const { error } = await supabase.from('tasks')
         .delete()
         .eq('id', taskId);
         
-    // Optimistically reload
-    const { data } = await supabase.from('tasks').select('*').eq('room_id', roomId).order('created_at', { ascending: true });
-    if (data) setSharedTasks(data);
+    if (error) {
+        console.error("Supabase Error Deleting Task:", error.message);
+        alert("Database Error: " + error.message);
+    }
 };
 
 export const getStats = () => {

@@ -105,11 +105,13 @@ export const renderPartnerPresenceCard = (userId, userData) => {
         els.partnerPresenceContainer.appendChild(card);
     }
     
+    const safeName = userData.username || 'Partner';
+    
     card.innerHTML = `
         <div class="profile-header">
-            <div class="avatar">${userData.username.charAt(0).toUpperCase()}</div>
+            <div class="avatar">${safeName.charAt(0).toUpperCase()}</div>
             <div class="profile-info">
-                <h3>${escapeHTML(userData.username)}</h3>
+                <h3>${escapeHTML(safeName)}</h3>
                 <div class="status-indicator">
                     <span class="dot green"></span>
                     <span>${userData.presence?.status || 'Online'}</span>

@@ -1,6 +1,6 @@
 import { initSocket, getSocket, getMyUserId, broadcastYouTube } from './modules/socket.js';
-import { initMedia, toggleAudio, toggleVideo, handleSignal, removePeer, callUser, hasPeer } from './modules/rtc.js';
-import { initTimer, toggleTimer, resetTimer, setMode, syncState, setTimerSettings } from './modules/timer.js';
+import { initMedia, toggleAudio, toggleVideo, handleSignal, removePeer, callUser, hasPeer, cleanupDummyStream } from './modules/rtc.js';
+import { initTimer, toggleTimer, resetTimer, setMode, syncState, setTimerSettings, broadcastCurrentState } from './modules/timer.js';
 import { initTasks, addTask, toggleTask, deleteTask, getStats as getTaskStats, setSharedTasks } from './modules/tasks.js';
 import { initPresence, updatePresence, startFocusTracking, stopFocusTracking } from './modules/presence.js';
 import { initChat, handleIncomingMessage } from './modules/chat.js';
@@ -14,7 +14,6 @@ let partners = {}; // Store partner data
 const modalOverlay = document.getElementById('modal-overlay');
 const joinBtn = document.getElementById('join-btn');
 const roomCodeInput = document.getElementById('room-code-input');
-const usernameInput = document.getElementById('username-input');
 const appContainer = document.getElementById('app');
 
 // Video Container
@@ -116,32 +115,7 @@ const initApp = async () => {
         alert('Room link copied to clipboard!');
     });
     
-    // Theme Toggle
-    const themeBtn = document.getElementById('theme-toggle-btn');
-    const iconSun = document.getElementById('icon-sun');
-    const iconMoon = document.getElementById('icon-moon');
-    
-    themeBtn.addEventListener('click', () => {
-        const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
-        if (isDark) {
-            document.documentElement.setAttribute('data-theme', 'light');
-            iconSun.classList.add('hidden');
-            iconMoon.classList.remove('hidden');
-        } else {
-            document.documentElement.setAttribute('data-theme', 'dark');
-            iconSun.classList.remove('hidden');
-            iconMoon.classList.add('hidden');
-        }
-        localStorage.setItem('flow_theme', isDark ? 'light' : 'dark');
-    });
-    
-    // Restore Theme
-    const savedTheme = localStorage.getItem('flow_theme');
-    if (savedTheme === 'dark') {
-        document.documentElement.setAttribute('data-theme', 'dark');
-        iconSun.classList.remove('hidden');
-        iconMoon.classList.add('hidden');
-    }
+
 
     document.getElementById('leave-btn').addEventListener('click', () => {
         window.location.reload();
@@ -161,6 +135,7 @@ const initApp = async () => {
 
     // Instantly drop from presence when tab is closed or refreshed
     window.addEventListener('beforeunload', () => {
+        cleanupDummyStream();
         const socket = getSocket();
         if (socket) {
             socket.untrack();
@@ -258,8 +233,7 @@ const handleJoin = async () => {
             UI.updateRoomInfo(roomId, Object.keys(partners).length + 1);
             updatePartnerUI(data.userId);
             // Broadcast timer state to the new user
-            toggleTimer(false); // A little hack to broadcast current state without toggling
-            toggleTimer(false);
+            broadcastCurrentState();
         },
         onUserLeft: (userId) => {
             delete partners[userId];

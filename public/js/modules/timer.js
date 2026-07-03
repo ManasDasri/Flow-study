@@ -46,6 +46,10 @@ const broadcastState = () => {
     socketUpdateTimer(roomId, 'sync', state);
 };
 
+export const broadcastCurrentState = () => {
+    broadcastState();
+};
+
 export const toggleTimer = (broadcast = true) => {
     state.isRunning = !state.isRunning;
     if (state.isRunning) {
@@ -147,7 +151,6 @@ const handleComplete = () => {
     let msg = "Great session!";
     
     if (state.mode === 'focus') {
-        socketUpdateTimer(roomId, 'session_complete');
         title = "Focus Complete! 🎯";
         msg = "Awesome work! Take a well-deserved break.";
         // Auto switch to break mode
