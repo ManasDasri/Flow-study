@@ -273,6 +273,19 @@ const handleJoin = async () => {
 
     // Initialize rock-solid PeerJS connections now that myUserId is set by initSocket
     initPeer(onRemoteStream);
+    
+    // Self-healing WebRTC loop: Continuously check if we are missing any connections
+    setInterval(() => {
+        Object.keys(partners).forEach(userId => {
+            if (userId !== getMyUserId() && !hasPeer(userId)) {
+                // Only the "smaller" ID initiates the call to prevent double-calling
+                if (getMyUserId() < userId) {
+                    console.log(`[Self-Healing] Missing connection to ${userId}. Initiating call...`);
+                    callUser(userId, onRemoteStream);
+                }
+            }
+        });
+    }, 3000);
 
     // Initialize Modules
     initTimer(roomId, (timerState) => {

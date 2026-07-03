@@ -60,23 +60,32 @@ export const initPeer = (onRemoteStream) => {
         
         call.on('error', (err) => {
             console.error('PeerJS call error:', err);
+            removePeer(call.peer);
         });
     });
     
     myPeer.on('error', (err) => {
-        console.error('PeerJS internal error:', err);
+        console.error('PeerJS internal error:', err.type, err);
+        // If we tried to call someone before they connected to PeerServer, clean up so the self-healing loop retries
+        if (err.type === 'peer-unavailable') {
+            const match = err.message.match(/Could not connect to peer (.*)/);
+            if (match && match[1]) {
+                console.log(`Cleaning up failed call to ${match[1]}, loop will retry...`);
+                removePeer(match[1]);
+            }
+        }
     });
 };
 
 export const callUser = (userId, onRemoteStream) => {
-    if (!myPeer || !localStream) {
-        console.warn('Cannot call: PeerJS or localStream not initialized.');
+    if (!myPeer) {
+        console.warn('Cannot call: PeerJS not initialized.');
         return;
     }
     
     console.log(`Calling ${userId}...`);
-    // Initiate the call
-    const call = myPeer.call(userId, localStream);
+    // Initiate the call (pass localStream if it exists, otherwise it will be a receive-only call)
+    const call = myPeer.call(userId, localStream || undefined);
     peers[userId] = call;
 
     call.on('stream', (remoteStream) => {
@@ -90,6 +99,7 @@ export const callUser = (userId, onRemoteStream) => {
     
     call.on('error', (err) => {
         console.error('PeerJS call error:', err);
+        removePeer(userId);
     });
 };
 
