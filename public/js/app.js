@@ -1,5 +1,5 @@
-import { initSocket, getSocket, getMyUserId, broadcastYouTube } from './modules/socket.js';
-import { initMedia, toggleAudio, toggleVideo, handleSignal, removePeer, callUser, hasPeer, cleanupDummyStream, isDummyMedia } from './modules/rtc.js';
+import { initSocket, getSocket, getMyUserId, broadcastYouTube, updateCameraState } from './modules/socket.js';
+import { initMedia, toggleAudio, toggleVideo, handleSignal, removePeer, callUser, hasPeer, cleanupDummyStream, isDummyMedia, isVideoActive } from './modules/rtc.js';
 import { initTimer, toggleTimer, resetTimer, setMode, syncState, setTimerSettings, broadcastCurrentState } from './modules/timer.js';
 import { initTasks, addTask, toggleTask, deleteTask, getStats as getTaskStats, setSharedTasks } from './modules/tasks.js';
 import { initPresence, updatePresence, startFocusTracking, stopFocusTracking } from './modules/presence.js';
@@ -75,8 +75,19 @@ const initApp = async () => {
     });
     
     document.getElementById('toggle-cam').addEventListener('click', (e) => {
-        const enabled = toggleVideo();
-        e.currentTarget.classList.toggle('active', enabled);
+        const isEnabled = toggleVideo();
+        e.currentTarget.classList.toggle('active', isEnabled);
+        
+        const localDummy = document.getElementById('local-dummy-placeholder');
+        if (!isEnabled) {
+            localDummy.classList.remove('hidden');
+            document.getElementById('local-dummy-avatar').innerText = currentUsername.charAt(0).toUpperCase();
+            localDummy.querySelector('.text').innerText = 'Camera Off';
+        } else {
+            localDummy.classList.add('hidden');
+        }
+        
+        updateCameraState(isEnabled);
     });
     
     // Timer Controls
@@ -251,13 +262,15 @@ const handleJoin = async () => {
     const localVideo = document.getElementById('local-video');
     await initMedia(localVideo);
     
-    if (isDummyMedia) {
-        document.getElementById('local-dummy-placeholder').classList.remove('hidden');
+    const localDummy = document.getElementById('local-dummy-placeholder');
+    if (!isVideoActive()) {
+        localDummy.classList.remove('hidden');
         document.getElementById('local-dummy-avatar').innerText = currentUsername.charAt(0).toUpperCase();
+        localDummy.querySelector('.text').innerText = 'Camera Off';
     }
     
     // Setup Socket
-    initSocket(roomId, username, isDummyMedia, {
+    initSocket(roomId, username, !isVideoActive(), {
         onRoomState: (state) => {
             const users = state.participants || {};
             UI.updateRoomInfo(roomId, Object.keys(users).length);

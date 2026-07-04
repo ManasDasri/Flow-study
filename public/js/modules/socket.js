@@ -138,8 +138,20 @@ export const updatePresence = async (roomId, status, nowPlaying) => {
         await channel.track({
             ...myState,
             username: myUsername,
-            status: status !== undefined ? status : myState.status,
+            status,
             nowPlaying: nowPlaying !== undefined ? nowPlaying : myState.nowPlaying
+        });
+    }
+};
+
+export const updateCameraState = async (isVideoActive) => {
+    if (channel) {
+        const state = channel.presenceState();
+        const myState = state[myUserId] ? state[myUserId][0] : {};
+        
+        await channel.track({
+            ...myState,
+            isDummyMedia: !isVideoActive
         });
     }
 };

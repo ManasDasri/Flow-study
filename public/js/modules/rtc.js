@@ -131,6 +131,15 @@ export const toggleVideo = () => {
     return false;
 };
 
+export const isVideoActive = () => {
+    if (isDummyMedia) return false;
+    if (localStream) {
+        const videoTrack = localStream.getVideoTracks()[0];
+        return videoTrack ? videoTrack.enabled : false;
+    }
+    return false;
+};
+
 // Vanilla WebRTC logic replacing PeerJS
 export const createPeerConnection = (userId, onRemoteStream) => {
     const pc = new RTCPeerConnection(ICE_SERVERS);
