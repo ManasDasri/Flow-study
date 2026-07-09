@@ -1,7 +1,6 @@
 import supabase from './modules/supabase.js';
 
 // DOM Elements
-// DOM Elements
 const emailInput = document.getElementById('email-input');
 const passwordInput = document.getElementById('password-input');
 const loginBtn = document.getElementById('login-btn');

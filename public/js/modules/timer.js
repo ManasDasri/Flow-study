@@ -118,28 +118,37 @@ const stopLocalTick = () => {
     }
 };
 
+let sharedAudioCtx = null;
+
 const playChime = () => {
     try {
-        const AudioContext = window.AudioContext || window.webkitAudioContext;
-        if (!AudioContext) return;
-        const ctx = new AudioContext();
+        if (!sharedAudioCtx) {
+            const AudioContext = window.AudioContext || window.webkitAudioContext;
+            if (!AudioContext) return;
+            sharedAudioCtx = new AudioContext();
+        }
+        
+        // Resume if suspended (browser autoplay policy)
+        if (sharedAudioCtx.state === 'suspended') {
+            sharedAudioCtx.resume();
+        }
         
         // Main tone
-        const osc = ctx.createOscillator();
-        const gainNode = ctx.createGain();
+        const osc = sharedAudioCtx.createOscillator();
+        const gainNode = sharedAudioCtx.createGain();
         osc.type = 'sine';
-        osc.frequency.setValueAtTime(880, ctx.currentTime); // A5
-        osc.frequency.exponentialRampToValueAtTime(440, ctx.currentTime + 0.5); // Slide down to A4
+        osc.frequency.setValueAtTime(880, sharedAudioCtx.currentTime); // A5
+        osc.frequency.exponentialRampToValueAtTime(440, sharedAudioCtx.currentTime + 0.5); // Slide down to A4
         
-        gainNode.gain.setValueAtTime(0, ctx.currentTime);
-        gainNode.gain.linearRampToValueAtTime(0.5, ctx.currentTime + 0.05);
-        gainNode.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 1.5);
+        gainNode.gain.setValueAtTime(0, sharedAudioCtx.currentTime);
+        gainNode.gain.linearRampToValueAtTime(0.5, sharedAudioCtx.currentTime + 0.05);
+        gainNode.gain.exponentialRampToValueAtTime(0.001, sharedAudioCtx.currentTime + 1.5);
         
         osc.connect(gainNode);
-        gainNode.connect(ctx.destination);
+        gainNode.connect(sharedAudioCtx.destination);
         
         osc.start();
-        osc.stop(ctx.currentTime + 1.5);
+        osc.stop(sharedAudioCtx.currentTime + 1.5);
     } catch (e) {
         console.warn('Audio Context not supported or failed', e);
     }

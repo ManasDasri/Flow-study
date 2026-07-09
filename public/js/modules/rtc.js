@@ -3,13 +3,32 @@ import { sendSignal } from './socket.js';
 let localStream = null;
 const peers = {}; // Store RTCPeerConnection objects
 
-const ICE_SERVERS = {
+let ICE_SERVERS = {
     iceServers: [
-        { urls: 'stun:stun.l.google.com:19302' },
-        { urls: 'turn:openrelay.metered.ca:80', username: 'openrelayproject', credential: 'openrelayproject' },
-        { urls: 'turn:openrelay.metered.ca:443', username: 'openrelayproject', credential: 'openrelayproject' },
-        { urls: 'turn:openrelay.metered.ca:443?transport=tcp', username: 'openrelayproject', credential: 'openrelayproject' }
+        { urls: 'stun:stun.l.google.com:19302' }
     ]
+};
+
+let credentialsFetched = false;
+const fetchTurnCredentials = async () => {
+    if (credentialsFetched) return;
+    try {
+        const response = await fetch('/api/turn-credentials', { method: 'POST' });
+        if (response.ok) {
+            const data = await response.json();
+            if (data.iceServers) {
+                ICE_SERVERS.iceServers = [
+                    { urls: 'stun:stun.l.google.com:19302' },
+                    ...data.iceServers
+                ];
+            }
+        } else {
+            console.warn("Failed to fetch TURN credentials, falling back to STUN-only.");
+        }
+    } catch (e) {
+        console.warn("Error fetching TURN credentials, falling back to STUN-only.", e);
+    }
+    credentialsFetched = true;
 };
 
 export const hasPeer = (userId) => !!peers[userId];
@@ -141,7 +160,8 @@ export const isVideoActive = () => {
 };
 
 // Vanilla WebRTC logic replacing PeerJS
-export const createPeerConnection = (userId, onRemoteStream) => {
+export const createPeerConnection = async (userId, onRemoteStream) => {
+    await fetchTurnCredentials();
     const pc = new RTCPeerConnection(ICE_SERVERS);
     peers[userId] = pc;
 
@@ -153,6 +173,7 @@ export const createPeerConnection = (userId, onRemoteStream) => {
 
     pc.onicecandidate = (event) => {
         if (event.candidate) {
+            console.log(`[WebRTC] Sending ICE candidate to ${userId}`);
             sendSignal(userId, { type: 'candidate', candidate: event.candidate });
         }
     };
@@ -163,6 +184,7 @@ export const createPeerConnection = (userId, onRemoteStream) => {
     
     // Automatically cleanup when connection drops
     pc.onconnectionstatechange = () => {
+        console.log(`[WebRTC] Connection state with ${userId}: ${pc.connectionState}`);
         if (pc.connectionState === 'disconnected' || pc.connectionState === 'failed' || pc.connectionState === 'closed') {
             removePeer(userId);
         }
@@ -178,15 +200,17 @@ export const handleSignal = async (data, onRemoteStream) => {
     
     let pc = peers[from];
     if (!pc) {
-        pc = createPeerConnection(from, onRemoteStream);
+        pc = await createPeerConnection(from, onRemoteStream);
         candidateQueues[from] = [];
     }
 
     try {
         if (signal.type === 'offer') {
+            console.log(`[WebRTC] Received offer from ${from}`);
             await pc.setRemoteDescription(new RTCSessionDescription(signal.offer));
             const answer = await pc.createAnswer();
             await pc.setLocalDescription(answer);
+            console.log(`[WebRTC] Sending answer to ${from}`);
             sendSignal(from, { type: 'answer', answer });
             
             if (candidateQueues[from]) {
@@ -196,6 +220,7 @@ export const handleSignal = async (data, onRemoteStream) => {
                 candidateQueues[from] = [];
             }
         } else if (signal.type === 'answer') {
+            console.log(`[WebRTC] Received answer from ${from}`);
             await pc.setRemoteDescription(new RTCSessionDescription(signal.answer));
             
             if (candidateQueues[from]) {
@@ -205,6 +230,7 @@ export const handleSignal = async (data, onRemoteStream) => {
                 candidateQueues[from] = [];
             }
         } else if (signal.type === 'candidate') {
+            console.log(`[WebRTC] Received ICE candidate from ${from}`);
             if (pc.remoteDescription && pc.remoteDescription.type) {
                 await pc.addIceCandidate(new RTCIceCandidate(signal.candidate));
             } else {
@@ -219,9 +245,10 @@ export const handleSignal = async (data, onRemoteStream) => {
 
 export const callUser = async (userId, onRemoteStream) => {
     try {
-        const pc = createPeerConnection(userId, onRemoteStream);
+        const pc = await createPeerConnection(userId, onRemoteStream);
         const offer = await pc.createOffer();
         await pc.setLocalDescription(offer);
+        console.log(`[WebRTC] Sending offer to ${userId}`);
         sendSignal(userId, { type: 'offer', offer });
     } catch (err) {
         console.error("Failed to initiate call:", err);

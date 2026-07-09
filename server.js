@@ -10,6 +10,7 @@ const express = require('express');
 const http = require('http');
 const path = require('path');
 const rateLimit = require('express-rate-limit');
+const twilio = require('twilio');
 
 const app = express();
 const server = http.createServer(app);
@@ -55,7 +56,25 @@ app.post('/api/ai', aiLimiter, async (req, res) => {
     }
 });
 
-
+// Twilio TURN Credentials Route
+app.post('/api/turn-credentials', async (req, res) => {
+    try {
+        const accountSid = process.env.TWILIO_ACCOUNT_SID;
+        const authToken = process.env.TWILIO_AUTH_TOKEN;
+        
+        if (!accountSid || !authToken) {
+            return res.status(500).json({ error: "Twilio credentials not configured on server." });
+        }
+        
+        const client = twilio(accountSid, authToken);
+        const token = await client.tokens.create();
+        
+        res.json({ iceServers: token.iceServers });
+    } catch (e) {
+        console.error("TURN Error:", e);
+        res.status(500).json({ error: "Failed to generate TURN credentials" });
+    }
+});
 server.listen(PORT, () => {
     console.log(`Flow static server running on port ${PORT}`);
 });

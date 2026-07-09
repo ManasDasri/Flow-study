@@ -1,4 +1,5 @@
 import { getSocket } from './socket.js';
+import { escapeHTML } from './utils.js';
 
 let roomId = null;
 let username = null;
@@ -89,15 +90,3 @@ const renderMessage = (msg) => {
     chatMessages.appendChild(div);
     chatMessages.scrollTop = chatMessages.scrollHeight;
 };
-
-function escapeHTML(str) {
-    return str.replace(/[&<>'"]/g, 
-        tag => ({
-            '&': '&amp;',
-            '<': '&lt;',
-            '>': '&gt;',
-            "'": '&#39;',
-            '"': '&quot;'
-        }[tag] || tag)
-    );
-}

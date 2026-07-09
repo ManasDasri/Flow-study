@@ -42,19 +42,26 @@ const initApp = async () => {
         let isCollision = true;
         while (isCollision) {
             code = Math.random().toString(36).substring(2, 8).toUpperCase();
-            const { data } = await supabase.from('tasks').select('id').eq('room_id', code).limit(1);
+            const { data } = await supabase.from('rooms').select('id').eq('room_code', code).limit(1);
             if (!data || data.length === 0) {
                 isCollision = false;
             }
         }
         
         const pin = document.getElementById('room-pin-input').value.trim();
-        await supabase.from('rooms').insert([{
+        const { error } = await supabase.from('rooms').insert([{
             room_code: code,
-            host_id: user.id,
             is_locked: !!pin,
             pin: pin || null
         }]);
+        
+        if (error) {
+            console.error("Room creation error:", error);
+            alert("Failed to create room. Please try again.");
+            hostBtn.innerText = originalText;
+            hostBtn.disabled = false;
+            return;
+        }
         
         hostBtn.innerText = originalText;
         hostBtn.disabled = false;
@@ -242,9 +249,10 @@ const handleJoin = async () => {
     }
     
     // Verify PIN if the room is locked
-    const { data: roomData } = await supabase.from('rooms').select('is_locked, pin').eq('room_code', roomId).maybeSingle();
+    const { data: roomData } = await supabase.from('rooms').select('is_locked').eq('room_code', roomId).maybeSingle();
     if (roomData && roomData.is_locked) {
-        if (roomData.pin !== pin) {
+        const { data: isPinValid } = await supabase.rpc('verify_room_pin', { p_room_code: roomId, p_pin: pin });
+        if (!isPinValid) {
             alert('Incorrect PIN for this room.');
             return;
         }
@@ -290,12 +298,6 @@ const handleJoin = async () => {
                 if (userId !== getMyUserId()) {
                     partners[userId] = users[userId];
                     updatePartnerUI(userId);
-                    
-                    if (!hasPeer(userId)) {
-                        if (getMyUserId() < userId) {
-                            callUser(userId, onRemoteStream);
-                        }
-                    }
                 }
             });
         },
@@ -312,10 +314,6 @@ const handleJoin = async () => {
             removeRemoteVideo(userId);
             UI.removePartnerPresenceCard(userId);
             UI.updateRoomInfo(roomId, Object.keys(partners).length + 1);
-            
-            if (Object.keys(partners).length === 0) {
-                // Partner empty state removed in new UI
-            }
         },
         onSignal: (data) => {
             handleSignal(data, onRemoteStream);

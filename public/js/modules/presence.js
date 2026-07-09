@@ -11,6 +11,8 @@ let currentState = {
 let roomId = null;
 let updateUI = null;
 let focusInterval = null;
+let dbFocusMinutes = 0;
+let currentFocusStartTime = null;
 
 export const fetchDailyFocusTime = async () => {
     const userId = getMyUserId();
@@ -27,7 +29,8 @@ export const fetchDailyFocusTime = async () => {
         
     if (data) {
         const totalSeconds = data.reduce((acc, curr) => acc + curr.duration_seconds, 0);
-        currentState.focusTime = Math.floor(totalSeconds / 60);
+        dbFocusMinutes = Math.floor(totalSeconds / 60);
+        currentState.focusTime = dbFocusMinutes;
         renderPresence();
     }
 };
@@ -54,8 +57,10 @@ export const startFocusTracking = () => {
     if (focusInterval) return;
     updatePresence({ status: '🟢 Deep Focus' });
     
+    currentFocusStartTime = Date.now();
+    
     focusInterval = setInterval(() => {
-        currentState.focusTime += 1; // Add 1 minute (assuming we call this tick every minute, but we'll mock it for now)
+        currentState.focusTime = dbFocusMinutes + Math.floor((Date.now() - currentFocusStartTime) / 60000);
         renderPresence();
     }, 60000); // every minute
 };

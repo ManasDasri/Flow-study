@@ -1,4 +1,5 @@
 import { formatFocusTime } from './presence.js';
+import { escapeHTML } from './utils.js';
 
 // DOM Elements
 const els = {
@@ -134,18 +135,7 @@ export const removePartnerPresenceCard = (userId) => {
 };
 
 // Utils
-function escapeHTML(str) {
-    if (!str) return '';
-    return str.replace(/[&<>'"]/g, 
-        tag => ({
-            '&': '&amp;',
-            '<': '&lt;',
-            '>': '&gt;',
-            "'": '&#39;',
-            '"': '&quot;'
-        }[tag] || tag)
-    );
-}
+
 
 // Exports for direct access
 export const UI = els;
