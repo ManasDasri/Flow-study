@@ -45,6 +45,11 @@ const sendMessage = async () => {
     // Intercept AI commands
     if (text.startsWith('/ai')) {
         const query = text.replace(/^\/ai\s*/, '').trim();
+        if (!query) {
+            handleIncomingMessage({ sender: 'AI Assistant', text: 'Please include a message after /ai. Example: /ai What is the pomodoro technique?' });
+            return;
+        }
+        
         try {
             const res = await fetch('/api/ai', {
                 method: 'POST',
