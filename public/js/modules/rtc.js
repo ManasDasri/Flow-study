@@ -9,26 +9,28 @@ let ICE_SERVERS = {
     ]
 };
 
-let credentialsFetched = false;
+let fetchTurnPromise = null;
 const fetchTurnCredentials = async () => {
-    if (credentialsFetched) return;
-    try {
-        const response = await fetch('/api/turn-credentials', { method: 'POST' });
-        if (response.ok) {
-            const data = await response.json();
-            if (data.iceServers) {
-                ICE_SERVERS.iceServers = [
-                    { urls: 'stun:stun.l.google.com:19302' },
-                    ...data.iceServers
-                ];
+    if (fetchTurnPromise) return fetchTurnPromise;
+    fetchTurnPromise = (async () => {
+        try {
+            const response = await fetch('/api/turn-credentials', { method: 'POST' });
+            if (response.ok) {
+                const data = await response.json();
+                if (data.iceServers) {
+                    ICE_SERVERS.iceServers = [
+                        { urls: 'stun:stun.l.google.com:19302' },
+                        ...data.iceServers
+                    ];
+                }
+            } else {
+                console.warn("Failed to fetch TURN credentials, falling back to STUN-only.");
             }
-        } else {
-            console.warn("Failed to fetch TURN credentials, falling back to STUN-only.");
+        } catch (e) {
+            console.warn("Error fetching TURN credentials, falling back to STUN-only.", e);
         }
-    } catch (e) {
-        console.warn("Error fetching TURN credentials, falling back to STUN-only.", e);
-    }
-    credentialsFetched = true;
+    })();
+    return fetchTurnPromise;
 };
 
 export const hasPeer = (userId) => !!peers[userId];
@@ -159,48 +161,56 @@ export const isVideoActive = () => {
     return false;
 };
 
-// Vanilla WebRTC logic replacing PeerJS
-export const createPeerConnection = async (userId, onRemoteStream) => {
-    await fetchTurnCredentials();
-    const pc = new RTCPeerConnection(ICE_SERVERS);
-    peers[userId] = pc;
+const candidateQueues = {};
+const pendingPeers = {};
 
-    if (localStream) {
-        localStream.getTracks().forEach(track => {
-            pc.addTrack(track, localStream);
-        });
-    }
+export const getOrCreatePeerConnection = async (userId, onRemoteStream) => {
+    if (peers[userId]) return peers[userId];
+    if (pendingPeers[userId]) return await pendingPeers[userId];
 
-    pc.onicecandidate = (event) => {
-        if (event.candidate) {
-            console.log(`[WebRTC] Sending ICE candidate to ${userId}`);
-            sendSignal(userId, { type: 'candidate', candidate: event.candidate });
+    pendingPeers[userId] = (async () => {
+        await fetchTurnCredentials();
+        const pc = new RTCPeerConnection(ICE_SERVERS);
+        peers[userId] = pc;
+
+        if (localStream) {
+            localStream.getTracks().forEach(track => {
+                pc.addTrack(track, localStream);
+            });
         }
-    };
 
-    pc.ontrack = (event) => {
-        onRemoteStream(userId, event.streams[0]);
-    };
+        pc.onicecandidate = (event) => {
+            if (event.candidate) {
+                console.log(`[WebRTC] Sending ICE candidate to ${userId}`);
+                sendSignal(userId, { type: 'candidate', candidate: event.candidate });
+            }
+        };
+
+        pc.ontrack = (event) => {
+            onRemoteStream(userId, event.streams[0]);
+        };
+        
+        // Automatically cleanup when connection drops
+        pc.onconnectionstatechange = () => {
+            console.log(`[WebRTC] Connection state with ${userId}: ${pc.connectionState}`);
+            if (pc.connectionState === 'disconnected' || pc.connectionState === 'failed' || pc.connectionState === 'closed') {
+                removePeer(userId);
+            }
+        };
+        
+        return pc;
+    })();
     
-    // Automatically cleanup when connection drops
-    pc.onconnectionstatechange = () => {
-        console.log(`[WebRTC] Connection state with ${userId}: ${pc.connectionState}`);
-        if (pc.connectionState === 'disconnected' || pc.connectionState === 'failed' || pc.connectionState === 'closed') {
-            removePeer(userId);
-        }
-    };
-
+    const pc = await pendingPeers[userId];
+    delete pendingPeers[userId];
     return pc;
 };
-
-const candidateQueues = {};
 
 export const handleSignal = async (data, onRemoteStream) => {
     const { from, signal } = data;
     
-    let pc = peers[from];
-    if (!pc) {
-        pc = await createPeerConnection(from, onRemoteStream);
+    let pc = await getOrCreatePeerConnection(from, onRemoteStream);
+    if (!candidateQueues[from]) {
         candidateQueues[from] = [];
     }
 
@@ -245,7 +255,7 @@ export const handleSignal = async (data, onRemoteStream) => {
 
 export const callUser = async (userId, onRemoteStream) => {
     try {
-        const pc = await createPeerConnection(userId, onRemoteStream);
+        const pc = await getOrCreatePeerConnection(userId, onRemoteStream);
         const offer = await pc.createOffer();
         await pc.setLocalDescription(offer);
         console.log(`[WebRTC] Sending offer to ${userId}`);
