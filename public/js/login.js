@@ -54,19 +54,19 @@ const handleAuth = async (action) => {
         result = await supabase.auth.signInWithPassword({ email, password });
     } else {
         result = await supabase.auth.signUp({ email, password });
-        // If email confirmation is required and user hasn't confirmed yet, user might be null or returned differently depending on settings.
-        if (result.data && !result.data.user) {
-            btn.innerText = originalText;
-            btn.disabled = false;
-            showSuccess('Check your email to confirm your account.');
-            return;
-        }
-        
         // Supabase returns an empty identities array if the email already exists
         if (result.data && result.data.user && result.data.user.identities && result.data.user.identities.length === 0) {
             btn.innerText = originalText;
             btn.disabled = false;
             showError('An account with this email already exists. Please log in.');
+            return;
+        }
+
+        // If email confirmation is required, session will be null
+        if (result.data && !result.data.session) {
+            btn.innerText = originalText;
+            btn.disabled = false;
+            showSuccess('Check your email to confirm your account.');
             return;
         }
     }
