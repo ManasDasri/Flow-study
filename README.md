@@ -161,5 +161,5 @@ If you plan to host Flow for public use beyond a trusted circle, we highly recom
 ---
 
 <div align="center">
-  <i>Built with extreme focus. 🟢</i>
+  <b>Built with extreme focus</b>
 </div>
