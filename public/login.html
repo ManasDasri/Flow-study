@@ -14,6 +14,7 @@
     <!-- Styles -->
     <link rel="stylesheet" href="/styles/global.css">
     <link rel="stylesheet" href="/styles/components.css">
+    <link rel="stylesheet" href="/styles/animations.css">
     <style>
         body {
             display: flex;
@@ -64,6 +65,11 @@
             font-size: 0.9rem;
             display: none;
         }
+
+        .theme-switch {
+            width: 100%;
+            margin-bottom: 14px;
+        }
     </style>
 </head>
 <body>
@@ -71,6 +77,13 @@
     <div class="brutal-card login-card scale-in" style="background: var(--surface); border: var(--border-width) solid var(--border-color); border-radius: var(--radius-lg); box-shadow: 4px 4px 0px var(--border-color);">
         <div style="font-size: 2.5rem; font-weight: 800; letter-spacing: -2px; margin-bottom: 8px; color: var(--text-primary);">Flow.</div>
         <p class="subtitle" id="subtitle-text">Enter your email to log in or sign up.</p>
+        <select id="theme-picker" class="brutal-input theme-switch" aria-label="Select theme">
+            <option value="forest">Forest</option>
+            <option value="midnight">Midnight</option>
+            <option value="warm">Warm</option>
+            <option value="aqua">Aqua</option>
+            <option value="amethyst">Amethyst</option>
+        </select>
         
         <!-- Standard Email + Password Input -->
         <div id="step-auth">

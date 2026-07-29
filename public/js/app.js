@@ -166,9 +166,11 @@ const initApp = async () => {
     
     // Theming Logic
     const themePicker = document.getElementById('theme-picker');
-    const savedTheme = localStorage.getItem('flow_theme') || 'forest';
-    document.documentElement.setAttribute('data-theme', savedTheme);
-    themePicker.value = savedTheme;
+    const supportedThemes = new Set(['forest', 'midnight', 'warm', 'aqua', 'amethyst']);
+    const savedTheme = localStorage.getItem('flow_theme');
+    const activeTheme = supportedThemes.has(savedTheme) ? savedTheme : 'forest';
+    document.documentElement.setAttribute('data-theme', activeTheme);
+    themePicker.value = activeTheme;
     
     themePicker.addEventListener('change', (e) => {
         const theme = e.target.value;

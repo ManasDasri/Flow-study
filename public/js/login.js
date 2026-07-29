@@ -7,6 +7,20 @@ const loginBtn = document.getElementById('login-btn');
 const signupBtn = document.getElementById('signup-btn');
 const errorMsg = document.getElementById('error-message');
 const successMsg = document.getElementById('success-message');
+const themePicker = document.getElementById('theme-picker');
+
+const supportedThemes = new Set(['forest', 'midnight', 'warm', 'aqua', 'amethyst']);
+const savedTheme = localStorage.getItem('flow_theme');
+const activeTheme = supportedThemes.has(savedTheme) ? savedTheme : 'forest';
+document.documentElement.setAttribute('data-theme', activeTheme);
+if (themePicker) {
+    themePicker.value = activeTheme;
+    themePicker.addEventListener('change', (e) => {
+        const theme = e.target.value;
+        document.documentElement.setAttribute('data-theme', theme);
+        localStorage.setItem('flow_theme', theme);
+    });
+}
 
 // Helper to show errors
 const showError = (msg) => {
