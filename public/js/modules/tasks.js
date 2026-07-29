@@ -47,7 +47,7 @@ export const toggleTask = async (taskId) => {
             console.error("Supabase Error Toggling Task:", error.message);
             alert("Database Error: " + error.message);
         } else if (!data || data.length === 0) {
-            alert("Permission denied! Your Supabase database has strict rules blocking this. Please run the updated SQL in database_setup.md!");
+            alert("Permission denied! Your Supabase database has strict rules blocking this. Please run the updated SQL in README.md.");
         }
     }
 };
@@ -62,7 +62,7 @@ export const deleteTask = async (taskId) => {
         console.error("Supabase Error Deleting Task:", error.message);
         alert("Database Error: " + error.message);
     } else if (!data || data.length === 0) {
-        alert("Permission denied! Your Supabase database has strict rules blocking this. Please run the updated SQL in database_setup.md!");
+        alert("Permission denied! Your Supabase database has strict rules blocking this. Please run the updated SQL in README.md.");
     }
 };
 

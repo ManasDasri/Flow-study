@@ -3,10 +3,28 @@ import { sendSignal } from './socket.js';
 let localStream = null;
 const peers = {}; // Store RTCPeerConnection objects
 
+const DEFAULT_ICE_SERVERS = [
+    { urls: 'stun:stun.l.google.com:19302' },
+    { urls: 'stun:openrelay.metered.ca:80' },
+    {
+        urls: 'turn:openrelay.metered.ca:80',
+        username: 'openrelayproject',
+        credential: 'openrelayproject'
+    },
+    {
+        urls: 'turn:openrelay.metered.ca:443',
+        username: 'openrelayproject',
+        credential: 'openrelayproject'
+    },
+    {
+        urls: 'turn:openrelay.metered.ca:443?transport=tcp',
+        username: 'openrelayproject',
+        credential: 'openrelayproject'
+    }
+];
+
 let ICE_SERVERS = {
-    iceServers: [
-        { urls: 'stun:stun.l.google.com:19302' }
-    ]
+    iceServers: [...DEFAULT_ICE_SERVERS]
 };
 
 let fetchTurnPromise = null;
@@ -17,17 +35,17 @@ const fetchTurnCredentials = async () => {
             const response = await fetch('/api/turn-credentials', { method: 'POST' });
             if (response.ok) {
                 const data = await response.json();
-                if (data.iceServers) {
+                if (data.iceServers && data.iceServers.length > 0) {
                     ICE_SERVERS.iceServers = [
-                        { urls: 'stun:stun.l.google.com:19302' },
-                        ...data.iceServers
+                        ...data.iceServers,
+                        ...DEFAULT_ICE_SERVERS
                     ];
                 }
             } else {
-                console.warn("Failed to fetch TURN credentials, falling back to STUN-only.");
+                console.warn("Failed to fetch provider TURN credentials, falling back to default STUN/TURN.");
             }
         } catch (e) {
-            console.warn("Error fetching TURN credentials, falling back to STUN-only.", e);
+            console.warn("Error fetching TURN credentials, falling back to default STUN/TURN.", e);
         }
     })();
     return fetchTurnPromise;

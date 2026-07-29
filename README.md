@@ -69,7 +69,7 @@ Want to run Flow locally or deploy it yourself?
 ### Prerequisites
 - Node.js installed
 - A [Supabase](https://supabase.com/) project (Free Tier)
-- A [Groq](https://console.groq.com/) API Key
+- A [Groq](https://console.groq.com/) API Key (**optional**, only needed for `/ai` chat)
 
 ### Installation
 
@@ -85,10 +85,11 @@ Want to run Flow locally or deploy it yourself?
    ```
 
 3. **Set up environment variables:**
-   Create a `.env` file in the root directory and add your Groq API Key:
+   Create a `.env` file in the root directory and add your Groq API Key (optional):
    ```env
    GROQ_API_KEY=your_groq_api_key_here
    ```
+   If omitted, the app still runs and the `/ai` command will return a configuration message.
 
 4. **Start the server:**
    ```bash
@@ -104,11 +105,16 @@ Want to run Flow locally or deploy it yourself?
 Flow uses Supabase for Realtime WebRTC signaling, Chat, and Tasks.
 
 ### Authentication Setup
-Since Flow requires users to log in before joining a study room, you **must disable Email Confirmations** unless you want to set up an SMTP provider (like Resend or SendGrid) to send actual verification emails.
+Choose one mode:
 
-1. Go to your Supabase Dashboard.
-2. Go to **Authentication** -> **Providers** -> **Email**.
-3. Toggle **Confirm email** to **OFF** and click Save.
+1. **Fast login (recommended for local/testing):**
+   1. Go to Supabase Dashboard.
+   2. Go to **Authentication** -> **Providers** -> **Email**.
+   3. Toggle **Confirm email** to **OFF** and click Save.
+2. **Verified-email login (production):**
+   1. Keep **Confirm email** ON.
+   2. Configure **Auth -> Email Templates/SMTP** with a real provider (Resend, SendGrid, etc.).
+   3. Without SMTP, confirmation emails will not be delivered.
 
 ### Database Setup
 Execute the following SQL in your Supabase SQL Editor:
@@ -150,7 +156,7 @@ COMMIT;
 
 ### Production Recommendations
 If you plan to host Flow for public use beyond a trusted circle, we highly recommend:
-- **Replacing the TURN Server:** The free `openrelay.metered.ca` TURN server configured in `public/js/modules/rtc.js` should be replaced with a paid provider (e.g., Twilio, Cloudflare Calls) to ensure reliable WebRTC video traversal on restrictive networks (like corporate or school Wi-Fi).
+- **Use paid TURN for global camera reliability:** Flow includes a free `openrelay.metered.ca` fallback in `public/js/modules/rtc.js`, but for users across countries/restrictive NATs you should configure Twilio TURN on the server (`TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`) or another paid provider for stable video connectivity.
 
 ---
 
