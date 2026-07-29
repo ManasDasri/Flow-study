@@ -66,7 +66,7 @@ const handleAuth = async (action) => {
         if (result.data && !result.data.session) {
             btn.innerText = originalText;
             btn.disabled = false;
-            showSuccess('Check your email to confirm your account.');
+            showSuccess('If email confirmation is enabled, check your inbox/spam for a verification email. If no email arrives, disable "Confirm email" in Supabase Auth or configure SMTP.');
             return;
         }
     }

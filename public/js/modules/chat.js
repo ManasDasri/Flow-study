@@ -32,7 +32,9 @@ const sendMessage = async () => {
     chatInput.value = '';
     
     const channel = getSocket();
-    if (channel) {
+    const isAiCommand = text.startsWith('/ai');
+
+    if (!isAiCommand && channel) {
         channel.send({
             type: 'broadcast',
             event: 'chat-message',
@@ -43,7 +45,7 @@ const sendMessage = async () => {
     }
     
     // Intercept AI commands
-    if (text.startsWith('/ai')) {
+    if (isAiCommand) {
         const query = text.replace(/^\/ai\s*/, '').trim();
         if (!query) {
             handleIncomingMessage({ sender: 'AI Assistant', text: 'Please include a message after /ai. Example: /ai What is the pomodoro technique?' });
@@ -57,19 +59,29 @@ const sendMessage = async () => {
                 body: JSON.stringify({ message: query })
             });
             const data = await res.json();
+            if (!res.ok) {
+                const errorText = data?.text || 'AI assistant is currently unavailable.';
+                handleIncomingMessage({ sender: 'AI Assistant', text: errorText });
+                return;
+            }
             
             // Broadcast AI response to everyone in the room!
             if (channel) {
                 channel.send({
                     type: 'broadcast',
                     event: 'chat-message',
-                    payload: { sender: 'AI Assistant', text: data.text }
+                    payload: { sender: 'AI Assistant', text: data.text || 'No response from AI assistant.' }
                 });
             }
-            handleIncomingMessage({ sender: 'AI Assistant', text: data.text });
+            handleIncomingMessage({ sender: 'AI Assistant', text: data.text || 'No response from AI assistant.' });
         } catch (e) {
             handleIncomingMessage({ sender: 'AI Assistant', text: 'Error connecting to brain.' });
         }
+        return;
+    }
+
+    if (!channel) {
+        handleIncomingMessage({ sender: username, text });
     }
 };
 
