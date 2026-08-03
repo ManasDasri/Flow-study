@@ -20,7 +20,7 @@
 
 ## The Vision
 
-**Flow.** is not just a pomodoro timer. It is a fully decentralized, real-time virtual study room designed to connect students across the globe. Built on a massively scalable serverless architecture, Flow eliminates backend bottlenecks, allowing millions of users to study together simultaneously.
+**Flow.** is not just a pomodoro timer. It is a fully decentralized, real-time virtual study room designed to connect students across the globe. Built on a massively scalable serverless architecture, Flow eliminates backend bottlenecks, allowing users to study together simultaneously.
 
 The UI employs a beautiful, glassmorphic **minimal** aesthetic, making the tools feel tactile, responsive, and visually distinct.
 
