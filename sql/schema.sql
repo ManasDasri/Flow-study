@@ -103,29 +103,37 @@ CREATE POLICY "sessions_insert_own" ON public.sessions FOR INSERT TO authenticat
 );
 
 -- Secure RPC for joining room
-CREATE OR REPLACE FUNCTION public.join_room(p_room_code text, p_pin text DEFAULT NULL)
+CREATE OR REPLACE FUNCTION public.join_room(p_room_code text, p_pin text DEFAULT NULL::text)
 RETURNS UUID
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = public
+SET search_path TO 'public'
 AS $$
 DECLARE
-  v_room record;
+  v_room public.rooms%ROWTYPE;
 BEGIN
-  SELECT id, is_locked, pin INTO v_room FROM public.rooms WHERE room_code = p_room_code;
+  -- Require authentication.
+  IF auth.uid() IS NULL THEN
+    RAISE EXCEPTION 'Authentication required';
+  END IF;
+
+  -- Find room.
+  SELECT * INTO v_room FROM public.rooms WHERE room_code = p_room_code;
   IF NOT FOUND THEN
     RAISE EXCEPTION 'Room not found';
   END IF;
 
+  -- Validate PIN when room is locked.
   IF v_room.is_locked THEN
     IF v_room.pin IS DISTINCT FROM p_pin THEN
       RAISE EXCEPTION 'Incorrect PIN';
     END IF;
   END IF;
 
+  -- Register the user as a room participant.
   INSERT INTO public.room_participants (room_id, user_id)
   VALUES (v_room.id, auth.uid())
-  ON CONFLICT DO NOTHING;
+  ON CONFLICT (room_id, user_id) DO NOTHING;
 
   RETURN v_room.id;
 END;

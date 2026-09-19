@@ -20,6 +20,17 @@ const appContainer = document.getElementById('app');
 // Video Container
 const videoGrid = document.getElementById('video-grid');
 
+// Excludes visually ambiguous characters (0/O, 1/I/L) so codes shared verbally
+// or by text can't be mistyped into a different valid-looking code.
+const ROOM_CODE_CHARS = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
+const generateRoomCode = () => {
+    let code = '';
+    for (let i = 0; i < 6; i++) {
+        code += ROOM_CODE_CHARS[Math.floor(Math.random() * ROOM_CODE_CHARS.length)];
+    }
+    return code;
+};
+
 const initApp = async () => {
     // Auth Guard
     const userStr = localStorage.getItem('flow_user');
@@ -47,7 +58,7 @@ const initApp = async () => {
         let code = '';
         let isCollision = true;
         while (isCollision) {
-            code = Math.random().toString(36).substring(2, 8).toUpperCase();
+            code = generateRoomCode();
             const { data } = await supabase.from('rooms').select('id').eq('room_code', code).limit(1);
             if (!data || data.length === 0) {
                 isCollision = false;
@@ -310,18 +321,12 @@ const handleJoin = async () => {
         onRoomState: (state) => {
             const users = state.participants || {};
             UI.updateRoomInfo(roomCode, Object.keys(users).length);
-            
-            // 1. Remove ghosts that are no longer in the state
-            Object.keys(partners).forEach(existingId => {
-                if (!users[existingId] && existingId !== getMyUserId()) {
-                    delete partners[existingId];
-                    removePeer(existingId);
-                    removeRemoteVideo(existingId);
-                    UI.removePartnerPresenceCard(existingId);
-                }
-            });
 
-            // 2. Add/Update current partners
+            // Add/update current partners. Removal is handled exclusively by the
+            // presence "leave" event (onUserLeft) below — "sync" fires on every
+            // track() call (e.g. every focus-mode/status change), and treating a
+            // momentarily-incomplete sync snapshot as "user left" was tearing down
+            // healthy WebRTC connections and partner UI for users who never left.
             Object.keys(users).forEach(userId => {
                 if (userId !== getMyUserId()) {
                     partners[userId] = users[userId];
