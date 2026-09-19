@@ -22,25 +22,14 @@
             align-items: center;
             height: 100vh;
             background-color: var(--bg-main);
-            /* Retro grid */
-            background-image: radial-gradient(var(--border-color) 1px, transparent 1px);
-            background-size: 20px 20px;
+            background-image: var(--bg-gradient);
         }
 
         .login-card {
             width: 100%;
             max-width: 420px;
-            padding: 40px;
+            padding: 36px 32px;
             text-align: center;
-        }
-
-        .logo-large {
-            font-size: 3rem;
-            font-weight: 800;
-            letter-spacing: -0.05em;
-            color: var(--border-color);
-            margin-bottom: 8px;
-            text-shadow: 4px 4px 0px var(--primary);
         }
 
         .subtitle {
@@ -74,8 +63,8 @@
 </head>
 <body>
 
-    <div class="brutal-card login-card scale-in" style="background: var(--surface); border: var(--border-width) solid var(--border-color); border-radius: var(--radius-lg); box-shadow: 4px 4px 0px var(--border-color);">
-        <div style="font-size: 2.5rem; font-weight: 800; letter-spacing: -2px; margin-bottom: 8px; color: var(--text-primary);">Flow.</div>
+    <div class="brutal-card login-card scale-in" style="background: var(--surface); border-radius: var(--radius-lg);">
+        <div style="font-size: 2.3rem; font-weight: 800; letter-spacing: -0.04em; margin-bottom: 8px; color: var(--text-primary);">Flow.</div>
         <p class="subtitle" id="subtitle-text">Enter your email to log in or sign up.</p>
         <select id="theme-picker" class="brutal-input theme-switch" aria-label="Select theme">
             <option value="forest">Forest</option>

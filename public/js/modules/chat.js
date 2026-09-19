@@ -88,20 +88,12 @@ const sendMessage = async () => {
 const renderMessage = (msg) => {
     const div = document.createElement('div');
     const isAi = msg.sender === 'AI Assistant';
-    
-    div.style.padding = '8px 12px';
-    div.style.borderRadius = '8px';
-    div.style.background = isAi ? 'rgba(108, 99, 255, 0.2)' : 'rgba(255, 255, 255, 0.05)';
-    div.style.alignSelf = msg.sender === username ? 'flex-end' : 'flex-start';
-    div.style.maxWidth = '80%';
-    
+
+    div.className = `chat-message fade-in ${isAi ? 'ai' : ''} ${msg.sender === username ? 'own' : ''}`;
+
     div.innerHTML = `
-        <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 4px;">
-            ${msg.sender === username ? 'You' : escapeHTML(msg.sender)}
-        </div>
-        <div style="font-size: 14px; word-wrap: break-word;">
-            ${escapeHTML(msg.text)}
-        </div>
+        <div class="sender">${msg.sender === username ? 'You' : escapeHTML(msg.sender)}</div>
+        <div class="text">${escapeHTML(msg.text)}</div>
     `;
     
     chatMessages.appendChild(div);
