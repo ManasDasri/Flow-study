@@ -48,7 +48,10 @@ app.post('/api/ai', aiLimiter, async (req, res) => {
                 { role: "system", content: "You are a helpful study assistant in a virtual study room. Answer concisely." },
                 { role: "user", content: message }
             ],
-            model: "llama-3.1-8b-instant",
+            // llama-3.1-8b-instant was deprecated by Groq (shut down 08/16/26);
+            // openai/gpt-oss-20b is Groq's designated replacement — fast and
+            // well-suited to a chat assistant.
+            model: "openai/gpt-oss-20b",
         });
         res.json({ text: completion.choices[0].message.content });
     } catch (e) {
