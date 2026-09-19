@@ -7,6 +7,20 @@ const loginBtn = document.getElementById('login-btn');
 const signupBtn = document.getElementById('signup-btn');
 const errorMsg = document.getElementById('error-message');
 const successMsg = document.getElementById('success-message');
+const themePicker = document.getElementById('theme-picker');
+
+const supportedThemes = new Set(['forest', 'midnight', 'warm', 'aqua', 'amethyst']);
+const savedTheme = localStorage.getItem('flow_theme');
+const activeTheme = supportedThemes.has(savedTheme) ? savedTheme : 'forest';
+document.documentElement.setAttribute('data-theme', activeTheme);
+if (themePicker) {
+    themePicker.value = activeTheme;
+    themePicker.addEventListener('change', (e) => {
+        const theme = e.target.value;
+        document.documentElement.setAttribute('data-theme', theme);
+        localStorage.setItem('flow_theme', theme);
+    });
+}
 
 // Helper to show errors
 const showError = (msg) => {
@@ -24,6 +38,17 @@ const showSuccess = (msg) => {
 const clearMessages = () => {
     errorMsg.style.display = 'none';
     successMsg.style.display = 'none';
+};
+
+const persistAndRedirect = (user, action) => {
+    localStorage.setItem('flow_user', JSON.stringify({
+        id: user.id,
+        email: user.email
+    }));
+    showSuccess(action === 'login' ? 'Logged in successfully! Redirecting...' : 'Account created successfully! Redirecting...');
+    setTimeout(() => {
+        window.location.href = '/';
+    }, 1000);
 };
 
 const handleAuth = async (action) => {
@@ -54,40 +79,41 @@ const handleAuth = async (action) => {
         result = await supabase.auth.signInWithPassword({ email, password });
     } else {
         result = await supabase.auth.signUp({ email, password });
-        // Supabase returns an empty identities array if the email already exists
-        if (result.data && result.data.user && result.data.user.identities && result.data.user.identities.length === 0) {
-            btn.innerText = originalText;
-            btn.disabled = false;
-            showError('An account with this email already exists. Please log in.');
-            return;
-        }
-
-        // If email confirmation is required, session will be null
-        if (result.data && !result.data.session) {
-            btn.innerText = originalText;
-            btn.disabled = false;
-            showSuccess('Check your email to confirm your account.');
-            return;
-        }
     }
 
     btn.innerText = originalText;
     btn.disabled = false;
 
     if (result.error) {
+        if (action === 'signup' && /already registered|already exists|user already/i.test(result.error.message)) {
+            showError('An account with this email already exists. Please log in.');
+            return;
+        }
         showError(result.error.message);
-    } else {
-        showSuccess(action === 'login' ? 'Logged in successfully! Redirecting...' : 'Account created successfully! Redirecting...');
-        // Store user info in localStorage for the main app
-        localStorage.setItem('flow_user', JSON.stringify({
-            id: result.data.user.id,
-            email: result.data.user.email
-        }));
-        
-        setTimeout(() => {
-            window.location.href = '/';
-        }, 1000);
+        return;
     }
+
+    if (result.data?.session && result.data?.user) {
+        persistAndRedirect(result.data.user, action);
+        return;
+    }
+
+    if (action === 'signup') {
+        // Some Supabase configs create the user but don't return a session immediately.
+        // Try signing in directly so "Confirm email OFF" works without any extra steps.
+        const signInResult = await supabase.auth.signInWithPassword({ email, password });
+        if (!signInResult.error && signInResult.data?.session && signInResult.data?.user) {
+            persistAndRedirect(signInResult.data.user, 'signup');
+            return;
+        }
+
+        if (signInResult.error && /confirm|confirmed|verification/i.test(signInResult.error.message)) {
+            showError('Email confirmation is enabled in Supabase Auth. Disable "Confirm email" to allow instant signup/login, or configure SMTP to deliver verification emails.');
+            return;
+        }
+    }
+
+    showError('Authentication failed. Please try again.');
 };
 
 loginBtn.addEventListener('click', () => handleAuth('login'));

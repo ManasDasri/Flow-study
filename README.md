@@ -20,7 +20,7 @@
 
 ## The Vision
 
-**Flow.** is not just a pomodoro timer. It is a fully decentralized, real-time virtual study room designed to connect students across the globe. Built on a massively scalable serverless architecture, Flow eliminates backend bottlenecks, allowing millions of users to study together simultaneously.
+**Flow.** is not just a pomodoro timer. It is a fully decentralized, real-time virtual study room designed to connect students across the globe. Built on a massively scalable serverless architecture, Flow eliminates backend bottlenecks, allowing users to study together simultaneously.
 
 The UI employs a beautiful, glassmorphic **minimal** aesthetic, making the tools feel tactile, responsive, and visually distinct.
 
@@ -69,7 +69,7 @@ Want to run Flow locally or deploy it yourself?
 ### Prerequisites
 - Node.js installed
 - A [Supabase](https://supabase.com/) project (Free Tier)
-- A [Groq](https://console.groq.com/) API Key
+- A [Groq](https://console.groq.com/) API Key (**optional**, only needed for `/ai` chat)
 
 ### Installation
 
@@ -85,10 +85,11 @@ Want to run Flow locally or deploy it yourself?
    ```
 
 3. **Set up environment variables:**
-   Create a `.env` file in the root directory and add your Groq API Key:
+   Create a `.env` file in the root directory and add your Groq API Key (optional):
    ```env
    GROQ_API_KEY=your_groq_api_key_here
    ```
+   If omitted, the app still runs and the `/ai` command will return a configuration message.
 
 4. **Start the server:**
    ```bash
@@ -104,21 +105,26 @@ Want to run Flow locally or deploy it yourself?
 Flow uses Supabase for Realtime WebRTC signaling, Chat, and Tasks.
 
 ### Authentication Setup
-Since Flow requires users to log in before joining a study room, you **must disable Email Confirmations** unless you want to set up an SMTP provider (like Resend or SendGrid) to send actual verification emails.
+Choose one mode:
 
-1. Go to your Supabase Dashboard.
-2. Go to **Authentication** -> **Providers** -> **Email**.
-3. Toggle **Confirm email** to **OFF** and click Save.
+1. **Fast login (recommended for local/testing):**
+   1. Go to Supabase Dashboard.
+   2. Go to **Authentication** -> **Providers** -> **Email**.
+   3. Toggle **Confirm email** to **OFF** and click Save.
+2. **Verified-email login (production):**
+   1. Keep **Confirm email** ON.
+   2. Configure **Auth -> Email Templates/SMTP** with a real provider (Resend, SendGrid, etc.).
+   3. Without SMTP, confirmation emails will not be delivered.
 
 ### Database Setup
 Run the SQL in [`sql/schema.sql`](sql/schema.sql) in your Supabase SQL Editor. It creates the `rooms`, `room_participants`, `tasks`, and `sessions` tables, sets up Row Level Security, and defines the `join_room` RPC that the app uses to securely join a room (with optional PIN checking) — all of the app's room/task/session features depend on this exact schema, not a simplified version of it.
 
 ### Production Recommendations
 If you plan to host Flow for public use beyond a trusted circle, we highly recommend:
-- **Replacing the TURN Server:** The free `openrelay.metered.ca` TURN server configured in `public/js/modules/rtc.js` should be replaced with a paid provider (e.g., Twilio, Cloudflare Calls) to ensure reliable WebRTC video traversal on restrictive networks (like corporate or school Wi-Fi).
+- **Configure TURN for global camera reliability:** Flow fetches TURN credentials from Twilio at runtime via the server (`TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN` in `.env`) and falls back to STUN-only if that's unavailable, which will fail to connect users behind restrictive NATs/corporate firewalls. Configure a paid Twilio account (or another provider) before relying on this for real-world use — a free/trial TURN allotment will run out under real traffic.
 
 ---
 
 <div align="center">
-  <i>Built with extreme focus. 🟢</i>
+  <b>Built with extreme focus</b>
 </div>

@@ -68,10 +68,11 @@ export const toggleTask = async (taskId) => {
         renderTasks();
         updateCurrentTaskPresence();
 
-        const { error } = await supabase.from('tasks')
+        const { error, data } = await supabase.from('tasks')
             .update({ completed: !originalState })
-            .eq('id', taskId);
-            
+            .eq('id', taskId)
+            .select();
+
         if (error) {
             console.error("Supabase Error Toggling Task:", error.message);
             // Revert
@@ -79,6 +80,12 @@ export const toggleTask = async (taskId) => {
             renderTasks();
             updateCurrentTaskPresence();
             alert("Database Error: " + error.message);
+        } else if (!data || data.length === 0) {
+            // RLS silently blocked the write (no error, no affected rows) — revert
+            roomTasks[taskIndex].completed = originalState;
+            renderTasks();
+            updateCurrentTaskPresence();
+            alert("Permission denied! Your Supabase database has strict rules blocking this. Please run the updated SQL in README.md.");
         }
     }
 };
@@ -90,10 +97,11 @@ export const deleteTask = async (taskId) => {
     renderTasks();
     updateCurrentTaskPresence();
 
-    const { error } = await supabase.from('tasks')
+    const { error, data } = await supabase.from('tasks')
         .delete()
-        .eq('id', taskId);
-        
+        .eq('id', taskId)
+        .select();
+
     if (error) {
         console.error("Supabase Error Deleting Task:", error.message);
         // Revert
@@ -101,6 +109,12 @@ export const deleteTask = async (taskId) => {
         renderTasks();
         updateCurrentTaskPresence();
         alert("Database Error: " + error.message);
+    } else if (!data || data.length === 0) {
+        // RLS silently blocked the write (no error, no affected rows) — revert
+        roomTasks = previousTasks;
+        renderTasks();
+        updateCurrentTaskPresence();
+        alert("Permission denied! Your Supabase database has strict rules blocking this. Please run the updated SQL in README.md.");
     }
 };
 

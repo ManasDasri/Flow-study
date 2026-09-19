@@ -1,11 +1,5 @@
 require('dotenv').config();
 
-// Fast-fail if Groq API key is missing or dummy
-if (!process.env.GROQ_API_KEY || process.env.GROQ_API_KEY === 'your_groq_api_key_here') {
-    console.error("CRITICAL ERROR: GROQ_API_KEY is missing or invalid in .env file.");
-    process.exit(1);
-}
-
 const express = require('express');
 const http = require('http');
 const path = require('path');
@@ -32,10 +26,17 @@ app.use(express.json());
 
 // AI Chat Route
 const Groq = require('groq-sdk');
-const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
+const hasGroqApiKey = Boolean(
+    process.env.GROQ_API_KEY && process.env.GROQ_API_KEY !== 'your_groq_api_key_here'
+);
+const groq = hasGroqApiKey ? new Groq({ apiKey: process.env.GROQ_API_KEY }) : null;
 
 app.post('/api/ai', aiLimiter, async (req, res) => {
     try {
+        if (!groq) {
+            return res.status(503).json({ text: "AI assistant is not configured on this server yet." });
+        }
+
         const { message } = req.body;
         
         if (!message || message.length > 500) {

@@ -112,6 +112,8 @@ export const renderPartnerPresenceCard = (userId, userData) => {
     }
     
     const safeName = userData.username || 'Partner';
+    const partnerStatus = userData.presence?.status || userData.status || 'Online';
+    const isBreak = String(partnerStatus).includes('Break');
     
     card.innerHTML = `
         <div class="profile-header">
@@ -119,8 +121,8 @@ export const renderPartnerPresenceCard = (userId, userData) => {
             <div class="profile-info">
                 <h3>${escapeHTML(safeName)}</h3>
                 <div class="status-indicator">
-                    <span class="dot green"></span>
-                    <span>${userData.presence?.status || 'Online'}</span>
+                    <span class="dot ${isBreak ? 'yellow' : 'green'}"></span>
+                    <span>${escapeHTML(partnerStatus)}</span>
                 </div>
             </div>
         </div>
