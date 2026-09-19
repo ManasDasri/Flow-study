@@ -22,46 +22,98 @@ export const addTask = async (title) => {
     if (!title.trim()) return;
     const user = JSON.parse(localStorage.getItem('flow_user'));
     
-    const { error } = await supabase.from('tasks').insert({
+    // Optimistic UI update
+    const tempId = 'temp-' + Date.now();
+    const newTask = {
+        id: tempId,
         room_id: roomId,
         title: title.trim(),
         created_by: user ? user.id : null,
         completed: false
-    });
+    };
+    roomTasks.push(newTask);
+    renderTasks();
+    updateCurrentTaskPresence();
+    
+    const { error, data } = await supabase.from('tasks').insert({
+        room_id: roomId,
+        title: title.trim(),
+        created_by: user ? user.id : null,
+        completed: false
+    }).select();
     
     if (error) {
         console.error("Supabase Error Adding Task:", error.message);
+        // Revert
+        roomTasks = roomTasks.filter(t => t.id !== tempId);
+        renderTasks();
+        updateCurrentTaskPresence();
         alert("Database Error: " + error.message + "\\n\\nDid you run the SQL from the README in your Supabase SQL Editor?");
+    } else if (data && data[0]) {
+        // Replace temp task with real task
+        const index = roomTasks.findIndex(t => t.id === tempId);
+        if (index !== -1) {
+            roomTasks[index] = data[0];
+            renderTasks();
+        }
     }
 };
 
 export const toggleTask = async (taskId) => {
-    const task = roomTasks.find(t => t.id === taskId);
-    if (task) {
-        const { data, error } = await supabase.from('tasks')
-            .update({ completed: !task.completed })
+    const taskIndex = roomTasks.findIndex(t => t.id === taskId);
+    if (taskIndex !== -1) {
+        // Optimistic UI update
+        const originalState = roomTasks[taskIndex].completed;
+        roomTasks[taskIndex].completed = !originalState;
+        renderTasks();
+        updateCurrentTaskPresence();
+
+        const { error, data } = await supabase.from('tasks')
+            .update({ completed: !originalState })
             .eq('id', taskId)
             .select();
-            
+
         if (error) {
             console.error("Supabase Error Toggling Task:", error.message);
+            // Revert
+            roomTasks[taskIndex].completed = originalState;
+            renderTasks();
+            updateCurrentTaskPresence();
             alert("Database Error: " + error.message);
         } else if (!data || data.length === 0) {
+            // RLS silently blocked the write (no error, no affected rows) — revert
+            roomTasks[taskIndex].completed = originalState;
+            renderTasks();
+            updateCurrentTaskPresence();
             alert("Permission denied! Your Supabase database has strict rules blocking this. Please run the updated SQL in README.md.");
         }
     }
 };
 
 export const deleteTask = async (taskId) => {
-    const { data, error } = await supabase.from('tasks')
+    // Optimistic UI update
+    const previousTasks = [...roomTasks];
+    roomTasks = roomTasks.filter(t => t.id !== taskId);
+    renderTasks();
+    updateCurrentTaskPresence();
+
+    const { error, data } = await supabase.from('tasks')
         .delete()
         .eq('id', taskId)
         .select();
-        
+
     if (error) {
         console.error("Supabase Error Deleting Task:", error.message);
+        // Revert
+        roomTasks = previousTasks;
+        renderTasks();
+        updateCurrentTaskPresence();
         alert("Database Error: " + error.message);
     } else if (!data || data.length === 0) {
+        // RLS silently blocked the write (no error, no affected rows) — revert
+        roomTasks = previousTasks;
+        renderTasks();
+        updateCurrentTaskPresence();
         alert("Permission denied! Your Supabase database has strict rules blocking this. Please run the updated SQL in README.md.");
     }
 };

@@ -1,5 +1,5 @@
 import { initSocket, getSocket, getMyUserId, broadcastYouTube, updateCameraState } from './modules/socket.js';
-import { initMedia, toggleAudio, toggleVideo, handleSignal, removePeer, callUser, hasPeer, cleanupDummyStream, isDummyMedia, isVideoActive } from './modules/rtc.js';
+import { initMedia, toggleAudio, toggleVideo, handleSignal, removePeer, callUser, hasPeer, peerNeedsCall, cleanupDummyStream, isDummyMedia, isVideoActive } from './modules/rtc.js';
 import { initTimer, toggleTimer, resetTimer, setMode, syncState, setTimerSettings, broadcastCurrentState } from './modules/timer.js';
 import { initTasks, addTask, toggleTask, deleteTask, getStats as getTaskStats, setSharedTasks } from './modules/tasks.js';
 import { initPresence, updatePresence, startFocusTracking, stopFocusTracking } from './modules/presence.js';
@@ -20,6 +20,17 @@ const appContainer = document.getElementById('app');
 // Video Container
 const videoGrid = document.getElementById('video-grid');
 
+// Excludes visually ambiguous characters (0/O, 1/I/L) so codes shared verbally
+// or by text can't be mistyped into a different valid-looking code.
+const ROOM_CODE_CHARS = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
+const generateRoomCode = () => {
+    let code = '';
+    for (let i = 0; i < 6; i++) {
+        code += ROOM_CODE_CHARS[Math.floor(Math.random() * ROOM_CODE_CHARS.length)];
+    }
+    return code;
+};
+
 const initApp = async () => {
     // Auth Guard
     const userStr = localStorage.getItem('flow_user');
@@ -31,6 +42,12 @@ const initApp = async () => {
 
     const hostBtn = document.getElementById('host-btn');
     
+    const urlParams = new URLSearchParams(window.location.search);
+    const roomParam = urlParams.get('room');
+    if (roomParam) {
+        roomCodeInput.value = roomParam;
+    }
+    
     joinBtn.addEventListener('click', handleJoin);
     
     hostBtn.addEventListener('click', async () => {
@@ -41,7 +58,7 @@ const initApp = async () => {
         let code = '';
         let isCollision = true;
         while (isCollision) {
-            code = Math.random().toString(36).substring(2, 8).toUpperCase();
+            code = generateRoomCode();
             const { data } = await supabase.from('rooms').select('id').eq('room_code', code).limit(1);
             if (!data || data.length === 0) {
                 isCollision = false;
@@ -160,7 +177,9 @@ const initApp = async () => {
 
     // Copy Invite
     document.getElementById('share-link-btn').addEventListener('click', () => {
-        navigator.clipboard.writeText(window.location.href + '?room=' + currentRoomId);
+        const urlObj = new URL(window.location.href);
+        urlObj.searchParams.set('room', document.getElementById('header-room-code').innerText);
+        navigator.clipboard.writeText(urlObj.toString());
         alert('Room link copied to clipboard!');
     });
     
@@ -237,7 +256,7 @@ const updateYouTubeIframe = (url) => {
 };
 
 const handleJoin = async () => {
-    const roomId = roomCodeInput.value.trim().toUpperCase();
+    const roomCode = roomCodeInput.value.trim().toUpperCase();
     const pin = document.getElementById('room-pin-input').value.trim();
     
     // Extract username from email
@@ -245,28 +264,48 @@ const handleJoin = async () => {
     const userObj = userStr ? JSON.parse(userStr) : { email: 'student@example.com' };
     const username = userObj.email.split('@')[0];
     
-    if (!roomId) {
+    if (!roomCode) {
         alert('Please enter a 6-character Room Code to join, or click "Host Room" to create a new one!');
         return;
     }
     
-    // Verify PIN if the room is locked
-    const { data: roomData } = await supabase.from('rooms').select('is_locked').eq('room_code', roomId).maybeSingle();
-    if (roomData && roomData.is_locked) {
-        const { data: isPinValid } = await supabase.rpc('verify_room_pin', { p_room_code: roomId, p_pin: pin });
-        if (!isPinValid) {
-            alert('Incorrect PIN for this room.');
-            return;
+    const originalText = joinBtn.innerText;
+    joinBtn.innerText = 'Joining...';
+    joinBtn.disabled = true;
+    
+    // Join room securely and get UUID
+    let { data: roomUuid, error } = await supabase.rpc('join_room', { p_room_code: roomCode, p_pin: pin });
+    
+    if (error && error.message.includes('Incorrect PIN')) {
+        const userPin = prompt("This room is locked. Please enter the PIN:");
+        if (userPin !== null) {
+            const res = await supabase.rpc('join_room', { p_room_code: roomCode, p_pin: userPin });
+            roomUuid = res.data;
+            error = res.error;
+        } else {
+            joinBtn.innerText = originalText;
+            joinBtn.disabled = false;
+            return; // User cancelled
         }
     }
     
-    currentRoomId = roomId;
+    joinBtn.innerText = originalText;
+    joinBtn.disabled = false;
+    
+    if (error) {
+        console.error("Join Room Error:", error);
+        alert(error.message || 'Failed to join room. Check your code and PIN.');
+        return;
+    }
+    
+    currentRoomId = roomUuid; // currentRoomId is now the UUID
     currentUsername = username;
     
     modalOverlay.classList.add('hidden');
     appContainer.classList.remove('hidden');
     
-    document.getElementById('header-room-code').innerText = roomId;
+    document.getElementById('header-room-code').innerText = roomCode; // Still show the code in the UI
+
     
     // Initialize Local Media
     const localVideo = document.getElementById('local-video');
@@ -280,22 +319,16 @@ const handleJoin = async () => {
     }
     
     // Setup Socket
-    initSocket(roomId, username, !isVideoActive(), {
+    initSocket(currentRoomId, username, !isVideoActive(), {
         onRoomState: (state) => {
             const users = state.participants || {};
-            UI.updateRoomInfo(roomId, Object.keys(users).length);
-            
-            // 1. Remove ghosts that are no longer in the state
-            Object.keys(partners).forEach(existingId => {
-                if (!users[existingId] && existingId !== getMyUserId()) {
-                    delete partners[existingId];
-                    removePeer(existingId);
-                    removeRemoteVideo(existingId);
-                    UI.removePartnerPresenceCard(existingId);
-                }
-            });
+            UI.updateRoomInfo(roomCode, Object.keys(users).length);
 
-            // 2. Add/Update current partners
+            // Add/update current partners. Removal is handled exclusively by the
+            // presence "leave" event (onUserLeft) below — "sync" fires on every
+            // track() call (e.g. every focus-mode/status change), and treating a
+            // momentarily-incomplete sync snapshot as "user left" was tearing down
+            // healthy WebRTC connections and partner UI for users who never left.
             Object.keys(users).forEach(userId => {
                 if (userId !== getMyUserId()) {
                     partners[userId] = users[userId];
@@ -305,7 +338,7 @@ const handleJoin = async () => {
         },
         onUserJoined: (data) => {
             partners[data.userId] = data;
-            UI.updateRoomInfo(roomId, Object.keys(partners).length + 1);
+            UI.updateRoomInfo(roomCode, Object.keys(partners).length + 1);
             updatePartnerUI(data.userId);
             // Broadcast timer state to the new user
             broadcastCurrentState();
@@ -315,7 +348,7 @@ const handleJoin = async () => {
             removePeer(userId);
             removeRemoteVideo(userId);
             UI.removePartnerPresenceCard(userId);
-            UI.updateRoomInfo(roomId, Object.keys(partners).length + 1);
+            UI.updateRoomInfo(roomCode, Object.keys(partners).length + 1);
         },
         onSignal: (data) => {
             handleSignal(data, onRemoteStream);
@@ -353,7 +386,7 @@ const handleJoin = async () => {
     // Self-healing WebRTC loop: Continuously check if we are missing any connections
     setInterval(() => {
         Object.keys(partners).forEach(userId => {
-            if (userId !== getMyUserId() && !hasPeer(userId)) {
+            if (userId !== getMyUserId() && peerNeedsCall(userId)) {
                 // Only the "smaller" ID initiates the call to prevent double-calling
                 if (getMyUserId() < userId) {
                     console.log(`[Self-Healing] Missing connection to ${userId}. Initiating call...`);
@@ -361,14 +394,15 @@ const handleJoin = async () => {
                 }
             }
         });
+
     }, 3000);
 
     // Initialize Modules
-    initTimer(roomId, (timerState) => {
+    initTimer(currentRoomId, (timerState) => {
         UI.updateTimerUI(timerState);
     });
 
-    initTasks(roomId, [], (tasks, stats) => {
+    initTasks(currentRoomId, [], (tasks, stats) => {
         UI.renderTaskList(document.getElementById('room-task-list'), tasks, false, toggleTask, deleteTask);
         UI.updateTaskStatsUI(stats, document.getElementById('room-task-progress-text'), document.getElementById('room-task-progress-fill'));
         
@@ -376,11 +410,11 @@ const handleJoin = async () => {
         UI.updateMyPresenceUI(getPresenceState(), getTaskStats(), currentUsername);
     });
 
-    initPresence(roomId, (presenceState) => {
+    initPresence(currentRoomId, (presenceState) => {
         UI.updateMyPresenceUI(presenceState, getTaskStats(), currentUsername);
     });
 
-    initChat(roomId, currentUsername);
+    initChat(currentRoomId, currentUsername);
     
     // Helper to extract current local presence for UI refresh
     function getPresenceState() {
