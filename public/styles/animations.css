@@ -1,11 +1,16 @@
 @keyframes fadeIn {
-    from { opacity: 0; transform: translateY(8px); }
+    from { opacity: 0; transform: translateY(6px); }
     to { opacity: 1; transform: translateY(0); }
 }
 
 @keyframes scaleIn {
-    from { opacity: 0; transform: scale(0.98); }
-    to { opacity: 1; transform: scale(1); }
+    from { opacity: 0; transform: scale(0.96) translateY(4px); }
+    to { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+@keyframes shimmer {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(100%); }
 }
 
 @keyframes gentlePulse {
@@ -13,18 +18,28 @@
     50% { box-shadow: var(--shadow-solid-hover); }
 }
 
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
 .fade-in {
-    animation: fadeIn 0.28s ease-out forwards;
+    animation: fadeIn var(--dur-slow) var(--ease-out) both;
 }
 
 .scale-in {
-    animation: scaleIn 0.22s ease-out forwards;
+    animation: scaleIn var(--dur-slow) var(--ease-out) both;
 }
 
 .shadow-glow {
     animation: gentlePulse 3.4s ease-in-out infinite;
 }
 
-.task-item {
-    transition: transform 0.2s ease, background 0.2s ease, border-color 0.2s ease;
+.spin {
+    animation: spin 0.8s linear infinite;
+}
+
+/* Stagger a list's entrance: set style="--i: <index>" on each item */
+.task-item,
+.video-wrapper {
+    animation-delay: calc(var(--i, 0) * 45ms);
 }

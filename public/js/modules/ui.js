@@ -54,13 +54,14 @@ export const renderTaskList = (container, tasks, isReadOnly, onToggle, onDelete)
         return;
     }
 
-    tasks.forEach(task => {
+    tasks.forEach((task, index) => {
         const li = document.createElement('li');
         li.className = `task-item scale-in ${task.completed ? 'completed' : ''}`;
-        
+        li.style.setProperty('--i', index);
+
         li.innerHTML = `
             <div class="task-checkbox" ${isReadOnly ? '' : 'style="cursor:pointer;"'}>
-                ${task.completed ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3"><polyline points="20 6 9 17 4 12"></polyline></svg>' : ''}
+                ${task.completed ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#0a0e0c" stroke-width="3"><polyline points="20 6 9 17 4 12"></polyline></svg>' : ''}
             </div>
             <div class="task-content" style="flex:1; font-weight:600;">
                 <div class="task-title">${escapeHTML(task.title)}</div>
