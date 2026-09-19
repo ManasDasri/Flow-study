@@ -111,42 +111,7 @@ Since Flow requires users to log in before joining a study room, you **must disa
 3. Toggle **Confirm email** to **OFF** and click Save.
 
 ### Database Setup
-Execute the following SQL in your Supabase SQL Editor:
-
-```sql
--- 1. Clean up old tables and triggers if they exist
-DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
-DROP FUNCTION IF EXISTS public.handle_new_user();
-
-DROP TABLE IF EXISTS public.tasks CASCADE;
-DROP TABLE IF EXISTS public.rooms CASCADE;
-DROP TABLE IF EXISTS public.profiles CASCADE;
-
--- 2. Create the Tasks Table (Simplified for MVP)
-CREATE TABLE public.tasks (
-    id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
-    room_id TEXT NOT NULL,
-    title TEXT NOT NULL,
-    completed BOOLEAN DEFAULT false,
-    created_by TEXT, -- Changed from UUID so anonymous users don't trigger foreign key errors
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
-);
-
--- 3. Enable Row Level Security and setup basic authenticated access
-ALTER TABLE public.tasks ENABLE ROW LEVEL SECURITY;
-DROP POLICY IF EXISTS "Allow all" ON public.tasks;
-
-CREATE POLICY "Enable read access for all tasks" ON public.tasks FOR SELECT USING (true);
-CREATE POLICY "Enable insert for authenticated users" ON public.tasks FOR INSERT TO authenticated WITH CHECK (true);
-CREATE POLICY "Enable update for authenticated users" ON public.tasks FOR UPDATE TO authenticated USING (true) WITH CHECK (true);
-CREATE POLICY "Enable delete for authenticated users" ON public.tasks FOR DELETE TO authenticated USING (true);
-
--- 4. Enable Realtime Broadcasting for the Tasks Table
-BEGIN;
-  DROP PUBLICATION IF EXISTS supabase_realtime;
-  CREATE PUBLICATION supabase_realtime FOR TABLE public.tasks;
-COMMIT;
-```
+Run the SQL in [`sql/schema.sql`](sql/schema.sql) in your Supabase SQL Editor. It creates the `rooms`, `room_participants`, `tasks`, and `sessions` tables, sets up Row Level Security, and defines the `join_room` RPC that the app uses to securely join a room (with optional PIN checking) — all of the app's room/task/session features depend on this exact schema, not a simplified version of it.
 
 ### Production Recommendations
 If you plan to host Flow for public use beyond a trusted circle, we highly recommend:
