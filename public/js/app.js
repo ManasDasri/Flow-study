@@ -398,7 +398,16 @@ const handleJoin = async () => {
     
     modalOverlay.classList.add('hidden');
     appContainer.classList.remove('hidden');
-    
+
+    // Task list becomes visible/clickable here, but tasks.js's roomId isn't
+    // set until initTasks() runs much later in this function (after media
+    // and socket setup) — adding a task in that window hits a real "room_id
+    // violates not-null constraint" error. Disable until initTasks is ready.
+    const taskInput = document.getElementById('new-task-input');
+    const addTaskBtn = document.getElementById('add-task-btn');
+    taskInput.disabled = true;
+    addTaskBtn.disabled = true;
+
     document.getElementById('header-room-code').innerText = roomCode; // Still show the code in the UI
 
     
@@ -549,10 +558,12 @@ const handleJoin = async () => {
     initTasks(currentRoomId, [], (tasks, stats) => {
         UI.renderTaskList(document.getElementById('room-task-list'), tasks, false, toggleTask, deleteTask, getRoomParticipants(), assignTask);
         UI.updateTaskStatsUI(stats, document.getElementById('room-task-progress-text'), document.getElementById('room-task-progress-fill'));
-        
+
         // Refresh my presence UI when tasks change
         UI.updateMyPresenceUI(getPresenceState(), getTaskStats(), currentUsername);
     });
+    taskInput.disabled = false;
+    addTaskBtn.disabled = false;
 
     initPresence(currentRoomId, (presenceState) => {
         UI.updateMyPresenceUI(presenceState, getTaskStats(), currentUsername);
