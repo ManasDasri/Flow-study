@@ -142,6 +142,10 @@
     max-height: 45vh;
 }
 
+#local-video {
+    transform: scaleX(-1); /* mirror the self-view only — what others receive is untouched */
+}
+
 .video-wrapper video {
     width: 100%;
     height: 100%;

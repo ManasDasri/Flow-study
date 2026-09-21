@@ -50,11 +50,19 @@ const fetchTurnCredentials = async () => {
 
 export const hasPeer = (userId) => !!peers[userId];
 
+// 'disconnected' is a normal transient ICE blip that usually self-recovers
+// in a second or two — tearing down on it immediately just recreates the
+// flicker this is meant to fix. Only treat it as broken once it's been
+// stuck for a while.
+const DISCONNECT_GRACE_MS = 6000;
+const disconnectedSince = {};
+
 export const peerNeedsCall = (userId) => {
     const pc = peers[userId];
     if (!pc) return true;
     const state = pc.connectionState;
-    return state === 'failed' || state === 'closed';
+    if (state === 'failed' || state === 'closed') return true;
+    return state === 'disconnected' && Date.now() - (disconnectedSince[userId] || Date.now()) > DISCONNECT_GRACE_MS;
 };
 
 export let isDummyMedia = false;
@@ -208,8 +216,10 @@ export const getOrCreatePeerConnection = async (userId, onRemoteStream) => {
 
         pc.onconnectionstatechange = () => {
             console.log(`[WebRTC] ${userId}: ${pc.connectionState}`);
-            if (pc.connectionState === 'failed') {
-                pc.restartIce();
+            if (pc.connectionState === 'disconnected') {
+                if (!disconnectedSince[userId]) disconnectedSince[userId] = Date.now();
+            } else {
+                delete disconnectedSince[userId];
             }
         };
 
@@ -308,4 +318,5 @@ export const removePeer = (userId) => {
     delete candidateQueues[userId];
     delete pendingPeers[userId];
     delete remoteStreams[userId];
+    delete disconnectedSince[userId];
 };
