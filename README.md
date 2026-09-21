@@ -12,7 +12,6 @@
   <p>
     <img src="https://img.shields.io/badge/Status-Live-success?style=for-the-badge" alt="Status">
     <img src="https://img.shields.io/badge/Architecture-Serverless-blueviolet?style=for-the-badge" alt="Serverless">
-    <img src="https://img.shields.io/badge/Scale-1M%2B%20Users-blue?style=for-the-badge" alt="Scale">
   </p>
 </div>
 
