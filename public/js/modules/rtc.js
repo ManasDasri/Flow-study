@@ -142,12 +142,18 @@ export const initMedia = async (videoEl) => {
     }
 };
 
+// Returns the new enabled state, or null when there's no mic to toggle at
+// all (e.g. getUserMedia fell back to video-only) — distinct from a
+// successful toggle-to-muted, which also has no audio, so callers can tell
+// "you muted yourself" apart from "there's no microphone to control".
 export const toggleAudio = () => {
     const audioTrack = localStream?.getAudioTracks()[0];
-    if (!audioTrack) return false;
+    if (!audioTrack) return null;
     audioTrack.enabled = !audioTrack.enabled;
     return audioTrack.enabled;
 };
+
+export const hasAudioTrack = () => !!localStream?.getAudioTracks()[0];
 
 export const toggleVideo = () => {
     const videoTrack = localStream?.getVideoTracks()[0];

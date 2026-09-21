@@ -1,5 +1,5 @@
 import { initSocket, getSocket, getMyUserId, broadcastYouTube, updateCameraState } from './modules/socket.js';
-import { initMedia, toggleAudio, toggleVideo, handleSignal, removePeer, callUser, hasPeer, peerNeedsCall, cleanupDummyStream, isDummyMedia, isVideoActive } from './modules/rtc.js';
+import { initMedia, toggleAudio, toggleVideo, handleSignal, removePeer, callUser, hasPeer, peerNeedsCall, cleanupDummyStream, isDummyMedia, isVideoActive, hasAudioTrack } from './modules/rtc.js';
 import { initTimer, toggleTimer, resetTimer, setMode, syncState, setTimerSettings, broadcastCurrentState } from './modules/timer.js';
 import { initTasks, addTask, toggleTask, deleteTask, getStats as getTaskStats, setSharedTasks } from './modules/tasks.js';
 import { initPresence, updatePresence, startFocusTracking, stopFocusTracking } from './modules/presence.js';
@@ -19,6 +19,14 @@ let partners = {}; // Store partner data
 // connection and video tile for no reason.
 const pendingLeaves = {};
 const LEAVE_GRACE_MS = 4000;
+
+// Mic/camera toggle icons, swapped in on click so the button's on/off state
+// is unmistakable at a glance instead of relying on a subtle background
+// color change alone.
+const MIC_ON_ICON = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z"/><path d="M19 10v2a7 7 0 01-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>';
+const MIC_OFF_ICON = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="1" y1="1" x2="23" y2="23"/><path d="M9 9v3a3 3 0 0 0 5.12 2.12M15 9.34V4a3 3 0 0 0-5.94-.6"/><path d="M17 16.95A7 7 0 0 1 5 12v-2m14 0v2a7 7 0 0 1-.11 1.23"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>';
+const CAM_ON_ICON = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>';
+const CAM_OFF_ICON = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M16 16v1a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h2m5.66 0H14a2 2 0 0 1 2 2v3.34l1 1L23 7v10"/><line x1="1" y1="1" x2="23" y2="23"/></svg>';
 
 // Modals
 const modalOverlay = document.getElementById('modal-overlay');
@@ -104,13 +112,19 @@ const initApp = async () => {
     });
     document.getElementById('toggle-mic').addEventListener('click', (e) => {
         const enabled = toggleAudio();
+        if (enabled === null) {
+            alert('No microphone is available. Check your browser/OS mic permissions, then rejoin.');
+            return;
+        }
         e.currentTarget.classList.toggle('active', enabled);
+        e.currentTarget.innerHTML = enabled ? MIC_ON_ICON : MIC_OFF_ICON;
     });
-    
+
     document.getElementById('toggle-cam').addEventListener('click', (e) => {
         const isEnabled = toggleVideo();
         e.currentTarget.classList.toggle('active', isEnabled);
-        
+        e.currentTarget.innerHTML = isEnabled ? CAM_ON_ICON : CAM_OFF_ICON;
+
         const localDummy = document.getElementById('local-dummy-placeholder');
         if (!isEnabled) {
             localDummy.classList.remove('hidden');
@@ -119,7 +133,7 @@ const initApp = async () => {
         } else {
             localDummy.classList.add('hidden');
         }
-        
+
         updateCameraState(isEnabled);
     });
     
@@ -326,7 +340,19 @@ const handleJoin = async () => {
         document.getElementById('local-dummy-avatar').innerText = currentUsername.charAt(0).toUpperCase();
         localDummy.querySelector('.text').innerText = 'Camera Off';
     }
-    
+
+    // getUserMedia can succeed for video while falling back to no audio at
+    // all (mic busy/denied while camera works). There's no track to toggle
+    // in that case, so disable the control up front instead of leaving a
+    // clickable button that silently does nothing.
+    if (!hasAudioTrack()) {
+        const micBtn = document.getElementById('toggle-mic');
+        micBtn.classList.remove('active');
+        micBtn.innerHTML = MIC_OFF_ICON;
+        micBtn.disabled = true;
+        micBtn.title = 'No microphone detected';
+    }
+
     // Setup Socket
     initSocket(currentRoomId, username, !isVideoActive(), {
         onRoomState: (state) => {
