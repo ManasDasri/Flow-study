@@ -1,7 +1,7 @@
 import { initSocket, getSocket, getMyUserId, broadcastYouTube, updateCameraState, updateMyUsername } from './modules/socket.js';
 import { initMedia, toggleAudio, toggleVideo, handleSignal, removePeer, callUser, hasPeer, peerNeedsCall, cleanupDummyStream, isDummyMedia, isVideoActive, hasAudioTrack } from './modules/rtc.js';
 import { initTimer, toggleTimer, resetTimer, setMode, syncState, setTimerSettings, broadcastCurrentState } from './modules/timer.js';
-import { initTasks, addTask, toggleTask, deleteTask, getStats as getTaskStats, setSharedTasks } from './modules/tasks.js';
+import { initTasks, addTask, toggleTask, deleteTask, assignTask, rerenderTasks, getStats as getTaskStats, setSharedTasks } from './modules/tasks.js';
 import { initPresence, updatePresence, startFocusTracking, stopFocusTracking, formatFocusTime } from './modules/presence.js';
 import { initChat, handleIncomingMessage } from './modules/chat.js';
 import { getMyProfile, saveDisplayName, getStats as getProfileStats } from './modules/profile.js';
@@ -340,6 +340,13 @@ const renderProfileStats = (stats) => {
     `).join('');
 };
 
+// Everyone currently in the room, keyed by user id, for the task
+// assignee picker — includes yourself alongside partners.js's tracked list.
+const getRoomParticipants = () => ({
+    [getMyUserId()]: { username: currentUsername },
+    ...partners
+});
+
 const handleJoin = async () => {
     const roomCode = roomCodeInput.value.trim().toUpperCase();
     const pin = document.getElementById('room-pin-input').value.trim();
@@ -452,6 +459,7 @@ const handleJoin = async () => {
             partners[data.userId] = data;
             UI.updateRoomInfo(roomCode, Object.keys(partners).length + 1);
             updatePartnerUI(data.userId);
+            rerenderTasks(); // refresh assignee picker options with the new participant
             // Broadcast timer state to the new user
             broadcastCurrentState();
         },
@@ -468,6 +476,7 @@ const handleJoin = async () => {
                 removeRemoteVideo(userId);
                 UI.removePartnerPresenceCard(userId);
                 UI.updateRoomInfo(roomCode, Object.keys(partners).length + 1);
+                rerenderTasks(); // drop the departed participant from the assignee picker
             }, LEAVE_GRACE_MS);
         },
         onPresenceHeartbeat: (data) => {
@@ -482,6 +491,7 @@ const handleJoin = async () => {
             partners[data.userId] = data;
             UI.updateRoomInfo(roomCode, Object.keys(partners).length + 1);
             updatePartnerUI(data.userId);
+            rerenderTasks(); // refresh assignee picker options with the recovered participant
             broadcastCurrentState();
         },
         onSignal: (data) => {
@@ -537,7 +547,7 @@ const handleJoin = async () => {
     });
 
     initTasks(currentRoomId, [], (tasks, stats) => {
-        UI.renderTaskList(document.getElementById('room-task-list'), tasks, false, toggleTask, deleteTask);
+        UI.renderTaskList(document.getElementById('room-task-list'), tasks, false, toggleTask, deleteTask, getRoomParticipants(), assignTask);
         UI.updateTaskStatsUI(stats, document.getElementById('room-task-progress-text'), document.getElementById('room-task-progress-fill'));
         
         // Refresh my presence UI when tasks change

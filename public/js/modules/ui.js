@@ -49,12 +49,20 @@ export const updateTimerUI = (state) => {
     });
 };
 
+const buildAssigneeOptions = (participants, selectedId) => {
+    const options = [`<option value=""${!selectedId ? ' selected' : ''}>Unassigned</option>`];
+    Object.entries(participants || {}).forEach(([id, p]) => {
+        options.push(`<option value="${id}"${id === selectedId ? ' selected' : ''}>${escapeHTML(p.username || 'Partner')}</option>`);
+    });
+    return options.join('');
+};
+
 // Reconciles the task <li> elements in place instead of clearing and
 // rebuilding the whole list on every render. addTask alone triggers this
 // three times in a row (optimistic add, insert response, realtime echo);
 // wiping container.innerHTML each time flashed the list blank and replayed
 // every row's entrance animation, not just the new row's.
-export const renderTaskList = (container, tasks, isReadOnly, onToggle, onDelete) => {
+export const renderTaskList = (container, tasks, isReadOnly, onToggle, onDelete, participants, onAssign) => {
     const emptyMsg = container.querySelector('.task-empty-msg');
 
     if (tasks.length === 0 && !isReadOnly) {
@@ -85,6 +93,7 @@ export const renderTaskList = (container, tasks, isReadOnly, onToggle, onDelete)
                 <div class="task-content" style="flex:1; font-weight:600;">
                     <div class="task-title"></div>
                 </div>
+                ${!isReadOnly ? '<select class="task-assignee-select" title="Assign to"></select>' : ''}
                 ${!isReadOnly ? `<button class="icon-btn" style="width:28px; height:28px; color:var(--danger);" aria-label="Delete Task"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button>` : ''}
             `;
 
@@ -102,6 +111,14 @@ export const renderTaskList = (container, tasks, isReadOnly, onToggle, onDelete)
         const titleEl = li.querySelector('.task-title');
         const safeTitle = escapeHTML(task.title);
         if (titleEl.innerHTML !== safeTitle) titleEl.innerHTML = safeTitle;
+
+        if (!isReadOnly) {
+            const select = li.querySelector('.task-assignee-select');
+            select.innerHTML = buildAssigneeOptions(participants, task.assigned_to || '');
+            // Reassigning .onchange (rather than addEventListener) avoids
+            // piling up duplicate listeners across re-renders of this row.
+            select.onchange = () => onAssign(task.id, select.value || null);
+        }
 
         const wantsPosition = prevEl ? prevEl.nextSibling : container.firstChild;
         if (li !== wantsPosition) {

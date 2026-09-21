@@ -353,6 +353,23 @@ select.brutal-input:focus {
     border-color: transparent;
 }
 
+.task-assignee-select {
+    max-width: 96px;
+    background: var(--glass-bg-soft);
+    border: 1px solid var(--glass-border);
+    border-radius: var(--radius-sm);
+    padding: 4px 6px;
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    outline: none;
+    cursor: pointer;
+}
+
+.task-assignee-select:focus {
+    border-color: color-mix(in srgb, var(--primary) 60%, white 40%);
+}
+
 .task-progress-bar {
     height: 8px;
     background: rgba(0, 0, 0, 0.22);
