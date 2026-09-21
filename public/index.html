@@ -69,6 +69,23 @@
             <button id="save-timer-settings-btn" class="btn btn-primary">Save Changes</button>
         </div>
         
+        <!-- Profile Modal -->
+        <div id="profile-modal" class="modal brutal-card hidden">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                <h2 style="margin: 0; font-size: 1.25rem;">Your Profile</h2>
+                <button id="close-profile-btn" class="icon-btn"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button>
+            </div>
+
+            <div class="settings-group mb-4">
+                <label style="font-weight: 600;">Display Name</label>
+                <input type="text" id="profile-display-name-input" class="brutal-input mt-1" placeholder="Your name" maxlength="40">
+                <button id="save-profile-name-btn" class="btn btn-primary mt-1" style="width: 100%;">Save Name</button>
+            </div>
+
+            <h3 style="margin: 0 0 12px 0; font-size: 1rem;">Your Stats</h3>
+            <div id="profile-stats" style="display: flex; flex-direction: column; gap: 8px; font-weight: 500;"></div>
+        </div>
+
         <!-- Timer Alert Modal -->
         <div id="timer-alert-modal" class="modal brutal-card hidden" style="text-align: center;">
             <h2 id="timer-alert-title" style="margin-bottom: 12px; font-size: 1.5rem;">Time's Up!</h2>
@@ -105,7 +122,7 @@
             <!-- LEFT SIDEBAR -->
             <aside class="sidebar left-sidebar">
                 <!-- User Profile / Presence Card -->
-                <div class="brutal-card profile-card" id="my-presence-card">
+                <div class="brutal-card profile-card" id="my-presence-card" style="cursor: pointer;" title="Edit profile">
                     <div class="profile-header">
                         <div class="avatar" id="my-avatar">?</div>
                         <div class="profile-info">

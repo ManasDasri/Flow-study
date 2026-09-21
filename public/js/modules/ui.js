@@ -18,7 +18,10 @@ const els = {
 };
 
 export const updateRoomInfo = (roomId, count) => {
-    els.roomName.innerHTML = `Room: <span class="highlight">${roomId}</span>`;
+    // Keep the id="header-room-code" span alive across rewrites — other
+    // code (Copy Link) looks it up by id, and a plain replacement span
+    // silently breaks that after the first presence sync.
+    els.roomName.innerHTML = `Room: <span class="highlight" id="header-room-code">${roomId}</span>`;
     els.count.innerText = count;
 };
 
