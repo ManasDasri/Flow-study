@@ -1,9 +1,10 @@
-import { initSocket, getSocket, getMyUserId, broadcastYouTube, updateCameraState } from './modules/socket.js';
+import { initSocket, getSocket, getMyUserId, broadcastYouTube, updateCameraState, updateMyUsername } from './modules/socket.js';
 import { initMedia, toggleAudio, toggleVideo, handleSignal, removePeer, callUser, hasPeer, peerNeedsCall, cleanupDummyStream, isDummyMedia, isVideoActive, hasAudioTrack } from './modules/rtc.js';
 import { initTimer, toggleTimer, resetTimer, setMode, syncState, setTimerSettings, broadcastCurrentState } from './modules/timer.js';
 import { initTasks, addTask, toggleTask, deleteTask, getStats as getTaskStats, setSharedTasks } from './modules/tasks.js';
-import { initPresence, updatePresence, startFocusTracking, stopFocusTracking } from './modules/presence.js';
+import { initPresence, updatePresence, startFocusTracking, stopFocusTracking, formatFocusTime } from './modules/presence.js';
 import { initChat, handleIncomingMessage } from './modules/chat.js';
+import { getMyProfile, saveDisplayName, getStats as getProfileStats } from './modules/profile.js';
 import * as UI from './modules/ui.js';
 import supabase from './modules/supabase.js';
 
@@ -185,6 +186,51 @@ const initApp = async () => {
         timerSettingsModal.classList.add('hidden');
     });
 
+    // Profile Modal
+    const profileModal = document.getElementById('profile-modal');
+    document.getElementById('my-presence-card').addEventListener('click', async () => {
+        modalOverlay.classList.remove('hidden');
+        profileModal.classList.remove('hidden');
+        document.getElementById('join-modal').classList.add('hidden');
+
+        document.getElementById('profile-display-name-input').value = currentUsername || '';
+        const statsEl = document.getElementById('profile-stats');
+        statsEl.innerHTML = '<div style="color: var(--text-muted);">Loading…</div>';
+
+        const stats = await getProfileStats(getMyUserId());
+        renderProfileStats(stats);
+    });
+
+    document.getElementById('close-profile-btn').addEventListener('click', () => {
+        modalOverlay.classList.add('hidden');
+        profileModal.classList.add('hidden');
+    });
+
+    document.getElementById('save-profile-name-btn').addEventListener('click', async () => {
+        const input = document.getElementById('profile-display-name-input');
+        const newName = input.value.trim();
+        if (!newName) return;
+
+        const btn = document.getElementById('save-profile-name-btn');
+        const originalText = btn.innerText;
+        btn.innerText = 'Saving...';
+        btn.disabled = true;
+
+        const ok = await saveDisplayName(getMyUserId(), newName);
+
+        btn.innerText = originalText;
+        btn.disabled = false;
+
+        if (!ok) {
+            alert('Failed to save your name. Please try again.');
+            return;
+        }
+
+        currentUsername = newName;
+        updateMyUsername(newName);
+        updatePresence({}); // re-broadcasts presence so partners see the new name too
+    });
+
     // Task Controls
     const taskInput = document.getElementById('new-task-input');
     document.getElementById('add-task-btn').addEventListener('click', () => {
@@ -278,6 +324,22 @@ const updateYouTubeIframe = (url) => {
     }
 };
 
+const renderProfileStats = (stats) => {
+    const rows = [
+        ['Current streak', `${stats.streak} day${stats.streak === 1 ? '' : 's'}`],
+        ['Focused today', formatFocusTime(stats.todayMinutes)],
+        ['Focused all-time', formatFocusTime(stats.totalMinutes)],
+        ['Sessions completed', stats.sessionsCompleted],
+        ['Tasks completed', stats.tasksCompleted]
+    ];
+    document.getElementById('profile-stats').innerHTML = rows.map(([label, value]) => `
+        <div style="display: flex; justify-content: space-between; padding: 8px 12px; background: var(--glass-bg-soft); border-radius: var(--radius-sm);">
+            <span style="color: var(--text-secondary);">${label}</span>
+            <span>${value}</span>
+        </div>
+    `).join('');
+};
+
 const handleJoin = async () => {
     const roomCode = roomCodeInput.value.trim().toUpperCase();
     const pin = document.getElementById('room-pin-input').value.trim();
@@ -322,7 +384,10 @@ const handleJoin = async () => {
     }
     
     currentRoomId = roomUuid; // currentRoomId is now the UUID
-    currentUsername = username;
+
+    // A saved display name overrides the email-derived default.
+    const profile = await getMyProfile(userObj.id);
+    currentUsername = profile?.display_name || username;
     
     modalOverlay.classList.add('hidden');
     appContainer.classList.remove('hidden');

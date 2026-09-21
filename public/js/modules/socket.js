@@ -168,6 +168,13 @@ const fetchTasks = async (roomId, callback) => {
 export const getSocket = () => channel;
 export const getMyUserId = () => myUserId;
 
+// Changes the name broadcast in this client's own presence going forward.
+// Doesn't re-track by itself — callers should follow up with a presence
+// update (e.g. presence.js's updatePresence) to actually push it out.
+export const updateMyUsername = (username) => {
+    myUsername = username;
+};
+
 export const sendSignal = (to, signal) => {
     if (!channel) return;
     channel.send({
