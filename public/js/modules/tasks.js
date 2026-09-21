@@ -118,6 +118,37 @@ export const deleteTask = async (taskId) => {
     }
 };
 
+export const assignTask = async (taskId, userId) => {
+    const taskIndex = roomTasks.findIndex(t => t.id === taskId);
+    if (taskIndex === -1) return;
+
+    // Optimistic UI update
+    const previousAssignee = roomTasks[taskIndex].assigned_to;
+    roomTasks[taskIndex].assigned_to = userId;
+    renderTasks();
+
+    const { error, data } = await supabase.from('tasks')
+        .update({ assigned_to: userId })
+        .eq('id', taskId)
+        .select();
+
+    if (error) {
+        console.error("Supabase Error Assigning Task:", error.message);
+        roomTasks[taskIndex].assigned_to = previousAssignee;
+        renderTasks();
+        alert("Database Error: " + error.message);
+    } else if (!data || data.length === 0) {
+        roomTasks[taskIndex].assigned_to = previousAssignee;
+        renderTasks();
+        alert("Permission denied! Your Supabase database has strict rules blocking this. Please run the updated SQL in README.md.");
+    }
+};
+
+// Exposes the current shared task list to re-render against fresh data
+// (e.g. after the room's participant list changes) without waiting for
+// the tasks themselves to change.
+export const rerenderTasks = () => renderTasks();
+
 export const getStats = () => {
     const total = roomTasks.length;
     const completed = roomTasks.filter(t => t.completed).length;
