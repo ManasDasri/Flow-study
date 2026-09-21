@@ -11,6 +11,15 @@ let currentRoomId = null;
 let currentUsername = null;
 let partners = {}; // Store partner data
 
+// A participant's realtime channel periodically rebuilds itself (see
+// socket.js's presence reconcile loop), which makes everyone else briefly
+// see them "leave" and "join" again even though nothing actually changed.
+// Debouncing the leave lets a same-user rejoin within the grace window
+// cancel the teardown instead of tearing down and rebuilding the peer
+// connection and video tile for no reason.
+const pendingLeaves = {};
+const LEAVE_GRACE_MS = 4000;
+
 // Modals
 const modalOverlay = document.getElementById('modal-overlay');
 const joinBtn = document.getElementById('join-btn');
@@ -331,12 +340,24 @@ const handleJoin = async () => {
             // healthy WebRTC connections and partner UI for users who never left.
             Object.keys(users).forEach(userId => {
                 if (userId !== getMyUserId()) {
+                    if (pendingLeaves[userId]) {
+                        clearTimeout(pendingLeaves[userId]);
+                        delete pendingLeaves[userId];
+                    }
                     partners[userId] = users[userId];
                     updatePartnerUI(userId);
                 }
             });
         },
         onUserJoined: (data) => {
+            // If this is just a rejoin from a pending debounced leave, cancel
+            // the teardown instead of destroying and recreating the peer
+            // connection/video tile.
+            if (pendingLeaves[data.userId]) {
+                clearTimeout(pendingLeaves[data.userId]);
+                delete pendingLeaves[data.userId];
+            }
+
             partners[data.userId] = data;
             UI.updateRoomInfo(roomCode, Object.keys(partners).length + 1);
             updatePartnerUI(data.userId);
@@ -344,11 +365,33 @@ const handleJoin = async () => {
             broadcastCurrentState();
         },
         onUserLeft: (userId) => {
-            delete partners[userId];
-            removePeer(userId);
-            removeRemoteVideo(userId);
-            UI.removePartnerPresenceCard(userId);
+            // Don't tear down immediately — a channel rebuild elsewhere in
+            // the room looks identical to a genuine leave followed almost
+            // instantly by a rejoin. Give it a grace window to resolve
+            // itself before destroying the peer connection and video tile.
+            if (pendingLeaves[userId]) clearTimeout(pendingLeaves[userId]);
+            pendingLeaves[userId] = setTimeout(() => {
+                delete pendingLeaves[userId];
+                delete partners[userId];
+                removePeer(userId);
+                removeRemoteVideo(userId);
+                UI.removePartnerPresenceCard(userId);
+                UI.updateRoomInfo(roomCode, Object.keys(partners).length + 1);
+            }, LEAVE_GRACE_MS);
+        },
+        onPresenceHeartbeat: (data) => {
+            // Presence is already tracking this user normally — nothing to heal.
+            if (partners[data.userId]) return;
+
+            if (pendingLeaves[data.userId]) {
+                clearTimeout(pendingLeaves[data.userId]);
+                delete pendingLeaves[data.userId];
+            }
+
+            partners[data.userId] = data;
             UI.updateRoomInfo(roomCode, Object.keys(partners).length + 1);
+            updatePartnerUI(data.userId);
+            broadcastCurrentState();
         },
         onSignal: (data) => {
             handleSignal(data, onRemoteStream);
@@ -459,7 +502,9 @@ const ensureVideoWrapper = (userId) => {
 
 const onRemoteStream = (userId, stream) => {
     const videoEl = ensureVideoWrapper(userId);
-    videoEl.srcObject = stream;
+    if (videoEl.srcObject !== stream) {
+        videoEl.srcObject = stream;
+    }
     videoEl.play().catch(e => {
         console.error('Remote video play failed:', e);
         // Fallback: mute the video so Safari/Chrome allows autoplay if interaction was lost

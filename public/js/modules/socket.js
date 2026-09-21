@@ -7,7 +7,8 @@ let myUsername = null;
 let currentHandlers = null;
 let currentIsDummyMedia = false;
 let connectionGeneration = 0;
-let presenceReconcileInterval = null;
+let heartbeatInterval = null;
+const HEARTBEAT_INTERVAL_MS = 20000;
 
 export const initSocket = (roomId, username, isDummyMedia, handlers) => {
     currentRoomId = roomId;
@@ -38,9 +39,9 @@ const connectChannel = () => {
     // many times a second instead of once every few seconds.
     const myGeneration = ++connectionGeneration;
 
-    if (presenceReconcileInterval) {
-        clearInterval(presenceReconcileInterval);
-        presenceReconcileInterval = null;
+    if (heartbeatInterval) {
+        clearInterval(heartbeatInterval);
+        heartbeatInterval = null;
     }
 
     if (channel) {
@@ -96,6 +97,21 @@ const connectChannel = () => {
         handlers.onChatMessage(payload);
     });
 
+    // Cheap fallback for the rare case where a presence 'join' diff is
+    // silently dropped (channel stays healthy on both ends, so nothing ever
+    // errors or reconnects, but one client's presenceState() permanently
+    // never learns about a participant who is genuinely there). Every
+    // client periodically broadcasts its own identity; anyone who doesn't
+    // already know about the sender treats it as a missed join and self-
+    // heals from the payload. Pure broadcast — never touches the presence
+    // channel's join/leave lifecycle, so unlike rebuilding the whole
+    // channel, it's invisible to everyone else (no phantom leave+rejoin).
+    channel.on('broadcast', { event: 'presence-heartbeat' }, ({ payload }) => {
+        if (payload?.userId && payload.userId !== myUserId) {
+            handlers.onPresenceHeartbeat?.(payload);
+        }
+    });
+
     channel.on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'tasks', filter: `room_id=eq.${roomId}` },
@@ -118,24 +134,16 @@ const connectChannel = () => {
             fetchTasks(roomId, handlers.onRoomTasksUpdate);
             emitRoomState();
 
-            // Defensive self-heal: after a reconnect elsewhere in the room,
-            // a client's local presence view can permanently miss a 'join'
-            // diff for a participant who genuinely is present — observed
-            // directly (matching presence topics, both channels in state
-            // "joined", but one client's presenceState() missing the other
-            // entirely with no further event ever correcting it). Since a
-            // fresh subscribe always receives a complete, authoritative
-            // sync, periodically rebuilding the channel from scratch bounds
-            // how long such a gap can persist, instead of it lasting for the
-            // rest of the session. WebRTC peer connections live in rtc.js
-            // independently of this channel, so they're unaffected.
-            presenceReconcileInterval = setInterval(() => {
-                if (myGeneration !== connectionGeneration) {
-                    clearInterval(presenceReconcileInterval);
-                    return;
-                }
-                connectChannel();
-            }, 45000);
+            const sendHeartbeat = () => {
+                if (myGeneration !== connectionGeneration) return;
+                channel.send({
+                    type: 'broadcast',
+                    event: 'presence-heartbeat',
+                    payload: { userId: myUserId, username: myUsername, isDummyMedia: currentIsDummyMedia }
+                });
+            };
+            sendHeartbeat();
+            heartbeatInterval = setInterval(sendHeartbeat, HEARTBEAT_INTERVAL_MS);
         } else if (status === 'CLOSED' || status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
             console.warn(`Channel status: ${status}, reconnecting...`);
             setTimeout(() => {
