@@ -13,6 +13,12 @@
     50% { box-shadow: var(--shadow-solid-hover); }
 }
 
+@keyframes reactionFloat {
+    0% { opacity: 0; transform: translate(-50%, 0) scale(0.6); }
+    15% { opacity: 1; transform: translate(-50%, -10px) scale(1.1); }
+    100% { opacity: 0; transform: translate(-50%, -70px) scale(1); }
+}
+
 .fade-in {
     animation: fadeIn 0.28s ease-out forwards;
 }

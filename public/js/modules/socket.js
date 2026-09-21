@@ -6,6 +6,7 @@ let myUserId = null;
 let myUsername = null;
 let currentHandlers = null;
 let currentIsDummyMedia = false;
+let currentHandRaised = false;
 let connectionGeneration = 0;
 let heartbeatInterval = null;
 const HEARTBEAT_INTERVAL_MS = 20000;
@@ -97,6 +98,10 @@ const connectChannel = () => {
         handlers.onChatMessage(payload);
     });
 
+    channel.on('broadcast', { event: 'reaction' }, ({ payload }) => {
+        handlers.onReaction?.(payload);
+    });
+
     // Cheap fallback for the rare case where a presence 'join' diff is
     // silently dropped (channel stays healthy on both ends, so nothing ever
     // errors or reconnects, but one client's presenceState() permanently
@@ -129,7 +134,8 @@ const connectChannel = () => {
                 username: myUsername,
                 status: 'Online',
                 nowPlaying: null,
-                isDummyMedia: currentIsDummyMedia
+                isDummyMedia: currentIsDummyMedia,
+                handRaised: currentHandRaised
             });
             fetchTasks(roomId, handlers.onRoomTasksUpdate);
             emitRoomState();
@@ -214,6 +220,31 @@ export const updateCameraState = async (isVideoActive) => {
     await channel.track({
         ...myState,
         isDummyMedia: !isVideoActive
+    });
+};
+
+export const sendReaction = (emoji) => {
+    if (!channel) return;
+    channel.send({
+        type: 'broadcast',
+        event: 'reaction',
+        payload: { userId: myUserId, emoji }
+    });
+};
+
+// Tracked via presence rather than a one-shot broadcast — a raised hand is
+// meant to be a sticky "I want attention" signal, and unlike a reaction it
+// needs to survive a channel reconnect (presence re-syncs fully on every
+// reconnect; a plain broadcast sent during a reconnect gap would just be
+// lost, silently dropping the request).
+export const sendHandRaise = async (raised) => {
+    currentHandRaised = raised;
+    if (!channel) return;
+    const state = channel.presenceState();
+    const myState = state[myUserId] ? state[myUserId][0] : {};
+    await channel.track({
+        ...myState,
+        handRaised: raised
     });
 };
 
