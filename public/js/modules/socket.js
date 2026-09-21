@@ -11,6 +11,14 @@ let connectionGeneration = 0;
 let heartbeatInterval = null;
 const HEARTBEAT_INTERVAL_MS = 20000;
 
+// A flat 3s retry on every CLOSED hammers the server at a fixed rate when
+// the connection is actually struggling (rate limiting, server-side churn)
+// — observed live going from reconnecting every ~15s to every ~6s over two
+// minutes, i.e. the retries themselves were making it worse. Back off
+// exponentially instead, and reset once a connection actually holds.
+let reconnectAttempts = 0;
+const MAX_RECONNECT_DELAY_MS = 30000;
+
 export const initSocket = (roomId, username, isDummyMedia, handlers) => {
     currentRoomId = roomId;
     myUsername = username;
@@ -130,6 +138,7 @@ const connectChannel = () => {
 
         if (err) console.error(`[socket] channel error on status ${status}:`, err);
         if (status === 'SUBSCRIBED') {
+            reconnectAttempts = 0;
             await channel.track({
                 username: myUsername,
                 status: 'Online',
@@ -151,10 +160,12 @@ const connectChannel = () => {
             sendHeartbeat();
             heartbeatInterval = setInterval(sendHeartbeat, HEARTBEAT_INTERVAL_MS);
         } else if (status === 'CLOSED' || status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
-            console.warn(`Channel status: ${status}, reconnecting...`);
+            const delay = Math.min(1000 * 2 ** reconnectAttempts, MAX_RECONNECT_DELAY_MS);
+            reconnectAttempts++;
+            console.warn(`Channel status: ${status}, reconnecting in ${delay}ms...`);
             setTimeout(() => {
                 if (myGeneration === connectionGeneration && currentRoomId === roomId) connectChannel();
-            }, 3000);
+            }, delay);
         }
     });
 };

@@ -13,14 +13,14 @@ let currentUsername = null;
 let partners = {}; // Store partner data
 let handRaised = false;
 
-// A participant's realtime channel periodically rebuilds itself (see
-// socket.js's presence reconcile loop), which makes everyone else briefly
-// see them "leave" and "join" again even though nothing actually changed.
-// Debouncing the leave lets a same-user rejoin within the grace window
-// cancel the teardown instead of tearing down and rebuilding the peer
-// connection and video tile for no reason.
+// A participant's realtime channel can drop and reconnect on its own (network
+// blips, provider-side connection churn) — from CLOSED to fully resubscribed
+// takes a 3s retry delay plus round-trip time, occasionally more. Debouncing
+// the leave past that window lets a rejoin cancel the teardown instead of
+// tearing down and rebuilding the peer connection and video tile for a blip
+// that was never a real leave.
 const pendingLeaves = {};
-const LEAVE_GRACE_MS = 4000;
+const LEAVE_GRACE_MS = 18000;
 
 // Mic/camera toggle icons, swapped in on click so the button's on/off state
 // is unmistakable at a glance instead of relying on a subtle background
@@ -560,6 +560,11 @@ const handleJoin = async () => {
     setInterval(() => {
         Object.keys(partners).forEach(userId => {
             if (userId !== getMyUserId() && peerNeedsCall(userId)) {
+                // getOrCreatePeerConnection only builds a fresh RTCPeerConnection
+                // when there's no existing one — a peer stuck 'failed'/'disconnected'
+                // is still "there", so without this it would keep renegotiating on
+                // the same broken connection instead of actually recovering.
+                if (hasPeer(userId)) removePeer(userId);
                 // Only the "smaller" ID initiates the call to prevent double-calling
                 if (getMyUserId() < userId) {
                     console.log(`[Self-Healing] Missing connection to ${userId}. Initiating call...`);
