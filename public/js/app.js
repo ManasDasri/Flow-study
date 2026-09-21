@@ -1,4 +1,4 @@
-import { initSocket, getSocket, getMyUserId, broadcastYouTube, updateCameraState, updateMyUsername } from './modules/socket.js';
+import { initSocket, getSocket, getMyUserId, broadcastYouTube, updateCameraState, updateMyUsername, sendReaction, sendHandRaise } from './modules/socket.js';
 import { initMedia, toggleAudio, toggleVideo, handleSignal, removePeer, callUser, hasPeer, peerNeedsCall, cleanupDummyStream, isDummyMedia, isVideoActive, hasAudioTrack } from './modules/rtc.js';
 import { initTimer, toggleTimer, resetTimer, setMode, syncState, setTimerSettings, broadcastCurrentState } from './modules/timer.js';
 import { initTasks, addTask, toggleTask, deleteTask, assignTask, rerenderTasks, getStats as getTaskStats, setSharedTasks } from './modules/tasks.js';
@@ -11,6 +11,7 @@ import supabase from './modules/supabase.js';
 let currentRoomId = null;
 let currentUsername = null;
 let partners = {}; // Store partner data
+let handRaised = false;
 
 // A participant's realtime channel periodically rebuilds itself (see
 // socket.js's presence reconcile loop), which makes everyone else briefly
@@ -137,7 +138,23 @@ const initApp = async () => {
 
         updateCameraState(isEnabled);
     });
-    
+
+    // Reactions & Raise Hand
+    document.querySelectorAll('.reaction-btn').forEach((btn) => {
+        btn.addEventListener('click', () => {
+            const emoji = btn.dataset.emoji;
+            sendReaction(emoji);
+            showReaction(getMyUserId(), emoji); // no self-broadcast echo, so render locally too
+        });
+    });
+
+    document.getElementById('toggle-hand').addEventListener('click', (e) => {
+        handRaised = !handRaised;
+        e.currentTarget.classList.toggle('active', handRaised);
+        sendHandRaise(handRaised);
+        setHandRaised(getMyUserId(), handRaised);
+    });
+
     // Timer Controls
     UI.UI.timerToggleBtn.addEventListener('click', () => {
         toggleTimer();
@@ -533,6 +550,9 @@ const handleJoin = async () => {
         onYouTubeSync: (url) => {
             document.getElementById('youtube-url-input').value = url;
             updateYouTubeIframe(url);
+        },
+        onReaction: (data) => {
+            showReaction(data.userId, data.emoji);
         }
     });
     
@@ -630,13 +650,49 @@ const removeRemoteVideo = (userId) => {
     if (wrapper) wrapper.remove();
 };
 
+const getWrapperForUser = (userId) =>
+    document.getElementById(userId === getMyUserId() ? 'video-wrapper-local' : `video-wrapper-${userId}`);
+
+const showReaction = (userId, emoji) => {
+    const wrapper = getWrapperForUser(userId);
+    if (!wrapper) return;
+
+    const el = document.createElement('div');
+    el.className = 'floating-reaction';
+    el.textContent = emoji;
+    wrapper.appendChild(el);
+    setTimeout(() => el.remove(), 1800);
+};
+
+const setHandRaised = (userId, raised) => {
+    const wrapper = getWrapperForUser(userId);
+    if (!wrapper) return;
+
+    let badge = wrapper.querySelector('.hand-raised-badge');
+    if (raised) {
+        if (!badge) {
+            badge = document.createElement('span');
+            badge.className = 'hand-raised-badge';
+            badge.textContent = '✋';
+            wrapper.appendChild(badge);
+        }
+    } else if (badge) {
+        badge.remove();
+    }
+};
+
 const updatePartnerUI = (userId) => {
     const partner = partners[userId];
     if (!partner) return;
     
     // Ensure their video box exists (even if their camera is off)
     ensureVideoWrapper(userId);
-    
+
+    // Raised-hand state rides along with presence (survives a channel
+    // reconnect) rather than a one-shot broadcast, so it's kept in sync
+    // here alongside everything else presence already drives.
+    setHandRaised(userId, !!partner.handRaised);
+
     // Update presence card
     UI.renderPartnerPresenceCard(userId, partner);
     
