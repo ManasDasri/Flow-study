@@ -108,11 +108,14 @@
 
 .video-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-    gap: 14px;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 440px));
+    grid-auto-rows: max-content;
+    gap: 24px;
     flex: 1;
-    padding: 14px;
+    padding: 24px;
     overflow-y: auto;
+    justify-content: safe center;
+    align-content: safe center;
 }
 
 .video-grid::-webkit-scrollbar {
@@ -136,6 +139,7 @@
     align-items: center;
     box-shadow: var(--shadow-solid);
     aspect-ratio: 16 / 9;
+    max-height: 45vh;
 }
 
 .video-wrapper video {

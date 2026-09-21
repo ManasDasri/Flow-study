@@ -102,6 +102,16 @@ select.brutal-input:focus {
     background: var(--glass-bg-hover);
 }
 
+.icon-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+    transform: none;
+}
+
+.icon-btn:disabled:hover {
+    background: var(--glass-bg-soft);
+}
+
 .icon-btn.active {
     background: linear-gradient(145deg, color-mix(in srgb, var(--primary) 88%, white 12%), var(--primary));
     color: #0b1112;
