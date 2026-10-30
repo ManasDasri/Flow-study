@@ -32,15 +32,6 @@ The UI employs a beautiful, glassmorphic **minimal** aesthetic, making the tools
 - **Synchronized Pomodoro:** A synchronized focus timer that updates seamlessly for everyone in the room. If one person pauses, everyone pauses. 
 - **Integrated AI Assistant:** Stuck on a problem? Type `/ai` in the room chat, and Groq's high-speed AI will instantly respond to everyone in the room with the answer.
 - **Real-Time Task Management:** Add shared goals. When a task is checked off, the progress bar updates live on everyone's screen, backed persistently by PostgreSQL.
-- **Spotify Integration:** Built-in Lo-Fi beats to keep the deep focus going.
-
----
-
-## Screenshots
-
-| Login | Focus Room |
-| :---: | :---: |
-| <img src="assets/login.png" width="100%" alt="Login Screen"> | <img src="assets/flow.png" width="100%" alt="Flow Room"> |
 
 ---
 
