@@ -1,0 +1,48 @@
+.login-page { display: flex; flex-direction: column; min-height: 100svh; }
+.login-header, .login-footer { display: flex; justify-content: space-between; align-items: center; gap: 24px; padding: 28px 5vw; }
+.theme-control { display: flex; align-items: center; gap: 12px; }
+.theme-control label { font-size: .8rem; white-space: nowrap; color: var(--text-muted); }
+.theme-control select { width: 130px; padding: 8px 12px; font-size: .85rem; }
+.login-layout { display: grid; grid-template-columns: 1.2fr 1fr; gap: clamp(48px, 8vw, 130px); align-items: center; width: min(1120px, 90%); margin: auto; padding: 38px 0; }
+.login-intro h1 { font-size: clamp(2.7rem, 4.2vw, 4.5rem); line-height: 1.08; letter-spacing: -.055em; }
+.login-intro > p { max-width: 380px; margin-top: 24px; color: var(--text-secondary); font-size: 1.05rem; line-height: 1.7; }
+.focus-illustration { height: 300px; position: relative; display: grid; place-items: center; margin-top: 28px; isolation: isolate; }
+.orbit { position: absolute; border: 1px solid var(--glass-border); border-radius: 50%; }
+.orbit-outer { width: 290px; height: 290px; border-style: dashed; transform: rotate(-20deg); }
+.orbit-middle { width: 250px; height: 250px; }
+.dial-label { font-size: .75rem; color: var(--text-muted); margin-bottom: 8px; }
+.focus-dial { display: flex; flex-direction: column; align-items: center; justify-content: center; width: 210px; height: 210px; border: 2px solid var(--primary); border-right-color: var(--glass-border); border-radius: 50%; background: var(--surface); color: var(--text-secondary); font-size: .78rem; }
+.dial-time { font-size: 3.7rem; font-weight: 500; letter-spacing: -.05em; font-variant-numeric: tabular-nums; color: var(--text-primary); }
+.login-intro > .intro-footnote { text-align: center; font-size: .8rem; color: var(--text-muted); max-width: none; margin-top: 14px; }
+.login-card { background: var(--surface); border: 1px solid var(--glass-border); border-radius: 24px; padding: clamp(28px, 3.5vw, 48px); }
+.login-card h2 { font-size: 1.9rem; letter-spacing: -.045em; }
+.login-description { margin: 14px 0 30px; color: var(--text-secondary); font-size: .94rem; max-width: 32ch; }
+#auth-form { display: flex; flex-direction: column; }
+#auth-form label { margin-bottom: 8px; }
+#auth-form input { margin-bottom: 22px; padding: 14px; }
+#auth-form .btn { width: 100%; min-height: 48px; }
+.signup-divider { display: flex; align-items: center; gap: 12px; margin: 24px 0; color: var(--text-muted); font-size: .8rem; }
+.signup-divider::before, .signup-divider::after { content: ''; height: 1px; background: var(--glass-border); flex: 1; }
+.login-note { margin-top: 28px; font-size: .78rem; color: var(--text-muted); text-align: center; }
+.auth-message { display: none; padding: 12px; margin-top: 20px; border: 1px solid currentColor; border-radius: 8px; font-size: .9rem; overflow-wrap: anywhere; }
+.error-msg { color: var(--danger); }
+.success-msg { color: var(--green); }
+.login-footer { font-size: .8rem; color: var(--text-muted); }
+@media (max-width: 800px) {
+    .login-layout { gap: 32px; grid-template-columns: 1fr 1fr; }
+    .login-intro h1 { font-size: 2.6rem; }
+    .focus-illustration { transform: scale(.85); margin-inline: -20px; }
+    .login-card { padding: 28px; }
+}
+@media (max-width: 650px) {
+    .login-header { padding: 24px 6vw; }
+    .theme-control label { display: none; }
+    .login-layout { grid-template-columns: 1fr; width: 88%; padding: 24px 0; gap: 28px; }
+    .login-intro h1 { font-size: clamp(2rem, 8vw, 3rem); }
+    .login-intro > p { margin-top: 16px; font-size: .95rem; }
+    .focus-illustration, .login-intro > .intro-footnote { display: none; }
+    .login-card h2 { font-size: 1.6rem; }
+    .login-description { margin: 12px 0 24px; }
+    .login-footer { padding: 24px 6vw; font-size: .72rem; }
+    .login-footer span:last-child { display: none; }
+}

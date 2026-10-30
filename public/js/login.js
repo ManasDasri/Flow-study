@@ -116,11 +116,8 @@ const handleAuth = async (action) => {
     showError('Authentication failed. Please try again.');
 };
 
-loginBtn.addEventListener('click', () => handleAuth('login'));
-signupBtn.addEventListener('click', () => handleAuth('signup'));
-
-passwordInput.addEventListener('keypress', (e) => {
-    if (e.key === 'Enter') {
-        handleAuth('login');
-    }
+document.getElementById('auth-form').addEventListener('submit', (e) => {
+    e.preventDefault();
+    handleAuth('login');
 });
+signupBtn.addEventListener('click', () => handleAuth('signup'));

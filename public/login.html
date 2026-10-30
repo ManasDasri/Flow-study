@@ -3,109 +3,58 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Flow | Login</title>
+    <meta name="description" content="A shared space for focused study. Set a timer, work on your goals, and study better together with Flow.">
+    <title>Flow | Study better, together</title>
     <link rel="icon" type="image/jpeg" href="/favicon.jpg">
-    
-    <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;700;800&family=Space+Mono:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
-    
-    <!-- Styles -->
     <link rel="stylesheet" href="/styles/global.css">
     <link rel="stylesheet" href="/styles/components.css">
-    <link rel="stylesheet" href="/styles/animations.css">
-    <style>
-        body {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            background-color: var(--bg-main);
-            /* Retro grid */
-            background-image: radial-gradient(var(--border-color) 1px, transparent 1px);
-            background-size: 20px 20px;
-        }
-
-        .login-card {
-            width: 100%;
-            max-width: 420px;
-            padding: 40px;
-            text-align: center;
-        }
-
-        .logo-large {
-            font-size: 3rem;
-            font-weight: 800;
-            letter-spacing: -0.05em;
-            color: var(--border-color);
-            margin-bottom: 8px;
-            text-shadow: 4px 4px 0px var(--primary);
-        }
-
-        .subtitle {
-            font-weight: 500;
-            color: var(--text-secondary);
-            margin-bottom: 32px;
-            font-size: 1.1rem;
-        }
-        
-        .error-msg {
-            color: var(--danger);
-            font-weight: 700;
-            margin-top: 12px;
-            font-size: 0.9rem;
-            display: none;
-        }
-        
-        .success-msg {
-            color: var(--green);
-            font-weight: 700;
-            margin-top: 12px;
-            font-size: 0.9rem;
-            display: none;
-        }
-
-        .theme-switch {
-            width: 100%;
-            margin-bottom: 14px;
-        }
-    </style>
+    <link rel="stylesheet" href="/styles/login.css">
 </head>
-<body>
-
-    <div class="brutal-card login-card scale-in" style="background: var(--surface); border: var(--border-width) solid var(--border-color); border-radius: var(--radius-lg); box-shadow: 4px 4px 0px var(--border-color);">
-        <div style="font-size: 2.5rem; font-weight: 800; letter-spacing: -2px; margin-bottom: 8px; color: var(--text-primary);">Flow.</div>
-        <p class="subtitle" id="subtitle-text">Enter your email to log in or sign up.</p>
-        <select id="theme-picker" class="brutal-input theme-switch" aria-label="Select theme">
-            <option value="forest">Forest</option>
-            <option value="midnight">Midnight</option>
-            <option value="warm">Warm</option>
-            <option value="aqua">Aqua</option>
-            <option value="amethyst">Amethyst</option>
-        </select>
-        
-        <!-- Standard Email + Password Input -->
-        <div id="step-auth">
-            <input type="email" id="email-input" class="brutal-input mb-4" placeholder="you@example.com" required>
-            <input type="password" id="password-input" class="brutal-input mb-4" placeholder="Password (min 6 chars)" required>
-            
-            <div style="display: flex; gap: 8px;">
-                <button id="login-btn" class="btn btn-secondary" style="flex: 1; font-size: 1.1rem; padding: 14px;">Log In</button>
-                <button id="signup-btn" class="btn btn-primary" style="flex: 1; font-size: 1.1rem; padding: 14px;">Sign Up</button>
-            </div>
-            
-            <div class="mt-4 text-muted" style="font-size: 0.9rem;">
-                Don't have an account? Click Sign Up to create one instantly!
-            </div>
+<body class="login-page">
+    <header class="login-header">
+        <a href="/" class="brand" aria-label="Flow home">flow<span class="brand-period">.</span></a>
+        <div class="theme-control">
+            <label for="theme-picker">Your atmosphere</label>
+            <select id="theme-picker" class="brutal-input">
+                <option value="forest">Forest</option>
+                <option value="midnight">Midnight</option>
+                <option value="warm">Warm</option>
+                <option value="aqua">Aqua</option>
+                <option value="amethyst">Amethyst</option>
+            </select>
         </div>
-
-        <div id="error-message" class="error-msg"></div>
-        <div id="success-message" class="success-msg">Success!</div>
-
-    </div>
-
-    <!-- Scripts -->
+    </header>
+    <main class="login-layout">
+        <section class="login-intro" aria-labelledby="intro-title">
+            <h1 id="intro-title">Study with<br>intention.</h1>
+            <p>A considered space for focused work. Connect with your study group, set a goal, and give it your full attention.</p>
+            <div class="focus-illustration" aria-hidden="true">
+                <div class="orbit orbit-outer"></div>
+                <div class="orbit orbit-middle"></div>
+                <div class="focus-dial"><span class="dial-label">Focus session</span><span class="dial-time">25:00</span><span>Time to focus</span></div>
+            </div>
+            <p class="intro-footnote">Shared timers. Clear goals. Undivided attention.</p>
+        </section>
+        <section class="login-card" aria-labelledby="login-title">
+            <h2 id="login-title">Welcome to Flow.</h2>
+            <p class="login-description" id="subtitle-text">Log in to continue to your study space.</p>
+            <form id="auth-form">
+                <label for="email-input">Email address</label>
+                <input type="email" id="email-input" class="brutal-input" placeholder="you@example.com" autocomplete="email" required>
+                <label for="password-input">Password</label>
+                <input type="password" id="password-input" class="brutal-input" placeholder="At least 6 characters" autocomplete="current-password" minlength="6" required>
+                <button type="submit" id="login-btn" class="btn btn-primary">Log in</button>
+                <div class="signup-divider"><span>New to Flow?</span></div>
+                <button type="button" id="signup-btn" class="btn btn-secondary">Create an account</button>
+            </form>
+            <div id="error-message" class="auth-message error-msg" role="alert"></div>
+            <div id="success-message" class="auth-message success-msg" role="status"></div>
+            <p class="login-note">Your next session starts here.</p>
+        </section>
+    </main>
+    <footer class="login-footer"><span>Study better, together.</span><span>A space for uninterrupted work.</span></footer>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script type="module" src="/js/login.js"></script>
 </body>
