@@ -116,6 +116,8 @@ Choose one mode:
    3. Without SMTP, confirmation emails will not be delivered.
 
 ### Database Setup
+For an existing database using the older TEXT `room_id` schema, use the compatibility steps in [TESTING.md](TESTING.md#supabase-compatibility). The bootstrap script below drops existing tables and is intended for a fresh database.
+
 Run the SQL in [`sql/schema.sql`](sql/schema.sql) in your Supabase SQL Editor. It creates the `rooms`, `room_participants`, `tasks`, and `sessions` tables, sets up Row Level Security, and defines the `join_room` RPC that the app uses to securely join a room (with optional PIN checking) — all of the app's room/task/session features depend on this exact schema, not a simplified version of it.
 
 ### Production Recommendations

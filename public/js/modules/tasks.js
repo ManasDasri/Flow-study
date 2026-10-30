@@ -1,171 +1,103 @@
 import supabase from './supabase.js';
 import { updatePresence } from './presence.js';
+import { notify } from './feedback.js';
 
 let roomTasks = [];
 let roomId = null;
 let updateUI = null;
+let adding = false;
+const pending = new Set();
 
-export const initTasks = (rId, initialTasks, uiCallback) => {
-    roomId = rId;
+export const initTasks = (id, initialTasks, uiCallback) => {
+    roomId = id;
     roomTasks = initialTasks || [];
     updateUI = uiCallback;
     renderTasks();
 };
 
-export const setSharedTasks = (tasks) => {
-    roomTasks = tasks;
+export const setSharedTasks = tasks => {
+    if (!Array.isArray(tasks)) return;
+    const inFlight = roomTasks.filter(task => pending.has(task.id));
+    roomTasks = tasks.filter(task => !pending.has(task.id)).concat(inFlight);
     renderTasks();
     updateCurrentTaskPresence();
 };
 
-export const addTask = async (title) => {
-    if (!title.trim()) return;
+export const addTask = async title => {
+    title = title.trim();
+    if (!roomId || adding || !title || title.length > 100) return false;
+    adding = true;
     const user = JSON.parse(localStorage.getItem('flow_user'));
-    
-    // Optimistic UI update
-    const tempId = 'temp-' + Date.now();
-    const newTask = {
-        id: tempId,
-        room_id: roomId,
-        title: title.trim(),
-        created_by: user ? user.id : null,
-        completed: false
-    };
-    roomTasks.push(newTask);
+    const task = { id: 'temp-' + crypto.randomUUID(), room_id: roomId, title, created_by: user?.id, completed: false, pending: true };
+    pending.add(task.id);
+    roomTasks.push(task);
     renderTasks();
-    updateCurrentTaskPresence();
-    
-    const { error, data } = await supabase.from('tasks').insert({
-        room_id: roomId,
-        title: title.trim(),
-        created_by: user ? user.id : null,
-        completed: false
-    }).select();
-    
-    if (error) {
-        console.error("Supabase Error Adding Task:", error.message);
-        // Revert
-        roomTasks = roomTasks.filter(t => t.id !== tempId);
+    try {
+        const { data, error } = await supabase.from('tasks').insert({
+            room_id: roomId, title, created_by: user?.id, completed: false
+        }).select();
+        if (error || !data?.[0]) throw new Error('Task was not saved');
+        roomTasks = roomTasks.filter(row => row.id !== task.id && row.id !== data[0].id);
+        roomTasks.push(data[0]);
+        return true;
+    } catch {
+        roomTasks = roomTasks.filter(row => row.id !== task.id);
+        notify('Task could not be saved. Your text is still in the input; try again.', 'error');
+        return false;
+    } finally {
+        adding = false;
+        pending.delete(task.id);
         renderTasks();
         updateCurrentTaskPresence();
-        alert("Database Error: " + error.message + "\\n\\nDid you run the SQL from the README in your Supabase SQL Editor?");
-    } else if (data && data[0]) {
-        // Replace temp task with real task
-        const index = roomTasks.findIndex(t => t.id === tempId);
-        if (index !== -1) {
-            roomTasks[index] = data[0];
-            renderTasks();
-        }
     }
 };
 
-export const toggleTask = async (taskId) => {
-    const taskIndex = roomTasks.findIndex(t => t.id === taskId);
-    if (taskIndex !== -1) {
-        // Optimistic UI update
-        const originalState = roomTasks[taskIndex].completed;
-        roomTasks[taskIndex].completed = !originalState;
-        renderTasks();
-        updateCurrentTaskPresence();
-
-        const { error, data } = await supabase.from('tasks')
-            .update({ completed: !originalState })
-            .eq('id', taskId)
-            .select();
-
-        if (error) {
-            console.error("Supabase Error Toggling Task:", error.message);
-            // Revert
-            roomTasks[taskIndex].completed = originalState;
-            renderTasks();
-            updateCurrentTaskPresence();
-            alert("Database Error: " + error.message);
-        } else if (!data || data.length === 0) {
-            // RLS silently blocked the write (no error, no affected rows) — revert
-            roomTasks[taskIndex].completed = originalState;
-            renderTasks();
-            updateCurrentTaskPresence();
-            alert("Permission denied! Your Supabase database has strict rules blocking this. Please run the updated SQL in README.md.");
-        }
-    }
-};
-
-export const deleteTask = async (taskId) => {
-    // Optimistic UI update
-    const previousTasks = [...roomTasks];
-    roomTasks = roomTasks.filter(t => t.id !== taskId);
+async function updateTask(id, changes) {
+    const task = roomTasks.find(row => row.id === id);
+    if (!task || pending.has(id)) return;
+    const previous = { ...task };
+    Object.assign(task, changes(task), { pending: true });
+    pending.add(id);
     renderTasks();
-    updateCurrentTaskPresence();
-
-    const { error, data } = await supabase.from('tasks')
-        .delete()
-        .eq('id', taskId)
-        .select();
-
-    if (error) {
-        console.error("Supabase Error Deleting Task:", error.message);
-        // Revert
-        roomTasks = previousTasks;
+    try {
+        const { data, error } = await supabase.from('tasks').update(changes(previous)).eq('id', id).select();
+        if (error || !data?.length) throw new Error('Task was not updated');
+    } catch {
+        Object.assign(task, previous);
+        notify('Task could not be updated. The previous value has been restored.', 'error');
+    } finally {
+        task.pending = false;
+        pending.delete(id);
         renderTasks();
         updateCurrentTaskPresence();
-        alert("Database Error: " + error.message);
-    } else if (!data || data.length === 0) {
-        // RLS silently blocked the write (no error, no affected rows) — revert
-        roomTasks = previousTasks;
-        renderTasks();
-        updateCurrentTaskPresence();
-        alert("Permission denied! Your Supabase database has strict rules blocking this. Please run the updated SQL in README.md.");
     }
-};
+}
 
-export const assignTask = async (taskId, userId) => {
-    const taskIndex = roomTasks.findIndex(t => t.id === taskId);
-    if (taskIndex === -1) return;
+export const toggleTask = id => updateTask(id, task => ({ completed: !task.completed }));
+export const assignTask = (id, userId) => updateTask(id, () => ({ assigned_to: userId }));
 
-    // Optimistic UI update
-    const previousAssignee = roomTasks[taskIndex].assigned_to;
-    roomTasks[taskIndex].assigned_to = userId;
+export const deleteTask = async id => {
+    const index = roomTasks.findIndex(row => row.id === id);
+    if (index < 0 || pending.has(id)) return;
+    const [task] = roomTasks.splice(index, 1);
+    pending.add(id);
     renderTasks();
-
-    const { error, data } = await supabase.from('tasks')
-        .update({ assigned_to: userId })
-        .eq('id', taskId)
-        .select();
-
-    if (error) {
-        console.error("Supabase Error Assigning Task:", error.message);
-        roomTasks[taskIndex].assigned_to = previousAssignee;
+    try {
+        const { data, error } = await supabase.from('tasks').delete().eq('id', id).select();
+        if (error || !data?.length) throw new Error('Task was not deleted');
+    } catch {
+        if (!roomTasks.some(row => row.id === id)) roomTasks.splice(Math.min(index, roomTasks.length), 0, task);
+        notify('Task could not be deleted. It has been restored.', 'error');
+    } finally {
+        pending.delete(id);
         renderTasks();
-        alert("Database Error: " + error.message);
-    } else if (!data || data.length === 0) {
-        roomTasks[taskIndex].assigned_to = previousAssignee;
-        renderTasks();
-        alert("Permission denied! Your Supabase database has strict rules blocking this. Please run the updated SQL in README.md.");
+        updateCurrentTaskPresence();
     }
 };
 
-// Exposes the current shared task list to re-render against fresh data
-// (e.g. after the room's participant list changes) without waiting for
-// the tasks themselves to change.
 export const rerenderTasks = () => renderTasks();
-
-export const getStats = () => {
-    const total = roomTasks.length;
-    const completed = roomTasks.filter(t => t.completed).length;
-    return { total, completed };
-};
-
-const renderTasks = () => {
-    if (updateUI) {
-        updateUI(roomTasks, getStats());
-    }
-};
-
-const updateCurrentTaskPresence = () => {
-    const currentTask = roomTasks.find(t => !t.completed);
-    if (currentTask) {
-        updatePresence({ currentTask: currentTask.title });
-    } else {
-        updatePresence({ currentTask: 'Planning...' });
-    }
-};
+export const getStats = () => ({ total: roomTasks.length, completed: roomTasks.filter(task => task.completed).length });
+function renderTasks() { updateUI?.(roomTasks, getStats()); }
+function updateCurrentTaskPresence() {
+    updatePresence({ currentTask: roomTasks.find(task => !task.completed)?.title || 'Planning…' });
+}

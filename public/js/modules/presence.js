@@ -65,12 +65,12 @@ export const startFocusTracking = () => {
     }, 60000); // every minute
 };
 
-export const stopFocusTracking = () => {
+export const stopFocusTracking = (status = 'On Break') => {
     if (focusInterval) {
         clearInterval(focusInterval);
         focusInterval = null;
     }
-    updatePresence({ status: '🟡 On Break' });
+    updatePresence({ status });
 };
 
 const broadcastPresence = () => {

@@ -10,16 +10,18 @@ export const getMyProfile = async (userId) => {
 };
 
 export const saveDisplayName = async (userId, displayName) => {
-    const { error } = await supabase.from('profiles').upsert({
-        id: userId,
-        display_name: displayName,
-        updated_at: new Date().toISOString()
-    });
-    if (error) {
-        console.error('Failed to save profile:', error.message);
-        return false;
-    }
-    return true;
+    try {
+        const { error } = await supabase.from('profiles').upsert({
+            id: userId,
+            display_name: displayName,
+            updated_at: new Date().toISOString()
+        });
+        if (error) {
+            console.error('Failed to save profile:', error.message);
+            return false;
+        }
+        return true;
+    } catch { return false; }
 };
 
 // Consecutive calendar days (local time) with at least one completed
@@ -44,10 +46,11 @@ const computeStreak = (localDateStrings) => {
 };
 
 export const getStats = async (userId) => {
-    const [{ data: sessions }, { count: tasksCompleted }] = await Promise.all([
+    const [{ data: sessions, error: sessionError }, { count: tasksCompleted, error: taskError }] = await Promise.all([
         supabase.from('sessions').select('duration_seconds, completed_at').eq('user_id', userId),
         supabase.from('tasks').select('id', { count: 'exact', head: true }).eq('created_by', userId).eq('completed', true)
     ]);
+    if (sessionError || taskError) throw new Error('Profile stats are unavailable');
 
     const rows = sessions || [];
     const totalMinutes = Math.floor(rows.reduce((acc, r) => acc + r.duration_seconds, 0) / 60);

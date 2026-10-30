@@ -1,6 +1,7 @@
 import { sendSignal, getMyUserId } from './socket.js';
 
 let localStream = null;
+let mediaGeneration = 0;
 const peers = {};
 const makingOffer = {};
 const candidateQueues = {};
@@ -116,7 +117,17 @@ export const cleanupDummyStream = () => {
     }
 };
 
+export const cleanupMedia = () => {
+    mediaGeneration++;
+    cleanupDummyStream();
+    localStream?.getTracks().forEach(track => track.stop());
+    localStream = null;
+    Object.keys(peers).forEach(removePeer);
+    document.querySelectorAll('video').forEach(video => { video.srcObject = null; });
+};
+
 export const initMedia = async (videoEl) => {
+    const generation = ++mediaGeneration;
     isDummyMedia = false;
     try {
         if (!navigator.mediaDevices?.getUserMedia) {
@@ -135,11 +146,16 @@ export const initMedia = async (videoEl) => {
             }
         }
 
+        if (generation !== mediaGeneration) {
+            localStream?.getTracks().forEach(track => track.stop());
+            return false;
+        }
         videoEl.srcObject = localStream;
         videoEl.muted = true;
         await videoEl.play().catch((err) => console.error('Autoplay failed:', err));
         return true;
     } catch (err) {
+        if (generation !== mediaGeneration) return false;
         console.warn('Using dummy stream to keep WebRTC alive.', err);
         localStream = createDummyStream();
         isDummyMedia = true;
@@ -183,7 +199,9 @@ export const getOrCreatePeerConnection = async (userId, onRemoteStream) => {
     if (pendingPeers[userId]) return pendingPeers[userId];
 
     pendingPeers[userId] = (async () => {
+        const generation = mediaGeneration;
         await fetchTurnCredentials();
+        if (generation !== mediaGeneration) throw new Error('Room media has been closed');
         const pc = new RTCPeerConnection(iceConfig);
         peers[userId] = pc;
         candidateQueues[userId] = candidateQueues[userId] || [];
@@ -251,13 +269,12 @@ const isPolite = (remoteId) => {
 };
 
 export const handleSignal = async (data, onRemoteStream) => {
-    const { from, signal } = data;
+    const { from, signal } = data || {};
     if (!from || !signal) return;
 
-    const pc = await getOrCreatePeerConnection(from, onRemoteStream);
-    if (!candidateQueues[from]) candidateQueues[from] = [];
-
     try {
+        const pc = await getOrCreatePeerConnection(from, onRemoteStream);
+        if (!candidateQueues[from]) candidateQueues[from] = [];
         if (signal.type === 'offer') {
             const offerCollision = makingOffer[from] || pc.signalingState !== 'stable';
             if (offerCollision) {
