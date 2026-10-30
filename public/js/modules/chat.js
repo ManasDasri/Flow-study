@@ -11,7 +11,7 @@ export const initChat = (roomId, user) => {
     username = user;
     sendBtn.onclick = sendMessage;
     chatInput.onkeydown = event => {
-        if (event.key === 'Enter' && !event.isComposing) { event.preventDefault(); sendMessage(); }
+        if (event.key === 'Enter' && !event.shiftKey && !event.isComposing) { event.preventDefault(); sendMessage(); }
     };
 };
 

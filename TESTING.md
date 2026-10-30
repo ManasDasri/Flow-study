@@ -15,9 +15,12 @@ In another terminal, use Playwright CLI with an installed browser. Start the bro
 ```sh
 playwright-cli open http://localhost:3000/login.html
 playwright-cli run-code --filename=scripts/ui-smoke.js
+playwright-cli run-code --filename=scripts/tools-layout.js
 ```
 
 The browser suite intercepts Supabase and provider traffic. It uses synthetic media, not a camera or microphone. Screenshots in `assets/ui-preview` use these fixtures. Runtime screenshots go to the ignored `output/playwright` directory.
+
+Run `tools-layout.js` in the same session after the smoke suite. It checks the continuous timer/tools panel at ten viewport sizes, including 1366x600 and 1440x500, verifies that only the content list needs to scroll, checks that the composer and focus-mode controls fit, and exercises Shift+Enter versus Enter. It also verifies that the outlined `f.` SVG favicon loads. The favicon uses the same Instrument Sans SemiBold letterforms as the wordmark and has no runtime font dependency.
 
 Database checks require an isolated local PostgreSQL server owned by a test superuser named `flow_test`. They connect only to `127.0.0.1`, create disposable `flow_ui_*` databases, and remove those databases afterward. Do not point these checks at Supabase or a shared database.
 

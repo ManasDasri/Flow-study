@@ -44,25 +44,31 @@ input.brutal-input:focus, input.input-field:focus, select.brutal-input:focus {
 .reactions-menu summary::-webkit-details-marker { display: none; }
 .reaction-bar { position: absolute; bottom: 48px; left: 0; display: flex; gap: 4px; padding: 6px; border: 1px solid var(--glass-border); border-radius: 10px; background: var(--surface); }
 .input-row { display: flex; gap: 8px; min-width: 0; }
-.pill-timer { background: var(--glass-bg); border: 1px solid var(--glass-border); border-radius: var(--radius-md); padding: 24px; display: flex; flex-direction: column; align-items: center; gap: 22px; flex-shrink: 0; }
-.timer-heading { align-self: stretch; display: flex; flex-direction: column; gap: 6px; }
+.pill-timer { padding: 18px; display: flex; flex-direction: column; gap: 14px; flex-shrink: 0; border: 0; border-bottom: 1px solid var(--glass-border); border-radius: 0; background: transparent; }
+.timer-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .timer-heading h2 { font-size: .85rem; letter-spacing: -.01em; }
-.timer-heading > span { font-size: .73rem; color: var(--text-muted); }
-.pill-timer .time-display { font-size: 4.6rem; font-weight: 400; line-height: 1; letter-spacing: -.065em; font-variant-numeric: tabular-nums; color: var(--text-primary); }
+.timer-heading-copy { display: flex; flex-direction: column; gap: 5px; }
+.timer-heading-copy > span { font-size: .73rem; color: var(--text-muted); }
+.timer-utilities { display: flex; gap: 6px; }
+.timer-utilities .icon-btn { width: 36px; height: 36px; background: transparent; }
+.timer-main { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.pill-timer .time-display { font-size: 3.6rem; font-weight: 400; line-height: 1; letter-spacing: -.065em; font-variant-numeric: tabular-nums; color: var(--text-primary); }
 .timer-modes { display: flex; gap: 4px; background: var(--glass-bg-soft); border: 1px solid var(--glass-border); border-radius: 9px; padding: 4px; }
-.mode-btn { background: transparent; border: none; border-radius: 5px; padding: 7px 13px; font-size: .75rem; font-weight: 500; color: var(--text-muted); cursor: pointer; }
+.mode-btn { flex: 1; background: transparent; border: 0; border-radius: 5px; padding: 7px 10px; font-size: .78rem; font-weight: 500; color: var(--text-muted); cursor: pointer; white-space: nowrap; }
 .mode-btn:hover { color: var(--text-primary); }
 .mode-btn.active { background: var(--glass-bg-hover); color: var(--text-primary); }
-.timer-controls { display: flex; gap: 10px; align-items: center; }
+.timer-controls { display: flex; gap: 8px; align-items: center; }
+#timer-toggle-btn { width: 46px; height: 46px; }
+#timer-reset-btn { background: transparent; }
 #timer-toggle-btn { background: var(--primary); color: var(--bg-main); border: 0; }
-.tabbed-container { flex: 1; min-height: 280px; overflow: hidden; }
+.tabbed-container { flex: 1; min-height: 0; overflow: hidden; border: 0; border-radius: 0; background: transparent; }
 .tabs-header { display: flex; border-bottom: 1px solid var(--glass-border); padding: 0 16px; }
 .tab-btn { flex: 1; background: transparent; border: 0; border-bottom: 2px solid transparent; padding: 16px 12px; font-size: .85rem; font-weight: 500; color: var(--text-muted); cursor: pointer; }
 .tab-btn.active { color: var(--text-primary); border-bottom-color: var(--primary); }
 .tab-content { display: none; flex: 1; flex-direction: column; overflow: hidden; padding: 18px; min-height: 0; }
 .tab-content.active { display: flex; }
-.task-list { list-style: none; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; }
-.task-item { display: flex; align-items: center; gap: 8px; padding: 12px 0; border-bottom: 1px solid var(--glass-border); font-size: .82rem; }
+.task-list { flex: 1; min-height: 0; list-style: none; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; scrollbar-width: thin; scrollbar-color: var(--glass-border) transparent; }
+.task-item { display: flex; align-items: center; flex-shrink: 0; gap: 8px; padding: 12px 0; border-bottom: 1px solid var(--glass-border); font-size: .82rem; }
 .task-content { min-width: 0; overflow-wrap: anywhere; }
 .task-item.completed .task-title { text-decoration: line-through; color: var(--text-muted); }
 .task-checkbox { width: 20px; height: 20px; flex-shrink: 0; border-radius: 5px; border: 1px solid var(--text-muted); background: transparent; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; }
@@ -74,7 +80,6 @@ input.brutal-input:focus, input.input-field:focus, select.brutal-input:focus {
 .task-progress-fill { height: 100%; background: var(--primary); transition: width .3s; }
 .task-empty-msg { text-align: center; padding: 32px 12px; color: var(--text-muted); font-size: .8rem; line-height: 1.7; }
 .task-empty-msg strong { display: block; color: var(--text-secondary); font-weight: 500; margin-bottom: 6px; }
-.chat-hint { margin-bottom: 20px; }
 .modal-overlay { position: fixed; inset: 0; background: #0009; backdrop-filter: blur(6px); display: flex; justify-content: center; align-items: center; z-index: 1200; padding: 24px; overflow-y: auto; }
 .modal-overlay:has(#join-modal:not(.hidden)) { background: var(--bg-main); backdrop-filter: none; }
 .modal { background: var(--surface); border: 1px solid var(--glass-border); border-radius: var(--radius-lg); padding: 32px; width: min(460px, 100%); max-height: calc(100dvh - 48px); overflow-y: auto; color: var(--text-primary); }
@@ -101,21 +106,59 @@ input.brutal-input:focus, input.input-field:focus, select.brutal-input:focus {
 .dialog-description { font-size: .9rem; line-height: 1.7; color: var(--text-secondary); margin: 20px 0 28px; }
 .dialog-actions { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 12px; }
 .task-item.saving { opacity: .65; }
-.chat-message { padding: 12px 14px; border-radius: 10px; border: 1px solid var(--glass-border); align-self: flex-start; max-width: 92%; font-size: .85rem; overflow-wrap: anywhere; white-space: pre-wrap; }
-.own-message { align-self: flex-end; background: var(--glass-bg-hover); }
-.ai-message { border-left: 2px solid var(--primary); }
+.chat-message { flex-shrink: 0; align-self: stretch; max-width: 100%; padding: 14px 0; border: 0; border-bottom: 1px solid var(--glass-border); border-radius: 0; background: transparent; font-size: .88rem; line-height: 1.65; overflow-wrap: anywhere; white-space: pre-wrap; }
+.ai-message { border-left: 2px solid var(--primary); padding-left: 12px; }
 .message-sender { font-size: .72rem; color: var(--text-muted); margin-bottom: 6px; }
 #chat-messages:empty::before { content: 'Start the conversation. Messages are shared with everyone in this room.'; color: var(--text-muted); font-size: .8rem; line-height: 1.7; margin: auto 12px; text-align: center; }
 #ai-pending { margin-bottom: 12px; }
+#chat-messages { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; padding-right: 6px; margin-bottom: 16px; scrollbar-width: thin; scrollbar-color: var(--glass-border) transparent; scrollbar-gutter: stable; }
+.chat-compose { flex-shrink: 0; border: 1px solid var(--glass-border); border-radius: 12px; background: var(--glass-bg-soft); padding: 12px; }
+.chat-compose:focus-within { border-color: var(--primary); box-shadow: 0 0 0 2px color-mix(in srgb, var(--primary) 12%, transparent); }
+#chat-input { display: block; width: 100%; min-height: 52px; max-height: 120px; padding: 0; border: 0; outline: 0; resize: vertical; background: transparent; color: var(--text-primary); font-size: .9rem; line-height: 1.5; }
+#chat-input::placeholder { color: var(--text-muted); }
+.chat-compose-actions { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 10px; }
+#chat-compose-help { color: var(--text-muted); font-size: .72rem; }
+#chat-compose-help kbd { font: inherit; color: var(--text-secondary); margin-right: 5px; }
+.chat-compose-actions .btn { padding: 8px 16px; }
+.focus-active .right-sidebar { width: max-content; max-width: calc(100vw - 32px); position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); z-index: 1000; overflow: visible; height: auto; min-height: 0; }
+.focus-active .tabbed-container, .focus-active .timer-heading-copy { display: none; }
+.focus-active .pill-timer { flex-direction: row; align-items: center; gap: 16px; padding: 12px; border: 0; }
+.focus-active .timer-heading { display: contents; }
+.focus-active .timer-main { order: 0; gap: 10px; }
+.focus-active .timer-modes { order: 1; }
+.focus-active .timer-utilities { order: 2; }
+.focus-active .pill-timer .time-display { font-size: 2rem; }
+.focus-active #timer-toggle-btn { width: 40px; height: 40px; }
+.focus-active #timer-reset-btn { width: 36px; height: 36px; }
 .room-guidance { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin: 0 24px; padding: 16px 0; border-top: 1px solid var(--glass-border); color: var(--text-muted); font-size: .78rem; }
 .room-guidance .btn { font-size: .75rem; padding: 8px 12px; }
 @media (max-width: 760px) {
-    .timer-heading { flex-direction: row; justify-content: space-between; align-items: baseline; }
-    .pill-timer { gap: 20px; }
-    .pill-timer .time-display { font-size: 4rem; }
+    .focus-active .timer-modes { display: none; }
 }
 @media (max-width: 480px) {
     .modal-overlay { padding: 16px; }
     .modal { padding: 24px; max-height: calc(100dvh - 32px); }
     #join-modal { padding: 28px; }
+}
+@media (min-width: 1051px) and (max-height: 700px) {
+    body:not(.focus-active) .right-sidebar .pill-timer { padding: 14px; gap: 10px; }
+    body:not(.focus-active) .right-sidebar .time-display { font-size: 3rem; }
+    body:not(.focus-active) .right-sidebar .timer-utilities .icon-btn { width: 32px; height: 32px; }
+    .right-sidebar .mode-btn { padding-block: 5px; }
+    .right-sidebar .tab-content { padding: 14px; }
+    .right-sidebar .chat-compose { padding: 10px; }
+    .right-sidebar .chat-compose-actions { margin-top: 8px; }
+    .right-sidebar #chat-input { height: 44px; min-height: 44px; }
+    .right-sidebar #chat-messages { margin-bottom: 12px; }
+}
+@media (min-width: 1051px) and (max-height: 560px) {
+    body:not(.focus-active) .right-sidebar .pill-timer { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: 8px; padding: 12px; }
+    body:not(.focus-active) .right-sidebar .timer-heading, body:not(.focus-active) .right-sidebar .timer-main { display: contents; }
+    body:not(.focus-active) .right-sidebar .timer-heading-copy { display: none; }
+    body:not(.focus-active) .right-sidebar .time-display { grid-column: 1; grid-row: 1; font-size: 2.5rem; }
+    body:not(.focus-active) .right-sidebar .timer-controls { grid-column: 2; grid-row: 1; gap: 4px; }
+    body:not(.focus-active) .right-sidebar .timer-utilities { grid-column: 3; grid-row: 1; gap: 4px; }
+    body:not(.focus-active) .right-sidebar .timer-modes { grid-column: 1 / -1; }
+    body:not(.focus-active) .right-sidebar .timer-controls .icon-btn { width: 32px; height: 32px; }
+    body:not(.focus-active) .right-sidebar .timer-utilities .icon-btn { width: 28px; height: 28px; }
 }
