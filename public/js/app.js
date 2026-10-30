@@ -119,12 +119,14 @@ const initApp = async () => {
             return;
         }
         e.currentTarget.classList.toggle('active', enabled);
+        e.currentTarget.setAttribute('aria-pressed', String(enabled));
         e.currentTarget.innerHTML = enabled ? MIC_ON_ICON : MIC_OFF_ICON;
     });
 
     document.getElementById('toggle-cam').addEventListener('click', (e) => {
         const isEnabled = toggleVideo();
         e.currentTarget.classList.toggle('active', isEnabled);
+        e.currentTarget.setAttribute('aria-pressed', String(isEnabled));
         e.currentTarget.innerHTML = isEnabled ? CAM_ON_ICON : CAM_OFF_ICON;
 
         const localDummy = document.getElementById('local-dummy-placeholder');
@@ -205,7 +207,14 @@ const initApp = async () => {
 
     // Profile Modal
     const profileModal = document.getElementById('profile-modal');
-    document.getElementById('my-presence-card').addEventListener('click', async () => {
+    const profileCard = document.getElementById('my-presence-card');
+    profileCard.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            profileCard.click();
+        }
+    });
+    profileCard.addEventListener('click', async () => {
         modalOverlay.classList.remove('hidden');
         profileModal.classList.remove('hidden');
         document.getElementById('join-modal').classList.add('hidden');
@@ -292,11 +301,25 @@ const initApp = async () => {
     // Tab Logic
     const tabBtns = document.querySelectorAll('.tab-btn');
     tabBtns.forEach(btn => {
+        btn.addEventListener('keydown', (e) => {
+            if (['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(e.key)) {
+                e.preventDefault();
+                const next = e.key === 'Home' ? tabBtns[0] : e.key === 'End' ? tabBtns[tabBtns.length - 1] : [...tabBtns].find(b => b !== btn);
+                next.click();
+                next.focus();
+            }
+        });
         btn.addEventListener('click', (e) => {
-            tabBtns.forEach(b => b.classList.remove('active'));
+            tabBtns.forEach(b => {
+                b.classList.remove('active');
+                b.setAttribute('aria-selected', 'false');
+                b.tabIndex = -1;
+            });
             document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
             
             e.target.classList.add('active');
+            e.target.setAttribute('aria-selected', 'true');
+            e.target.tabIndex = 0;
             document.getElementById(e.target.dataset.tab).classList.add('active');
         });
     });
@@ -374,7 +397,7 @@ const handleJoin = async () => {
     const username = userObj.email.split('@')[0];
     
     if (!roomCode) {
-        alert('Please enter a 6-character Room Code to join, or click "Host Room" to create a new one!');
+        alert('Enter a 6-character room code to join, or choose "Create a room" to start a new session.');
         return;
     }
     
@@ -433,6 +456,10 @@ const handleJoin = async () => {
     await initMedia(localVideo);
     
     const localDummy = document.getElementById('local-dummy-placeholder');
+    const cameraButton = document.getElementById('toggle-cam');
+    cameraButton.classList.toggle('active', isVideoActive());
+    cameraButton.setAttribute('aria-pressed', String(isVideoActive()));
+    cameraButton.innerHTML = isVideoActive() ? CAM_ON_ICON : CAM_OFF_ICON;
     if (!isVideoActive()) {
         localDummy.classList.remove('hidden');
         document.getElementById('local-dummy-avatar').innerText = currentUsername.charAt(0).toUpperCase();

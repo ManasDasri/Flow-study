@@ -26,6 +26,8 @@ export const updateRoomInfo = (roomId, count) => {
 };
 
 export const updateTimerUI = (state) => {
+    els.timerToggleBtn.setAttribute('aria-label', state.isRunning ? 'Pause timer' : 'Start timer');
+    els.timerToggleBtn.setAttribute('aria-pressed', String(state.isRunning));
     // Update text
     const m = Math.floor(state.timeLeft / 60).toString().padStart(2, '0');
     const s = (state.timeLeft % 60).toString().padStart(2, '0');
@@ -41,6 +43,7 @@ export const updateTimerUI = (state) => {
 
     // Update Modes
     els.timerModes.forEach(btn => {
+        btn.setAttribute('aria-pressed', String(btn.dataset.mode === state.mode));
         if (btn.dataset.mode === state.mode) {
             btn.classList.add('active');
         } else {
@@ -67,7 +70,7 @@ export const renderTaskList = (container, tasks, isReadOnly, onToggle, onDelete,
 
     if (tasks.length === 0 && !isReadOnly) {
         if (!emptyMsg) {
-            container.innerHTML = `<li class="task-empty-msg text-muted" style="text-align: center; padding: 20px 0; font-weight:600;">No tasks yet. Add one above!</li>`;
+            container.innerHTML = '<li class="task-empty-msg"><strong>Set a goal for this session.</strong>Add a task above to track progress together.</li>';
         }
         return;
     }
@@ -89,7 +92,7 @@ export const renderTaskList = (container, tasks, isReadOnly, onToggle, onDelete,
             li.dataset.taskId = key;
 
             li.innerHTML = `
-                <div class="task-checkbox" ${isReadOnly ? '' : 'style="cursor:pointer;"'}></div>
+                <button type="button" class="task-checkbox" ${isReadOnly ? 'disabled' : ''}></button>
                 <div class="task-content" style="flex:1; font-weight:600;">
                     <div class="task-title"></div>
                 </div>
@@ -106,6 +109,8 @@ export const renderTaskList = (container, tasks, isReadOnly, onToggle, onDelete,
         li.classList.toggle('completed', !!task.completed);
 
         const checkbox = li.querySelector('.task-checkbox');
+        checkbox.setAttribute('aria-label', `${task.completed ? 'Mark incomplete' : 'Complete task'}: ${task.title}`);
+        checkbox.setAttribute('aria-pressed', String(!!task.completed));
         checkbox.innerHTML = task.completed ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3"><polyline points="20 6 9 17 4 12"></polyline></svg>' : '';
 
         const titleEl = li.querySelector('.task-title');
@@ -141,7 +146,7 @@ export const updateMyPresenceUI = (state, stats, username) => {
     els.myUsername.innerText = username;
     els.myAvatar.innerText = username.charAt(0).toUpperCase();
 
-    els.myStatusText.innerText = state.status;
+    els.myStatusText.innerText = state.status.replace(/^[🟢🟡]\s*/u, '');
 
     const dot = els.myStatusText.previousElementSibling;
     dot.className = `dot ${state.status.includes('Break') ? 'yellow' : 'green'}`;
@@ -172,7 +177,7 @@ export const renderPartnerPresenceCard = (userId, userData) => {
                 <h3>${escapeHTML(safeName)}</h3>
                 <div class="status-indicator">
                     <span class="dot ${isBreak ? 'yellow' : 'green'}"></span>
-                    <span>${escapeHTML(partnerStatus)}</span>
+                    <span>${escapeHTML(String(partnerStatus).replace(/^[🟢🟡]\s*/u, ''))}</span>
                 </div>
             </div>
         </div>
