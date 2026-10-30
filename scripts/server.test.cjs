@@ -13,7 +13,7 @@ test('HTTP boundaries and bounded local concurrency', async t => {
     const post = body => fetch(origin + '/api/ai', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body });
 
     await t.test('HTML, CSS, modules, missing files, and private files', async () => {
-        for (const path of ['/', '/login.html', '/styles/login.css', '/js/modules/feedback.js']) assert.equal((await fetch(origin + path)).status, 200, path);
+        for (const path of ['/', '/login.html', '/styles/login.css', '/js/modules/feedback.js', '/favicon.svg']) assert.equal((await fetch(origin + path)).status, 200, path);
         for (const path of ['/.env', '/sql/schema.sql', '/package.json', '/missing.html']) assert.equal((await fetch(origin + path)).status, 404, path);
     });
     await t.test('invalid payloads return JSON errors', async () => {

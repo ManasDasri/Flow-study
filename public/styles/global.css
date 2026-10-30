@@ -54,8 +54,8 @@ body {
     background: var(--bg-main); color: var(--text-primary);
     font-family: 'Instrument Sans', sans-serif; font-size: 15px; line-height: 1.5; min-height: 100vh;
 }
-button, input, select { font: inherit; min-width: 0; }
-button, a, input, select { -webkit-tap-highlight-color: transparent; }
+button, input, textarea, select { font: inherit; min-width: 0; }
+button, a, input, textarea, select { -webkit-tap-highlight-color: transparent; }
 a { color: inherit; text-underline-offset: 4px; }
 button:focus-visible, a:focus-visible, select:focus-visible, [tabindex]:focus-visible {
     outline: 2px solid var(--primary); outline-offset: 4px;

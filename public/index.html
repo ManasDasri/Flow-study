@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Flow | Study Better. Together.</title>
-    <link rel="icon" type="image/jpeg" href="/favicon.jpg">
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg">
     
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -199,26 +199,32 @@
             </main>
 
             <!-- RIGHT SIDEBAR -->
-            <aside class="sidebar right-sidebar">
+            <aside class="sidebar right-sidebar" aria-label="Session and room tools">
                 
-                <!-- Dynamic Island Timer -->
-                <div class="pill-timer">
-                    <div class="timer-heading"><h2>Session timer</h2><span id="timer-state-label">Ready to focus</span></div>
-                    <div class="time-display" id="time-display">25:00</div>
-                    
-                    <div class="timer-modes">
+                <section class="pill-timer" aria-label="Session timer">
+                    <div class="timer-heading">
+                        <div class="timer-heading-copy">
+                            <h2>Session timer</h2>
+                            <span id="timer-state-label">Ready to focus</span>
+                        </div>
+                        <div class="timer-utilities">
+                            <button id="focus-mode-toggle" class="icon-btn"  title="Toggle Focus Mode"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg></button>
+                            <button id="open-timer-settings-btn" class="icon-btn" aria-label="Timer settings" ><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 15a3 3 0 100-6 3 3 0 000 6z"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z"/></svg></button>
+                        </div>
+                    </div>
+                    <div class="timer-main">
+                        <div class="time-display" id="time-display">25:00</div>
+                        <div class="timer-controls">
+                            <button id="timer-toggle-btn" class="icon-btn" aria-label="Start timer" ><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg></button>
+                            <button id="timer-reset-btn" class="icon-btn" aria-label="Reset timer" ><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.59-8.31l5.67-5.67"/></svg></button>
+                        </div>
+                    </div>
+                    <div class="timer-modes" aria-label="Session mode">
                         <button class="mode-btn active" data-mode="focus">Focus</button>
                         <button class="mode-btn" data-mode="shortBreak">Break</button>
                         <button class="mode-btn" data-mode="longBreak">Long break</button>
                     </div>
-
-                    <div class="timer-controls">
-                        <button id="focus-mode-toggle" class="icon-btn"  title="Toggle Focus Mode"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg></button>
-                        <button id="timer-toggle-btn" class="icon-btn" aria-label="Start timer" ><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg></button>
-                        <button id="timer-reset-btn" class="icon-btn" aria-label="Reset timer" ><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.59-8.31l5.67-5.67"/></svg></button>
-                        <button id="open-timer-settings-btn" class="icon-btn" aria-label="Timer settings" ><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 15a3 3 0 100-6 3 3 0 000 6z"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z"/></svg></button>
-                    </div>
-                </div>
+                </section>
 
                 <!-- Tabbed Panel -->
                 <div class="brutal-card tabbed-container p-0">
@@ -249,14 +255,14 @@
 
                     <!-- Chat Tab (NO INLINE STYLES!) -->
                     <div id="chat-tab" class="tab-content" role="tabpanel" aria-labelledby="chat-tab-button">
-                        <p class="panel-description chat-hint">Message your room. Use /ai to ask the study assistant.</p>
-                        <div id="chat-messages" role="log" aria-label="Room messages" style="flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px; padding-right: 4px;">
-                            <!-- Messages injected here -->
-                        </div>
+                        <div id="chat-messages" role="log" aria-label="Room messages"></div>
                         <div id="ai-pending" class="panel-description hidden" role="status">Study assistant is thinking…</div>
-                        <div style="display: flex; gap: 8px;">
-                            <input type="text" id="chat-input" class="brutal-input" placeholder="Write a message…" aria-label="Message to room" maxlength="300">
-                            <button id="send-chat-btn" class="btn btn-primary">Send</button>
+                        <div class="chat-compose">
+                            <textarea id="chat-input" placeholder="Write to your room…" aria-label="Message to room" aria-describedby="chat-compose-help" rows="2" maxlength="300"></textarea>
+                            <div class="chat-compose-actions">
+                                <span id="chat-compose-help"><kbd>/ai</kbd> Study assistant</span>
+                                <button id="send-chat-btn" class="btn btn-primary" title="Send message (Enter)">Send</button>
+                            </div>
                         </div>
                     </div>
                 </div>
