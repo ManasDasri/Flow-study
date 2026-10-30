@@ -24,10 +24,25 @@ export const initSocket = (roomId, username, isDummyMedia, handlers) => {
     myUsername = username;
     currentHandlers = handlers;
     currentIsDummyMedia = isDummyMedia;
+    currentHandRaised = false;
+    reconnectAttempts = 0;
     const user = JSON.parse(localStorage.getItem('flow_user') || 'null');
     myUserId = user?.id || crypto.randomUUID();
 
     connectChannel();
+};
+
+export const disconnectSocket = async () => {
+    connectionGeneration++;
+    currentRoomId = null;
+    clearInterval(heartbeatInterval);
+    heartbeatInterval = null;
+    const previous = channel;
+    channel = null;
+    if (previous) {
+        try { await previous.untrack(); } catch { /* Teardown continues after a network failure. */ }
+        try { await supabase.removeChannel(previous); } catch { /* Generation guard already prevents reconnection. */ }
+    }
 };
 
 // A Supabase Realtime channel can only join() once per instance — calling
@@ -47,6 +62,7 @@ const connectChannel = () => {
     // chains compounded every generation until failures were happening
     // many times a second instead of once every few seconds.
     const myGeneration = ++connectionGeneration;
+    handlers.onConnectionStatus?.('CONNECTING');
 
     if (heartbeatInterval) {
         clearInterval(heartbeatInterval);
@@ -128,37 +144,41 @@ const connectChannel = () => {
     channel.on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'tasks', filter: `room_id=eq.${roomId}` },
-        () => fetchTasks(roomId, handlers.onRoomTasksUpdate)
+        () => fetchTasks(roomId, handlers.onRoomTasksUpdate, handlers.onTasksError)
     );
 
-    channel.subscribe(async (status, err) => {
+    channel.subscribe(async function onStatus(status, err) {
         // Ignore callbacks from a channel instance that's already been
         // superseded by a newer connectChannel() call.
         if (myGeneration !== connectionGeneration) return;
+        handlers.onConnectionStatus?.(status);
 
         if (err) console.error(`[socket] channel error on status ${status}:`, err);
         if (status === 'SUBSCRIBED') {
-            reconnectAttempts = 0;
-            await channel.track({
-                username: myUsername,
-                status: 'Online',
-                nowPlaying: null,
-                isDummyMedia: currentIsDummyMedia,
-                handRaised: currentHandRaised
-            });
-            fetchTasks(roomId, handlers.onRoomTasksUpdate);
-            emitRoomState();
-
-            const sendHeartbeat = () => {
-                if (myGeneration !== connectionGeneration) return;
-                channel.send({
-                    type: 'broadcast',
-                    event: 'presence-heartbeat',
-                    payload: { userId: myUserId, username: myUsername, isDummyMedia: currentIsDummyMedia }
+            try {
+                reconnectAttempts = 0;
+                await channel.track({
+                    username: myUsername,
+                    status: 'Online',
+                    nowPlaying: null,
+                    isDummyMedia: currentIsDummyMedia,
+                    handRaised: currentHandRaised
                 });
-            };
-            sendHeartbeat();
-            heartbeatInterval = setInterval(sendHeartbeat, HEARTBEAT_INTERVAL_MS);
+                if (myGeneration !== connectionGeneration) return;
+                fetchTasks(roomId, handlers.onRoomTasksUpdate, handlers.onTasksError);
+                emitRoomState();
+
+                const sendHeartbeat = () => {
+                    if (myGeneration !== connectionGeneration) return;
+                    channel.send({
+                        type: 'broadcast',
+                        event: 'presence-heartbeat',
+                        payload: { userId: myUserId, username: myUsername, isDummyMedia: currentIsDummyMedia }
+                    });
+                };
+                sendHeartbeat();
+                heartbeatInterval = setInterval(sendHeartbeat, HEARTBEAT_INTERVAL_MS);
+            } catch { return onStatus('CHANNEL_ERROR'); }
         } else if (status === 'CLOSED' || status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
             const delay = Math.min(1000 * 2 ** reconnectAttempts, MAX_RECONNECT_DELAY_MS);
             reconnectAttempts++;
@@ -170,16 +190,17 @@ const connectChannel = () => {
     });
 };
 
-const fetchTasks = async (roomId, callback) => {
-    const { data, error } = await supabase
-        .from('tasks')
-        .select('*')
-        .eq('room_id', roomId)
-        .order('created_at', { ascending: true });
-
-    if (!error && data) {
-        callback({ tasks: data });
+const fetchTasks = async (roomId, callback, onError) => {
+    try {
+        const { data, error } = await supabase.from('tasks').select('*').eq('room_id', roomId).order('created_at', { ascending: true });
+        if (error) throw error;
+        if (currentRoomId === roomId && Array.isArray(data)) callback({ tasks: data });
+    } catch {
+        if (currentRoomId === roomId) onError?.();
     }
+};
+export const reloadTasks = () => {
+    if (currentRoomId) return fetchTasks(currentRoomId, currentHandlers.onRoomTasksUpdate, currentHandlers.onTasksError);
 };
 
 export const getSocket = () => channel;
@@ -215,7 +236,7 @@ export const updatePresence = async (roomId, status, nowPlaying) => {
     const state = channel.presenceState();
     const myState = state[myUserId] ? state[myUserId][0] : {};
 
-    await channel.track({
+    await trackPresence({
         ...myState,
         username: myUsername,
         status,
@@ -228,7 +249,7 @@ export const updateCameraState = async (isVideoActive) => {
     const state = channel.presenceState();
     const myState = state[myUserId] ? state[myUserId][0] : {};
 
-    await channel.track({
+    await trackPresence({
         ...myState,
         isDummyMedia: !isVideoActive
     });
@@ -253,7 +274,7 @@ export const sendHandRaise = async (raised) => {
     if (!channel) return;
     const state = channel.presenceState();
     const myState = state[myUserId] ? state[myUserId][0] : {};
-    await channel.track({
+    await trackPresence({
         ...myState,
         handRaised: raised
     });
@@ -267,3 +288,12 @@ export const broadcastYouTube = (url) => {
         payload: { url }
     });
 };
+
+async function trackPresence(payload) {
+    const current = channel;
+    if (!current) return;
+    try {
+        const status = await current.track(payload);
+        if (status && status !== 'ok') currentHandlers?.onConnectionStatus?.('CHANNEL_ERROR');
+    } catch { currentHandlers?.onConnectionStatus?.('CHANNEL_ERROR'); }
+}

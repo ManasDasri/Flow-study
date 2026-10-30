@@ -1,109 +1,79 @@
 import { getSocket } from './socket.js';
-import { escapeHTML } from './utils.js';
+import { notify } from './feedback.js';
 
-let roomId = null;
 let username = null;
-const messages = [];
-
-// UI Elements
+let aiPending = false;
 const chatMessages = document.getElementById('chat-messages');
 const chatInput = document.getElementById('chat-input');
 const sendBtn = document.getElementById('send-chat-btn');
 
-export const initChat = (rId, user) => {
-    roomId = rId;
+export const initChat = (roomId, user) => {
     username = user;
-    
-    sendBtn.addEventListener('click', sendMessage);
-    chatInput.addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') sendMessage();
-    });
+    sendBtn.onclick = sendMessage;
+    chatInput.onkeydown = event => {
+        if (event.key === 'Enter' && !event.isComposing) { event.preventDefault(); sendMessage(); }
+    };
 };
 
-export const handleIncomingMessage = (messageData) => {
-    messages.push(messageData);
-    renderMessage(messageData);
+export const handleIncomingMessage = message => {
+    if (!message || typeof message.text !== 'string' || typeof message.sender !== 'string') return;
+    const sender = message.sender.slice(0, 80);
+    const text = message.text.slice(0, 4000);
+    const div = document.createElement('div');
+    div.className = 'chat-message' + (sender === username ? ' own-message' : '') + (sender === 'AI Assistant' ? ' ai-message' : '');
+    const name = document.createElement('div');
+    name.className = 'message-sender';
+    name.textContent = sender === username ? 'You' : sender;
+    const body = document.createElement('div');
+    body.textContent = text;
+    div.append(name, body);
+    chatMessages.append(div);
+    // Keep this ephemeral conversation bounded during long study sessions.
+    while (chatMessages.children.length > 300) chatMessages.firstElementChild.remove();
+    chatMessages.scrollTop = chatMessages.scrollHeight;
 };
 
-const sendMessage = async () => {
+async function sendMessage() {
     const text = chatInput.value.trim();
-    if (!text) return;
-    
-    chatInput.value = '';
-    
+    if (!text || text.length > 300) return;
+    const isAi = /^\/ai(?:\s|$)/.test(text);
+    if (isAi && aiPending) return;
     const channel = getSocket();
-    const isAiCommand = text.startsWith('/ai');
-
-    if (!isAiCommand && channel) {
-        channel.send({
-            type: 'broadcast',
-            event: 'chat-message',
-            payload: { sender: username, text }
-        });
-        // Optimistically render our own message
-        handleIncomingMessage({ sender: username, text });
-    }
-    
-    // Intercept AI commands
-    if (isAiCommand) {
-        const query = text.replace(/^\/ai\s*/, '').trim();
-        if (!query) {
-            handleIncomingMessage({ sender: 'AI Assistant', text: 'Please include a message after /ai. Example: /ai What is the pomodoro technique?' });
-            return;
-        }
-        
+    if (!isAi) {
+        chatInput.value = '';
         try {
-            const res = await fetch('/api/ai', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ message: query })
-            });
-            const data = await res.json();
-            if (!res.ok) {
-                const errorText = data?.text || 'AI assistant is currently unavailable.';
-                handleIncomingMessage({ sender: 'AI Assistant', text: errorText });
-                return;
-            }
-            
-            // Broadcast AI response to everyone in the room!
-            if (channel) {
-                channel.send({
-                    type: 'broadcast',
-                    event: 'chat-message',
-                    payload: { sender: 'AI Assistant', text: data.text || 'No response from AI assistant.' }
-                });
-            }
-            handleIncomingMessage({ sender: 'AI Assistant', text: data.text || 'No response from AI assistant.' });
-        } catch (e) {
-            handleIncomingMessage({ sender: 'AI Assistant', text: 'Error connecting to brain.' });
+            const status = await channel?.send({ type: 'broadcast', event: 'chat-message', payload: { sender: username, text } });
+            if (status && status !== 'ok') throw new Error('Message delivery failed');
+            handleIncomingMessage({ sender: username, text });
+        } catch {
+            if (!chatInput.value) chatInput.value = text;
+            notify('Message was not sent. Check your connection and try again.', 'error');
         }
         return;
     }
 
-    if (!channel) {
-        handleIncomingMessage({ sender: username, text });
+    const query = text.replace(/^\/ai\s*/, '').trim();
+    if (!query) { notify('Add a question after /ai to ask the study assistant.'); return; }
+    chatInput.value = '';
+    aiPending = true;
+    const pending = document.getElementById('ai-pending');
+    pending.classList.remove('hidden');
+    try {
+        const response = await fetch('/api/ai', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ message: query }), signal: AbortSignal.timeout(20000)
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error('Assistant unavailable');
+        if (typeof data.text !== 'string') throw new Error('Invalid assistant response');
+        const message = { sender: 'AI Assistant', text: data.text };
+        handleIncomingMessage(message);
+        await channel?.send({ type: 'broadcast', event: 'chat-message', payload: message });
+    } catch {
+        if (!chatInput.value) chatInput.value = text;
+        notify('The study assistant is unavailable. Your question is ready to retry.', 'error');
+    } finally {
+        aiPending = false;
+        pending.classList.add('hidden');
     }
-};
-
-const renderMessage = (msg) => {
-    const div = document.createElement('div');
-    const isAi = msg.sender === 'AI Assistant';
-    
-    div.style.padding = '8px 12px';
-    div.style.borderRadius = '8px';
-    div.style.background = isAi ? 'rgba(108, 99, 255, 0.2)' : 'rgba(255, 255, 255, 0.05)';
-    div.style.alignSelf = msg.sender === username ? 'flex-end' : 'flex-start';
-    div.style.maxWidth = '80%';
-    
-    div.innerHTML = `
-        <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 4px;">
-            ${msg.sender === username ? 'You' : escapeHTML(msg.sender)}
-        </div>
-        <div style="font-size: 14px; word-wrap: break-word;">
-            ${escapeHTML(msg.text)}
-        </div>
-    `;
-    
-    chatMessages.appendChild(div);
-    chatMessages.scrollTop = chatMessages.scrollHeight;
-};
+}

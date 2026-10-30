@@ -4,6 +4,7 @@
   "description": "Virtual Study Room",
   "main": "server.js",
   "scripts": {
+    "test": "node --test scripts/server.test.cjs scripts/utils.test.cjs",
     "start": "node server.js",
     "dev": "node server.js"
   },

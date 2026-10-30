@@ -21,8 +21,10 @@ export const updateRoomInfo = (roomId, count) => {
     // Keep the id="header-room-code" span alive across rewrites — other
     // code (Copy Link) looks it up by id, and a plain replacement span
     // silently breaks that after the first presence sync.
-    els.roomName.innerHTML = `Room: <span class="highlight" id="header-room-code">${roomId}</span>`;
+    els.roomName.innerHTML = 'Room: <span class="highlight" id="header-room-code"></span>';
+    document.getElementById('header-room-code').textContent = roomId;
     els.count.innerText = count;
+    document.getElementById('room-guidance').classList.toggle('hidden', count > 1);
 };
 
 export const updateTimerUI = (state) => {
@@ -32,6 +34,9 @@ export const updateTimerUI = (state) => {
     const m = Math.floor(state.timeLeft / 60).toString().padStart(2, '0');
     const s = (state.timeLeft % 60).toString().padStart(2, '0');
     els.timeDisplay.innerText = `${m}:${s}`;
+
+    document.getElementById('timer-state-label').textContent = state.isRunning ? (state.mode === 'focus' ? 'Focus in progress' : 'Break in progress') : (state.mode === 'focus' ? 'Ready to focus' : 'Ready for a break');
+    document.title = state.isRunning ? m + ':' + s + ' | Flow' : 'Flow | Study room';
 
     // Update Button
     els.timerToggleBtn.innerHTML = state.isRunning ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16"></rect><rect x="14" y="4" width="4" height="16"></rect></svg>' : '<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>';
@@ -55,7 +60,7 @@ export const updateTimerUI = (state) => {
 const buildAssigneeOptions = (participants, selectedId) => {
     const options = [`<option value=""${!selectedId ? ' selected' : ''}>Unassigned</option>`];
     Object.entries(participants || {}).forEach(([id, p]) => {
-        options.push(`<option value="${id}"${id === selectedId ? ' selected' : ''}>${escapeHTML(p.username || 'Partner')}</option>`);
+        options.push(`<option value="${escapeHTML(id)}"${id === selectedId ? ' selected' : ''}>${escapeHTML(p.username || 'Partner')}</option>`);
     });
     return options.join('');
 };
@@ -107,6 +112,9 @@ export const renderTaskList = (container, tasks, isReadOnly, onToggle, onDelete,
         }
 
         li.classList.toggle('completed', !!task.completed);
+        li.classList.toggle('saving', !!task.pending);
+        li.setAttribute('aria-busy', String(!!task.pending));
+        li.querySelectorAll('button, select').forEach(control => { control.disabled = isReadOnly || !!task.pending; });
 
         const checkbox = li.querySelector('.task-checkbox');
         checkbox.setAttribute('aria-label', `${task.completed ? 'Mark incomplete' : 'Complete task'}: ${task.title}`);
@@ -172,7 +180,7 @@ export const renderPartnerPresenceCard = (userId, userData) => {
 
     card.innerHTML = `
         <div class="profile-header">
-            <div class="avatar">${safeName.charAt(0).toUpperCase()}</div>
+            <div class="avatar">${escapeHTML(String(safeName).charAt(0).toUpperCase())}</div>
             <div class="profile-info">
                 <h3>${escapeHTML(safeName)}</h3>
                 <div class="status-indicator">

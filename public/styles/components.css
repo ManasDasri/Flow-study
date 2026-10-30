@@ -91,6 +91,24 @@ input.brutal-input:focus, input.input-field:focus, select.brutal-input:focus {
 .lobby-divider::before, .lobby-divider::after { content: ''; flex: 1; height: 1px; background: var(--glass-border); }
 .lobby-note { text-align: center; font-size: .74rem; color: var(--text-muted); margin-top: 22px; line-height: 1.8; }
 .logout-link { align-self: center; font-size: .78rem; color: var(--text-muted); margin-top: 24px; }
+.toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); z-index: 2000; width: max-content; max-width: min(520px, calc(100vw - 32px)); padding: 14px 20px; border: 1px solid var(--primary); border-radius: 12px; background: var(--surface); color: var(--text-primary); box-shadow: 0 8px 32px #0004; font-size: .85rem; overflow-wrap: anywhere; }
+.toast[data-kind="error"] { border-color: var(--danger); }
+.inline-error { padding: 12px; border-left: 2px solid var(--danger); color: var(--danger); background: color-mix(in srgb, var(--danger) 5%, transparent); font-size: .82rem; margin-bottom: 20px; }
+.network-banner { flex-shrink: 0; border: 1px solid var(--accent); background: var(--surface); padding: 12px 16px; border-radius: 10px; color: var(--accent); font-size: .82rem; }
+.stage-status::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: var(--accent); }
+.stage-status[data-state="connected"]::before { background: var(--green); }
+.stage-status[data-state="offline"]::before { background: var(--danger); }
+.dialog-description { font-size: .9rem; line-height: 1.7; color: var(--text-secondary); margin: 20px 0 28px; }
+.dialog-actions { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 12px; }
+.task-item.saving { opacity: .65; }
+.chat-message { padding: 12px 14px; border-radius: 10px; border: 1px solid var(--glass-border); align-self: flex-start; max-width: 92%; font-size: .85rem; overflow-wrap: anywhere; white-space: pre-wrap; }
+.own-message { align-self: flex-end; background: var(--glass-bg-hover); }
+.ai-message { border-left: 2px solid var(--primary); }
+.message-sender { font-size: .72rem; color: var(--text-muted); margin-bottom: 6px; }
+#chat-messages:empty::before { content: 'Start the conversation. Messages are shared with everyone in this room.'; color: var(--text-muted); font-size: .8rem; line-height: 1.7; margin: auto 12px; text-align: center; }
+#ai-pending { margin-bottom: 12px; }
+.room-guidance { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin: 0 24px; padding: 16px 0; border-top: 1px solid var(--glass-border); color: var(--text-muted); font-size: .78rem; }
+.room-guidance .btn { font-size: .75rem; padding: 8px 12px; }
 @media (max-width: 760px) {
     .timer-heading { flex-direction: row; justify-content: space-between; align-items: baseline; }
     .pill-timer { gap: 20px; }

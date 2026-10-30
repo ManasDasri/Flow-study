@@ -22,7 +22,7 @@ const aiLimiter = rateLimit({
 
 // Serve static files from the 'public' directory
 app.use(express.static(path.join(__dirname, 'public')));
-app.use(express.json());
+app.use(express.json({ limit: '16kb' }));
 
 // AI Chat Route
 const Groq = require('groq-sdk');
@@ -33,15 +33,14 @@ const groq = hasGroqApiKey ? new Groq({ apiKey: process.env.GROQ_API_KEY }) : nu
 
 app.post('/api/ai', aiLimiter, async (req, res) => {
     try {
+        const message = req.body?.message;
+        if (typeof message !== 'string' || !message.trim() || message.length > 500) {
+            return res.status(400).json({ text: 'Enter a message between 1 and 500 characters.' });
+        }
         if (!groq) {
             return res.status(503).json({ text: "AI assistant is not configured on this server yet." });
         }
 
-        const { message } = req.body;
-        
-        if (!message || message.length > 500) {
-            return res.status(400).json({ text: "Message is too long or empty." });
-        }
         
         const completion = await groq.chat.completions.create({
             messages: [
@@ -61,7 +60,8 @@ app.post('/api/ai', aiLimiter, async (req, res) => {
 });
 
 // Twilio TURN Credentials Route
-app.post('/api/turn-credentials', async (req, res) => {
+const turnLimiter = rateLimit({ windowMs: 60000, limit: 20, standardHeaders: true, legacyHeaders: false });
+app.post('/api/turn-credentials', turnLimiter, async (req, res) => {
     try {
         const accountSid = process.env.TWILIO_ACCOUNT_SID;
         const authToken = process.env.TWILIO_AUTH_TOKEN;
@@ -79,6 +79,11 @@ app.post('/api/turn-credentials', async (req, res) => {
         res.status(500).json({ error: "Failed to generate TURN credentials" });
     }
 });
-server.listen(PORT, () => {
-    console.log(`Flow static server running on port ${PORT}`);
+app.use((error, req, res, next) => {
+    if (error.type === 'entity.too.large') return res.status(413).json({ text: 'Request is too large.' });
+    if (error instanceof SyntaxError && error.status === 400) return res.status(400).json({ text: 'Request must contain valid JSON.' });
+    console.error('Request failed:', error);
+    res.status(500).json({ text: 'This request could not be completed.' });
 });
+if (require.main === module) server.listen(PORT, () => console.log(`Flow static server running on port ${PORT}`));
+module.exports = app;

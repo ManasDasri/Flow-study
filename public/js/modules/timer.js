@@ -1,5 +1,6 @@
 import { updateTimer as socketUpdateTimer, getMyUserId } from './socket.js';
 import supabase from './supabase.js';
+import { openModal, closeModal, notify } from './feedback.js';
 
 let state = {
     mode: 'focus', // 'focus', 'shortBreak', 'longBreak'
@@ -11,6 +12,7 @@ let state = {
 };
 
 let timerInterval = null;
+let deadline = 0;
 let roomId = null;
 let updateUI = null;
 
@@ -27,6 +29,12 @@ export const initTimer = (rId, uiCallback) => {
 };
 
 export const syncState = (newState) => {
+    if (!newState || typeof newState !== 'object') return;
+    if (newState.mode !== undefined && !Object.hasOwn(MODES, newState.mode)) return;
+    if (newState.timeLeft !== undefined && (!Number.isInteger(newState.timeLeft) || newState.timeLeft < 0 || newState.timeLeft > 7200)) return;
+    if (newState.duration !== undefined && (!Number.isInteger(newState.duration) || newState.duration < 60 || newState.duration > 7200)) return;
+    if (newState.durations && !validDurations(newState.durations)) return;
+    if (newState.isRunning !== undefined && typeof newState.isRunning !== 'boolean') return;
     // If we receive a sync with the full state, update our local state
     if (newState.durations) state.durations = newState.durations;
     if (newState.mode) state.mode = newState.mode;
@@ -34,6 +42,7 @@ export const syncState = (newState) => {
     if (newState.timeLeft !== undefined) state.timeLeft = newState.timeLeft;
     if (newState.isRunning !== undefined) state.isRunning = newState.isRunning;
     
+    deadline = Date.now() + state.timeLeft * 1000;
     if (state.isRunning && !timerInterval) {
         startLocalTick();
     } else if (!state.isRunning && timerInterval) {
@@ -72,7 +81,7 @@ export const resetTimer = (broadcast = true) => {
 };
 
 export const setMode = (mode, broadcast = true) => {
-    if (MODES[mode]) {
+    if (Object.hasOwn(MODES, mode)) {
         state.mode = mode;
         state.duration = MODES[mode]();
         state.timeLeft = state.duration;
@@ -83,7 +92,10 @@ export const setMode = (mode, broadcast = true) => {
     }
 };
 
+const validDurations = values => ['focus', 'shortBreak', 'longBreak'].every(key => Number.isInteger(values[key]) && values[key] >= 60 && values[key] <= (key === 'focus' ? 7200 : 3600));
+
 export const setTimerSettings = (durations, broadcast = true) => {
+    if (!validDurations(durations)) return false;
     state.durations = durations;
     state.duration = MODES[state.mode]();
     if (!state.isRunning) {
@@ -96,9 +108,10 @@ export const setTimerSettings = (durations, broadcast = true) => {
 const startLocalTick = () => {
     if (timerInterval) clearInterval(timerInterval);
     
+    deadline = Date.now() + state.timeLeft * 1000;
     timerInterval = setInterval(() => {
         if (state.timeLeft > 0) {
-            state.timeLeft--;
+            state.timeLeft = Math.max(0, Math.ceil((deadline - Date.now()) / 1000));
             renderTimer();
             
             // Sync with server every 10 seconds to ensure everyone is exact
@@ -161,8 +174,8 @@ const handleComplete = () => {
     let msg = "Great session!";
     
     if (state.mode === 'focus') {
-        title = "Focus Complete! 🎯";
-        msg = "Awesome work! Take a well-deserved break.";
+        title = "Focus session complete";
+        msg = "Your focus session is complete. Take a short break before the next one.";
         
         // Log the session to Supabase
         const userId = getMyUserId();
@@ -172,10 +185,11 @@ const handleComplete = () => {
                 room_id: roomId,
                 mode: 'focus',
                 duration_seconds: state.duration
-            }]).then(() => {
+            }]).then(({ error }) => {
+                if (error) { notify('This session could not be saved to your stats.', 'error'); return; }
                 // Dispatch event so UI can re-fetch stats
                 document.dispatchEvent(new Event('session-completed'));
-            }).catch(e => console.error("Failed to log session", e));
+            }).catch(() => notify('This session could not be saved to your stats.', 'error'));
         }
         
         // Auto switch to break mode
@@ -184,8 +198,8 @@ const handleComplete = () => {
         const focusBtn = document.getElementById('focus-mode-toggle');
         if(focusBtn) focusBtn.classList.remove('active');
     } else {
-        title = "Break Over! ⚡";
-        msg = "Time to get back into flow state.";
+        title = "Break complete";
+        msg = "Ready for your next focus session?";
         // Auto switch to focus mode
         setMode('focus');
     }
@@ -197,20 +211,10 @@ const handleComplete = () => {
     const overlay = document.getElementById('modal-overlay');
     const alertModal = document.getElementById('timer-alert-modal');
     if (overlay && alertModal) {
-        // Hide join/settings modals just in case
-        document.getElementById('join-modal')?.classList.add('hidden');
-        document.getElementById('timer-settings-modal')?.classList.add('hidden');
-        
         document.getElementById('timer-alert-title').innerText = title;
         document.getElementById('timer-alert-msg').innerText = msg;
-        
-        overlay.classList.remove('hidden');
-        alertModal.classList.remove('hidden');
-        
-        document.getElementById('close-timer-alert-btn').onclick = () => {
-            overlay.classList.add('hidden');
-            alertModal.classList.add('hidden');
-        };
+        openModal('timer-alert-modal');
+        document.getElementById('close-timer-alert-btn').onclick = closeModal;
     }
 };
 
