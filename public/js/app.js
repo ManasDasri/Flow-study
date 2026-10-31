@@ -1,14 +1,15 @@
-import { initSocket, disconnectSocket, reloadTasks, getMyUserId, broadcastYouTube, updateCameraState, updateMyUsername, sendReaction, sendHandRaise } from './modules/socket.js';
+import { initSocket, disconnectSocket, reloadTasks, getMyUserId, updateCameraState, updateMyUsername, sendReaction, sendHandRaise } from './modules/socket.js';
 import { initMedia, toggleAudio, toggleVideo, handleSignal, removePeer, callUser, hasPeer, peerNeedsCall, cleanupMedia, isVideoActive, hasAudioTrack } from './modules/rtc.js';
 import { initTimer, toggleTimer, resetTimer, setMode, syncState, setTimerSettings, broadcastCurrentState } from './modules/timer.js';
 import { initTasks, addTask, toggleTask, deleteTask, assignTask, rerenderTasks, getStats as getTaskStats, setSharedTasks } from './modules/tasks.js';
 import { initPresence, updatePresence, startFocusTracking, stopFocusTracking, formatFocusTime } from './modules/presence.js';
 import { initChat, handleIncomingMessage } from './modules/chat.js';
-import { getMyProfile, saveDisplayName, getStats as getProfileStats } from './modules/profile.js';
+import { getMyProfile, saveDisplayName, getStats as getProfileStats, withLiveFocus } from './modules/profile.js';
 import * as UI from './modules/ui.js';
 import supabase from './modules/supabase.js';
+import { initAudio, loadRoomAudio } from './modules/audio.js';
 import { notify, openModal, closeModal, initDialogs } from './modules/feedback.js';
-import { escapeHTML, getStoredUser, youtubeEmbedUrl } from './modules/utils.js';
+import { escapeHTML, getStoredUser } from './modules/utils.js';
 
 let currentRoomId = null;
 let currentUsername = null;
@@ -16,6 +17,7 @@ let partners = {}; // Store partner data
 let handRaised = false;
 let roomActionBusy = false;
 let leaving = false;
+let cachedProfileStats = null;
 const hostBtn = document.getElementById('host-btn');
 const lobbyError = document.getElementById('lobby-error');
 function setRoomBusy(busy, action = 'join') {
@@ -80,6 +82,7 @@ const initApp = async () => {
         return;
     }
     initDialogs();
+    initAudio();
 
     const urlParams = new URLSearchParams(window.location.search);
     const roomParam = urlParams.get('room') || sessionStorage.getItem('flow_last_room');
@@ -231,17 +234,31 @@ const initApp = async () => {
         openModal('profile-modal');
 
         document.getElementById('profile-display-name-input').value = currentUsername || '';
+        document.getElementById('profile-avatar').textContent = currentUsername.charAt(0).toUpperCase();
         const statsEl = document.getElementById('profile-stats');
+        cachedProfileStats = null;
         statsEl.innerHTML = '<div style="color: var(--text-muted);">Loading…</div>';
 
         try {
             const stats = await getProfileStats(getMyUserId());
-            renderProfileStats(stats);
+            cachedProfileStats = stats;
+            renderProfileStats(withLiveFocus(stats));
         } catch {
             statsEl.textContent = 'Stats are unavailable right now. Close and reopen your profile to retry.';
         }
     });
 
+    document.addEventListener('focus-progress', () => {
+        if (cachedProfileStats && !document.getElementById('profile-modal').classList.contains('hidden')) renderProfileStats(withLiveFocus(cachedProfileStats));
+    });
+    document.addEventListener('session-completed', async () => {
+        cachedProfileStats = null;
+        if (document.getElementById('profile-modal').classList.contains('hidden')) return;
+        try {
+            cachedProfileStats = await getProfileStats(getMyUserId());
+            renderProfileStats(withLiveFocus(cachedProfileStats));
+        } catch { notify('Your focus summary could not be refreshed. Reopen it to retry.', 'error'); }
+    });
     document.getElementById('close-profile-btn').addEventListener('click', () => {
         closeModal();
     });
@@ -271,6 +288,7 @@ const initApp = async () => {
         updatePresence({});
         UI.updateMyPresenceUI({ status: UI.UI.myStatusText.textContent }, getTaskStats(), currentUsername);
         document.getElementById('local-dummy-avatar').textContent = currentUsername.charAt(0).toUpperCase();
+        document.getElementById('profile-avatar').textContent = currentUsername.charAt(0).toUpperCase();
         notify('Display name saved.');
     });
 
@@ -376,42 +394,17 @@ const initApp = async () => {
         disconnectSocket();
     });
 
-    // YouTube Sync Logic
-    const youtubeInput = document.getElementById('youtube-url-input');
-    const syncYoutubeBtn = document.getElementById('sync-youtube-btn');
-
-    syncYoutubeBtn.addEventListener('click', () => {
-        const url = youtubeInput.value.trim();
-        if (url) {
-            if (updateYouTubeIframe(url)) {
-                broadcastYouTube(url);
-                notify('Background audio shared with the room.');
-            } else notify('Enter a valid YouTube video or playlist link.', 'error');
-        }
-    });
 };
 
-const updateYouTubeIframe = url => {
-    const embed = youtubeEmbedUrl(url);
-    if (!embed) return false;
-    document.getElementById('youtube-iframe').src = embed;
-    return true;
-};
-
-const renderProfileStats = (stats) => {
-    const rows = [
-        ['Current streak', `${stats.streak} day${stats.streak === 1 ? '' : 's'}`],
-        ['Focused today', formatFocusTime(stats.todayMinutes)],
-        ['Focused all-time', formatFocusTime(stats.totalMinutes)],
-        ['Sessions completed', stats.sessionsCompleted],
-        ['Tasks completed', stats.tasksCompleted]
-    ];
-    document.getElementById('profile-stats').innerHTML = rows.map(([label, value]) => `
-        <div style="display: flex; justify-content: space-between; padding: 8px 12px; background: var(--glass-bg-soft); border-radius: var(--radius-sm);">
-            <span style="color: var(--text-secondary);">${label}</span>
-            <span>${value}</span>
-        </div>
-    `).join('');
+const renderProfileStats = stats => {
+    const markup = '<div class="focus-summary"><span>Focused today</span><strong id="profile-today-value">' + formatFocusTime(stats.todayMinutes) + '</strong><p>' + (stats.liveMinutes ? 'Includes ' + stats.liveMinutes + ' live minute' + (stats.liveMinutes === 1 ? '' : 's') + ' from this visit.' : 'Your focus time, one session at a time.') + '</p></div>' +
+        '<dl class="profile-stat-list">' + [
+            ['All-time focus', formatFocusTime(stats.totalMinutes)],
+            ['Current streak', stats.streak + ' day' + (stats.streak === 1 ? '' : 's')],
+            ['Completed sessions', stats.sessionsCompleted], ['Completed tasks', stats.tasksCompleted]
+        ].map(([label, value]) => '<div><dt>' + label + '</dt><dd>' + value + '</dd></div>').join('') + '</dl>';
+    const container = document.getElementById('profile-stats');
+    if (container.innerHTML !== markup) container.innerHTML = markup;
 };
 
 // Everyone currently in the room, keyed by user id, for the task
@@ -585,10 +578,8 @@ const handleJoin = async () => {
             onChatMessage: (messageData) => {
                 handleIncomingMessage(messageData);
             },
-            onYouTubeSync: (url) => {
-                document.getElementById('youtube-url-input').value = url;
-                updateYouTubeIframe(url);
-            },
+            onYouTubeSync: url => loadRoomAudio('youtube', url),
+            onAudioSync: loadRoomAudio,
             onReaction: (data) => {
                 showReaction(data.userId, data.emoji);
             }

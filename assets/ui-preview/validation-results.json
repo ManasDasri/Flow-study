@@ -1,0 +1,145 @@
+{
+  "scripts/ui-smoke.js": {
+    "passed": true,
+    "taskRows": 500,
+    "reconciliations": 5,
+    "taskRenderMs": 40,
+    "incomingMessages": 1000,
+    "retainedMessages": 300,
+    "simulatedParticipants": 16,
+    "localWebRTC": {
+      "offered": true,
+      "connected": "connected",
+      "tracks": 2,
+      "needsCall": false
+    },
+    "cleanup": {
+      "ended": true,
+      "disconnected": true,
+      "noReconnect": true,
+      "cancelledPeer": true
+    },
+    "browserErrors": []
+  },
+  "scripts/tools-layout.js": {
+    "passed": true,
+    "shiftEnter": true,
+    "favicon": {
+      "path": "/favicon.svg",
+      "width": 64,
+      "height": 64
+    },
+    "measurements": [
+      {
+        "width": 1440,
+        "height": 900,
+        "pageFits": true,
+        "panelFits": true,
+        "panelBottom": 876,
+        "composerBottom": 857,
+        "timerHeight": 203,
+        "chatHeight": 327,
+        "modeButtonsFit": true
+      },
+      {
+        "width": 1366,
+        "height": 768,
+        "pageFits": true,
+        "panelFits": true,
+        "panelBottom": 740,
+        "composerBottom": 721,
+        "timerHeight": 203,
+        "chatHeight": 187,
+        "modeButtonsFit": true
+      },
+      {
+        "width": 1280,
+        "height": 720,
+        "pageFits": true,
+        "panelFits": true,
+        "panelBottom": 692,
+        "composerBottom": 673,
+        "timerHeight": 203,
+        "chatHeight": 139,
+        "modeButtonsFit": true
+      },
+      {
+        "width": 1366,
+        "height": 600,
+        "pageFits": true,
+        "panelFits": true,
+        "panelBottom": 588,
+        "composerBottom": 573,
+        "timerHeight": 174,
+        "chatHeight": 128,
+        "modeButtonsFit": true
+      },
+      {
+        "width": 1100,
+        "height": 650,
+        "pageFits": true,
+        "panelFits": true,
+        "panelBottom": 638,
+        "composerBottom": 623,
+        "timerHeight": 174,
+        "chatHeight": 178,
+        "modeButtonsFit": true
+      },
+      {
+        "width": 1440,
+        "height": 500,
+        "pageFits": true,
+        "panelFits": true,
+        "panelBottom": 488,
+        "composerBottom": 473,
+        "timerHeight": 118,
+        "chatHeight": 85,
+        "modeButtonsFit": true
+      },
+      {
+        "width": 1024,
+        "height": 768,
+        "pageFits": true,
+        "panelFits": true,
+        "panelBottom": 1120.96875,
+        "composerBottom": 1105.96875,
+        "timerHeight": 179,
+        "chatHeight": 259,
+        "modeButtonsFit": true
+      },
+      {
+        "width": 768,
+        "height": 1024,
+        "pageFits": true,
+        "panelFits": true,
+        "panelBottom": 1218.96875,
+        "composerBottom": 1199.96875,
+        "timerHeight": 203,
+        "chatHeight": 281,
+        "modeButtonsFit": true
+      },
+      {
+        "width": 390,
+        "height": 844,
+        "pageFits": true,
+        "panelFits": true,
+        "panelBottom": 1355.234375,
+        "composerBottom": 1336.234375,
+        "timerHeight": 203,
+        "chatHeight": 305,
+        "modeButtonsFit": true
+      },
+      {
+        "width": 320,
+        "height": 568,
+        "pageFits": true,
+        "panelFits": true,
+        "panelBottom": 1145.453125,
+        "composerBottom": 1126.453125,
+        "timerHeight": 203,
+        "chatHeight": 121,
+        "modeButtonsFit": true
+      }
+    ]
+  }
+}

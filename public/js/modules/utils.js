@@ -30,3 +30,12 @@ export function youtubeEmbedUrl(value) {
         return /^[\w-]{11}$/.test(id || '') ? `https://www.youtube.com/embed/${id}?autoplay=1` : null;
     } catch { return null; }
 }
+
+export function spotifyEmbedUrl(value) {
+    try {
+        const url = new URL(value);
+        if (!['https:', 'http:'].includes(url.protocol) || url.hostname !== 'open.spotify.com') return null;
+        const match = url.pathname.match(/^\/(?:intl-[a-z]{2}\/)?(?:embed\/)?(track|album|playlist|artist|episode|show)\/([A-Za-z0-9]{22})\/?$/);
+        return match ? 'https://open.spotify.com/embed/' + match[1] + '/' + match[2] + '?theme=0' : null;
+    } catch { return null; }
+}

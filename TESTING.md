@@ -7,10 +7,15 @@ The UI refinement has repeatable checks across every shipped JavaScript module, 
 ```sh
 npm ci
 npm test
-npm start
+npx playwright install chromium
+npm run test:browser
 ```
 
-In another terminal, use Playwright CLI with an installed browser. Start the browser at your local server before running the suite; the suite uses that page's origin.
+The browser runner starts an ephemeral local server and closes it after checking the complete journey. It intercepts Supabase and media-provider traffic and uses synthetic media. Screenshots in assets/ui-preview use these fixtures. Runtime screenshots and results go to output/playwright. Failures also produce a trace ZIP and screenshot.
+
+The runner executes ui-smoke.js and then tools-layout.js in one browser context. The layout check covers ten viewport sizes, including 1366x600 and 1440x500, verifies composer and fullscreen control bounds, checks that labels fit inside their buttons, and exercises Shift+Enter versus Enter. It also verifies the outlined f. SVG favicon loads without a runtime font dependency.
+
+For interactive debugging with Playwright CLI, start npm start, open its local URL, and run both scripts in the same session:
 
 ```sh
 playwright-cli open http://localhost:3000/login.html
@@ -18,31 +23,34 @@ playwright-cli run-code --filename=scripts/ui-smoke.js
 playwright-cli run-code --filename=scripts/tools-layout.js
 ```
 
-The browser suite intercepts Supabase and provider traffic. It uses synthetic media, not a camera or microphone. Screenshots in `assets/ui-preview` use these fixtures. Runtime screenshots go to the ignored `output/playwright` directory.
-
-Run `tools-layout.js` in the same session after the smoke suite. It checks the continuous timer/tools panel at ten viewport sizes, including 1366x600 and 1440x500, verifies that only the content list needs to scroll, checks that the composer and focus-mode controls fit, and exercises Shift+Enter versus Enter. It also verifies that the outlined `f.` SVG favicon loads. The favicon uses the same Instrument Sans SemiBold letterforms as the wordmark and has no runtime font dependency.
-
 Database checks require an isolated local PostgreSQL server owned by a test superuser named `flow_test`. They connect only to `127.0.0.1`, create disposable `flow_ui_*` databases, and remove those databases afterward. Do not point these checks at Supabase or a shared database.
 
 ```sh
-FLOW_TEST_PGPORT=55439 node --test scripts/sql-integration.test.cjs
+FLOW_TEST_PGPORT=55439 npm run test:db
 ```
+
+## Continuous integration
+
+The workflow in .github/workflows/ci.yml runs on PRs targeting main, pushes to main (including merges), and manual dispatch. Node tests run on 22, 24, and 26; migration tests use an isolated PostgreSQL 17 service; Chromium runs the browser suite; the production dependency audit fails on high/critical findings. Browser diagnostics are uploaded even on failure and retained for seven days. Configure required status checks in GitHub branch rules if merges should be blocked.
+
+The test server clears AI and Twilio provider credentials before loading Express. CI never needs production secrets. The PostgreSQL service password is a disposable fixture value.
 
 ## Coverage inventory
 
 | Area | Exercised behavior |
 | --- | --- |
-| `login.js`, `login.html` | Native form validation, Enter submission, service rejection recovery, signup, theme persistence, malformed stored login, logout |
+| `login.js`, `login.html` | Native form validation, Enter submission, service rejection recovery, signup, theme persistence, malformed stored login, logout, password visibility, interactive timer preview |
 | `app.js`, `index.html` | Room code/PIN validation, wrong PIN, rejected join, bounded code collisions, host/join exclusion, invite clipboard fallback, media links, leave cancellation and confirmation |
 | `feedback.js` | Inline feedback, toasts, dialog focus containment, Escape, focus restoration, inert background |
 | `ui.js` | Task reconciliation, assignment, completion, pending controls, empty states, text escaping, presence cards, progress |
 | `tasks.js` | Add/update/delete rejection, empty RLS write results, rollback, preserved draft text, in-flight duplicate prevention, task-load retry |
 | `chat.js` | Normal sends, failed delivery, AI errors and success, question retry, hostile/long text, bounded history |
 | `timer.js` | Start/pause/reset, all modes, settings bounds, rejected malformed sync, completion, wall-time catch-up after simulated throttling |
-| `presence.js`, `profile.js` | Local/remote status, focus transitions, profile edits/failure recovery, session completion and stats refresh |
+| `presence.js`, `profile.js` | Local/remote status, focus transitions, profile edits/failure recovery, session completion and stats refresh, matching live profile/card time, pause exclusion, save reconciliation, local-midnight accounting |
 | `socket.js` | Subscription state, tracking rejection/recovery, participant leave/rejoin grace period, disconnect and stale callback suppression |
 | `rtc.js` | Denied-media fallback, local offer and answer negotiation, two received synthetic tracks, peer removal, track shutdown, late peer creation cancellation |
-| `supabase.js`, `utils.js` | Request deadlines and caller cancellation, corrupted storage, Unicode escaping, supported YouTube URLs and lookalike rejection |
+| `supabase.js`, `utils.js` | Request deadlines and caller cancellation, corrupted storage, Unicode escaping, supported YouTube/Spotify URLs and lookalike rejection |
+| audio.js | YouTube/Spotify provider switching, canonical embeds, stopping the old player, invalid link rejection, incoming room audio |
 | CSS and HTML | Browser-rendered checks at 320, 390, 768, 1024, and 1440px; horizontal overflow, primary text contrast in all themes, reduced motion, desktop/mobile screenshots |
 | `server.js` | Static assets and missing/private paths, malformed/type/size boundaries, unconfigured providers, rate limiting, local concurrent static requests |
 | SQL | Legacy TEXT and current UUID fixtures, data preservation, repeat application, PIN checks, task isolation, author validation, publication preservation |

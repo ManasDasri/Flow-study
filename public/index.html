@@ -32,9 +32,14 @@
     <div id="modal-overlay" class="modal-overlay">
         <!-- Join Room Modal -->
         <div id="join-modal" class="modal brutal-card" role="dialog" aria-modal="true" aria-labelledby="join-title">
-            <a href="/" class="brand lobby-brand">flow<span class="brand-period">.</span></a>
-            <h1 id="join-title">Your space to focus.</h1>
-            <p class="lobby-description">Join your study group or start a new session.</p>
+            <div class="lobby-intro">
+                <a href="/" class="brand lobby-brand">flow<span class="brand-period">.</span></a>
+                <div><h1 id="join-title">A room for<br>your next idea.</h1><p>Bring a goal. Invite your study group. Make progress together.</p></div>
+                <p class="lobby-intro-note">Your timer, tasks, audio, and study partners.<br>All in one focused space.</p>
+            </div>
+            <div class="lobby-form">
+                <h2>Settle into your session.</h2>
+                <p class="lobby-description">Use your group’s code, or create a new room.</p>
             <label for="room-code-input">Room code</label>
             <input type="text" id="room-code-input" class="input-field room-code-field" aria-describedby="lobby-error" placeholder="Enter 6-character code" maxlength="6" autocomplete="off" spellcheck="false">
             <label for="room-pin-input">Room PIN <span class="text-muted">(if required)</span></label>
@@ -43,10 +48,11 @@
             <button id="join-btn" class="btn btn-primary">Join room</button>
             <div class="lobby-divider"><span>Or start your own</span></div>
             <button id="host-btn" class="btn btn-secondary">Create a room</button>
-            <p class="lobby-note">Share the room link to invite your study partners.<br>Use the PIN above to protect a new room.</p>
-            <a href="#" id="logout-link" class="logout-link">Log out</a>
+                <p class="lobby-note">An optional 4-digit PIN protects a new room.</p>
+                <a href="#" id="logout-link" class="logout-link">Log out</a>
+            </div>
         </div>
-        
+
         <!-- Timer Settings Modal -->
         <div id="timer-settings-modal" class="modal brutal-card hidden" role="dialog" aria-modal="true" aria-label="Timer settings">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
@@ -76,14 +82,16 @@
                 <button id="close-profile-btn" class="icon-btn" aria-label="Close profile"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button>
             </div>
 
-            <div class="settings-group mb-4">
+            <div class="profile-identity"><div id="profile-avatar" class="avatar">?</div><p>Your rhythm, at a glance.<br><span>Live focus is included below.</span></p></div>
+            <div class="profile-name-form">
                 <label for="profile-display-name-input">Display name</label>
-                <input type="text" id="profile-display-name-input" required class="brutal-input mt-1" placeholder="Your name" maxlength="40">
-                <button id="save-profile-name-btn" class="btn btn-primary mt-1" style="width: 100%;">Save Name</button>
+                <div class="input-row">
+                    <input type="text" id="profile-display-name-input" required class="brutal-input" placeholder="Your name" maxlength="40">
+                    <button id="save-profile-name-btn" class="btn btn-primary">Save Name</button>
+                </div>
             </div>
-
-            <h3 style="margin: 0 0 12px 0; font-size: 1rem;">Your Stats</h3>
-            <div id="profile-stats" style="display: flex; flex-direction: column; gap: 8px; font-weight: 500;"></div>
+            <div id="profile-stats" aria-live="polite"></div>
+            <p class="profile-footnote">Completed sessions are saved to your history. Unsaved live progress lasts for this visit.</p>
         </div>
 
         <!-- Timer Alert Modal -->
@@ -139,7 +147,7 @@
             <aside class="sidebar left-sidebar">
                 <h2 class="panel-heading">In this room</h2>
                 <!-- User Profile / Presence Card -->
-                <div class="brutal-card profile-card" id="my-presence-card" role="button" tabindex="0" title="Edit profile" aria-label="Edit your profile">
+                <div class="brutal-card profile-card" id="my-presence-card" role="button" tabindex="0" title="View focus summary" aria-label="Edit your profile">
                     <div class="profile-header">
                         <div class="avatar" id="my-avatar">?</div>
                         <div class="profile-info">
@@ -151,21 +159,27 @@
                             <div id="my-focus-time" style="font-size: 12px; margin-top: 4px; color: var(--text-muted);">Today: 0m focused</div>
                         </div>
                     </div>
+                    <span class="profile-open-hint">View focus summary <span aria-hidden="true">›</span></span>
                 </div>
 
                 <!-- Partner Presence Cards -->
                 <div id="partner-presence-container" style="display:flex; flex-direction:column; gap:16px;"></div>
                 
-                <!-- YouTube Embed -->
-                <div class="brutal-card ambience-panel">
-                    <h2 class="panel-heading">Background audio</h2>
-                    <p class="panel-description">Set the pace for your session.</p>
-                    <div class="input-row">
-                        <input type="text" id="youtube-url-input" class="brutal-input" placeholder="YouTube link" aria-label="YouTube video or playlist link">
-                        <button id="sync-youtube-btn" class="btn btn-secondary">Sync</button>
+                <section class="brutal-card ambience-panel" aria-label="Room audio">
+                    <div><h2 class="panel-heading">Room audio</h2><p class="panel-description">Choose the sound of your session.</p></div>
+                    <div class="audio-providers" role="group" aria-label="Audio provider">
+                        <button class="provider-btn" data-audio-provider="youtube" aria-pressed="true">YouTube</button>
+                        <button class="provider-btn" data-audio-provider="spotify" aria-pressed="false">Spotify</button>
                     </div>
-                    <iframe id="youtube-iframe" title="Shared background audio" loading="lazy" src="https://www.youtube.com/embed/rFZHOHl-L8A?autoplay=1&mute=1" width="100%" height="152" frameBorder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
-                </div>
+                    <div class="input-row">
+                        <input type="url" id="youtube-url-input" class="brutal-input" placeholder="YouTube link" aria-label="YouTube video or playlist link">
+                        <button id="sync-youtube-btn" class="btn btn-secondary" aria-label="Share audio with room">Share</button>
+                    </div>
+                    <iframe id="youtube-iframe" title="YouTube background audio" loading="lazy" src="https://www.youtube.com/embed/rFZHOHl-L8A?autoplay=1&amp;mute=1" width="100%" height="152" allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen></iframe>
+                    <div id="spotify-empty" class="audio-empty hidden"><span>Spotify, in your room.</span><p>Paste a track, playlist, album, or podcast link to load the player.</p></div>
+                    <iframe id="spotify-iframe" class="hidden" title="Spotify background audio" loading="lazy" width="100%" height="152" allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"></iframe>
+                    <p class="audio-note">Share the link. Playback stays personal.</p>
+                </section>
             </aside>
 
             <!-- CENTER STAGE: Video Grid -->

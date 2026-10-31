@@ -1,5 +1,7 @@
 import { updateTimer as socketUpdateTimer, getMyUserId } from './socket.js';
 import supabase from './supabase.js';
+import { finishFocus, confirmFocus } from './focus-progress.js';
+import { fetchDailyFocusTime } from './presence.js';
 import { openModal, closeModal, notify } from './feedback.js';
 
 let state = {
@@ -177,21 +179,19 @@ const handleComplete = () => {
         title = "Focus session complete";
         msg = "Your focus session is complete. Take a short break before the next one.";
         
-        // Log the session to Supabase
         const userId = getMyUserId();
-        if (userId) {
+        const completed = finishFocus();
+        if (userId && completed) {
             supabase.from('sessions').insert([{
-                user_id: userId,
-                room_id: roomId,
-                mode: 'focus',
-                duration_seconds: state.duration
-            }]).then(({ error }) => {
-                if (error) { notify('This session could not be saved to your stats.', 'error'); return; }
-                // Dispatch event so UI can re-fetch stats
+                id: completed.id, user_id: userId, room_id: roomId, mode: 'focus',
+                duration_seconds: completed.seconds, completed_at: completed.completedAt
+            }]).then(async ({ error }) => {
+                if (error) throw error;
+                if (await fetchDailyFocusTime()) confirmFocus(completed.id);
                 document.dispatchEvent(new Event('session-completed'));
-            }).catch(() => notify('This session could not be saved to your stats.', 'error'));
+            }).catch(() => notify('This session could not be saved. Its focus time is still included while this page stays open.', 'error'));
         }
-        
+
         // Auto switch to break mode
         setMode('shortBreak');
         document.body.classList.remove('focus-active');

@@ -62,3 +62,14 @@ test('Supabase fetch has a deadline and preserves caller cancellation', async ()
         delete global.window;
     }
 });
+
+test('Spotify parser accepts official content and rejects untrusted or malformed links', async () => {
+    const { spotifyEmbedUrl } = await load();
+    const id = '4uLU6hMCjMI75M1A2tKUQC';
+    for (const kind of ['track', 'album', 'playlist', 'artist', 'episode', 'show']) {
+        for (const prefix of ['', 'embed/', 'intl-en/']) {
+            assert.equal(spotifyEmbedUrl('https://open.spotify.com/' + prefix + kind + '/' + id + '?si=test'), 'https://open.spotify.com/embed/' + kind + '/' + id + '?theme=0');
+        }
+    }
+    for (const url of ['', 'javascript:alert(1)', 'https://open.spotify.com.attacker.example/track/' + id, 'https://attacker.example/track/' + id, 'https://open.spotify.com/user/' + id, 'https://open.spotify.com/track/short', 'https://open.spotify.com/track/' + id + '/extra']) assert.equal(spotifyEmbedUrl(url), null, url);
+});

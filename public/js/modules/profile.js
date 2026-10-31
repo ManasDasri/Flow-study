@@ -1,4 +1,5 @@
 import supabase from './supabase.js';
+import { getLiveFocus } from './focus-progress.js';
 
 export const getMyProfile = async (userId) => {
     const { data, error } = await supabase.from('profiles').select('*').eq('id', userId).maybeSingle();
@@ -47,27 +48,36 @@ const computeStreak = (localDateStrings) => {
 
 export const getStats = async (userId) => {
     const [{ data: sessions, error: sessionError }, { count: tasksCompleted, error: taskError }] = await Promise.all([
-        supabase.from('sessions').select('duration_seconds, completed_at').eq('user_id', userId),
+        supabase.from('sessions').select('id, duration_seconds, completed_at').eq('user_id', userId),
         supabase.from('tasks').select('id', { count: 'exact', head: true }).eq('created_by', userId).eq('completed', true)
     ]);
     if (sessionError || taskError) throw new Error('Profile stats are unavailable');
 
     const rows = sessions || [];
-    const totalMinutes = Math.floor(rows.reduce((acc, r) => acc + r.duration_seconds, 0) / 60);
+    const savedTotalSeconds = rows.reduce((acc, r) => acc + r.duration_seconds, 0);
 
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    const todayMinutes = Math.floor(
-        rows.filter(r => new Date(r.completed_at) >= today).reduce((acc, r) => acc + r.duration_seconds, 0) / 60
-    );
+    const savedTodaySeconds = rows.filter(r => new Date(r.completed_at) >= today).reduce((acc, r) => acc + r.duration_seconds, 0);
 
     const streak = computeStreak(rows.map(r => new Date(r.completed_at).toDateString()));
 
-    return {
-        totalMinutes,
-        todayMinutes,
+    return withLiveFocus({
+        savedTotalSeconds,
+        savedTodaySeconds,
+        persistedIds: rows.map(row => row.id),
         streak,
         sessionsCompleted: rows.length,
         tasksCompleted: tasksCompleted || 0
-    };
+    });
 };
+
+export function withLiveFocus(stats) {
+    const live = getLiveFocus({ persistedIds: stats.persistedIds });
+    return {
+        ...stats,
+        totalMinutes: Math.floor((stats.savedTotalSeconds + live.totalSeconds) / 60),
+        todayMinutes: Math.floor((stats.savedTodaySeconds + live.todaySeconds) / 60),
+        liveMinutes: Math.floor(live.totalSeconds / 60)
+    };
+}

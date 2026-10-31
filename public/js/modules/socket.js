@@ -111,7 +111,10 @@ const connectChannel = () => {
     });
 
     channel.on('broadcast', { event: 'youtube-sync' }, ({ payload }) => {
-        handlers.onYouTubeSync?.(payload.url);
+        if (typeof payload?.url === 'string') handlers.onYouTubeSync?.(payload.url);
+    });
+    channel.on('broadcast', { event: 'audio-sync' }, ({ payload }) => {
+        if (payload?.provider === 'spotify' && typeof payload.url === 'string') handlers.onAudioSync?.(payload.provider, payload.url);
     });
 
     channel.on('broadcast', { event: 'timer-updated' }, ({ payload }) => {
@@ -282,11 +285,16 @@ export const sendHandRaise = async (raised) => {
 
 export const broadcastYouTube = (url) => {
     if (!channel) return;
-    channel.send({
+    return channel.send({
         type: 'broadcast',
         event: 'youtube-sync',
         payload: { url }
     });
+};
+
+export const broadcastAudio = (provider, url) => {
+    if (provider === 'youtube') return broadcastYouTube(url);
+    if (channel && provider === 'spotify') return channel.send({ type: 'broadcast', event: 'audio-sync', payload: { provider, url } });
 };
 
 async function trackPresence(payload) {

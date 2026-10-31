@@ -134,3 +134,15 @@ document.getElementById('auth-form').addEventListener('submit', (e) => {
     handleAuth('login');
 });
 signupBtn.addEventListener('click', () => handleAuth('signup'));
+
+document.getElementById('toggle-password').addEventListener('click', event => {
+    const visible = passwordInput.type === 'password';
+    passwordInput.type = visible ? 'text' : 'password';
+    event.currentTarget.textContent = visible ? 'Hide' : 'Show';
+    event.currentTarget.setAttribute('aria-label', visible ? 'Hide password' : 'Show password');
+    event.currentTarget.setAttribute('aria-pressed', String(visible));
+});
+document.querySelectorAll('[data-preview-minutes]').forEach(button => button.addEventListener('click', () => {
+    document.getElementById('preview-time').textContent = button.dataset.previewMinutes.padStart(2, '0') + ':00';
+    document.querySelectorAll('[data-preview-minutes]').forEach(item => item.setAttribute('aria-pressed', String(item === button)));
+}));
