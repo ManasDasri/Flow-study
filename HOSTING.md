@@ -45,6 +45,8 @@ At preparation time, Namecheap serves the apex A record `216.24.57.1` for Render
 
 ## Latency and limits
 
+Both pages load the native HTML Speed Insights integration. It loads Vercel's deferred performance script on the custom domain and Vercel deployment URLs, strips query strings/fragments from reported URLs, and stays disabled on localhost. Enable Speed Insights in the project's dashboard to see incoming real-user measurements; no Next.js component or frontend build is required. The fixture browser suite intercepts telemetry so synthetic stress runs do not enter the dashboard. No paid Insights upgrade is enabled by this code.
+
 The browser loads the site without waiting for an API function. Groq has a 15-second request deadline without SDK retries. Twilio token requests have a four-second deadline, and the browser stops waiting for TURN after five seconds and continues with STUN. STUN-only calls may still fail on restrictive networks; a working TURN configuration remains important.
 
 The existing API request limits remain in Express. Those counters are local to each function instance, so they are not a global distributed quota. Monitor provider and Hobby usage before increasing traffic; distributed quotas can be added when needed.

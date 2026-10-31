@@ -27,6 +27,7 @@ const app = require('../server');
             ...(process.env.FLOW_TEST_BROWSER_EXECUTABLE ? { executablePath: process.env.FLOW_TEST_BROWSER_EXECUTABLE } : {})
         });
         context = await browser.newContext({ viewport: { width: 1440, height: 1000 } });
+        await context.route('**/_vercel/speed-insights/**', route => route.fulfill({ body: '', contentType: 'text/javascript' }));
         await context.tracing.start({ screenshots: true, snapshots: true, sources: true });
         page = await context.newPage();
         page.setDefaultTimeout(15000);
