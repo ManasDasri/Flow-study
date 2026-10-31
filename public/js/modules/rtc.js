@@ -34,7 +34,7 @@ const fetchTurnCredentials = async () => {
     if (fetchTurnPromise) return fetchTurnPromise;
     fetchTurnPromise = (async () => {
         try {
-            const response = await fetch('/api/turn-credentials', { method: 'POST' });
+            const response = await fetch('/api/turn-credentials', { method: 'POST', signal: AbortSignal.timeout(5000) });
             if (!response.ok) return;
             const data = await response.json();
             if (Array.isArray(data.iceServers) && data.iceServers.length) {

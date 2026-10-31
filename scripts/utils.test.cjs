@@ -73,3 +73,23 @@ test('Spotify parser accepts official content and rejects untrusted or malformed
     }
     for (const url of ['', 'javascript:alert(1)', 'https://open.spotify.com.attacker.example/track/' + id, 'https://attacker.example/track/' + id, 'https://open.spotify.com/user/' + id, 'https://open.spotify.com/track/short', 'https://open.spotify.com/track/' + id + '/extra']) assert.equal(spotifyEmbedUrl(url), null, url);
 });
+
+
+test('hosted Speed Insights omits invitation parameters and stays off localhost', () => {
+    const { runInNewContext } = require('node:vm');
+    const source = readFileSync('public/js/speed-insights.js', 'utf8');
+    for (const hostname of ['localhost', 'flow-study.me', 'flow-study-example.vercel.app']) {
+        const injected = [];
+        const window = {};
+        runInNewContext(source, {
+            window, location: { hostname, origin: 'https://' + hostname }, URL,
+            document: { createElement: () => ({}), head: { appendChild: script => injected.push(script) } }
+        });
+        assert.equal(injected.length, hostname === 'localhost' ? 0 : 1);
+        if (!injected.length) continue;
+        assert.equal(injected[0].src, '/_vercel/speed-insights/script.js');
+        assert.equal(injected[0].defer, true);
+        const filter = window.siq[0][1];
+        assert.equal(filter({ url: 'https://' + hostname + '/?room=PRIVATE#token', metric: 'LCP' }).url, 'https://' + hostname + '/');
+    }
+});
