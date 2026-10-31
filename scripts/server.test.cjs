@@ -16,6 +16,43 @@ test('HTTP boundaries and bounded local concurrency', async t => {
         for (const path of ['/', '/login.html', '/styles/login.css', '/js/modules/feedback.js', '/favicon.svg']) assert.equal((await fetch(origin + path)).status, 200, path);
         for (const path of ['/.env', '/sql/schema.sql', '/package.json', '/missing.html']) assert.equal((await fetch(origin + path)).status, 404, path);
     });
+    await t.test('link crawlers receive static metadata and a public preview image', async () => {
+        const expected = {
+            'og:type': 'website',
+            'og:site_name': 'Flow',
+            'og:url': 'https://flow-study.me/',
+            'og:title': 'Flow | Study better, together',
+            'og:image': 'https://flow-study.me/social-preview.png',
+            'og:image:type': 'image/png',
+            'og:image:width': '1200',
+            'og:image:height': '630',
+            'twitter:card': 'summary_large_image',
+            'twitter:image': 'https://flow-study.me/social-preview.png'
+        };
+        const crawler = { headers: { 'User-Agent': 'facebookexternalhit/1.1' } };
+        for (const path of ['/', '/login.html', '/?room=FOCUS6']) {
+            const response = await fetch(origin + path, crawler);
+            assert.equal(response.status, 200);
+            const head = (await response.text()).split('</head>')[0];
+            for (const [key, value] of Object.entries(expected)) {
+                const tags = [...head.matchAll(new RegExp('<meta (?:property|name)="' + key + '" content="([^"]+)"', 'g'))];
+                assert.equal(tags.length, 1, path + ': ' + key);
+                assert.equal(tags[0][1], value, path + ': ' + key);
+            }
+            for (const key of ['description', 'og:description', 'og:image:alt', 'twitter:title', 'twitter:description', 'twitter:image:alt']) {
+                assert.match(head, new RegExp('<meta (?:property|name)="' + key + '" content="[^"]+"'), path + ': ' + key);
+            }
+            assert.match(head, /<link rel="canonical" href="https:\/\/flow-study\.me\/">/);
+        }
+        const image = await fetch(origin + '/social-preview.png', crawler);
+        assert.equal(image.status, 200);
+        assert.match(image.headers.get('content-type'), /^image\/png/);
+        const png = Buffer.from(await image.arrayBuffer());
+        assert.equal(png.subarray(0, 8).toString('hex'), '89504e470d0a1a0a');
+        assert.equal(png.readUInt32BE(16), 1200);
+        assert.equal(png.readUInt32BE(20), 630);
+        assert(png.length < 1000000, 'Preview should remain below 1 MB');
+    });
     await t.test('invalid payloads return JSON errors', async () => {
         for (const message of [null, 12, {}, [], '', '   ', 'a'.repeat(501)]) {
             const response = await post(JSON.stringify({ message }));

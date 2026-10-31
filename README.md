@@ -65,6 +65,19 @@ The app uses profiles, rooms, room participants, tasks, sessions, the `join_room
 
 Database RLS protects table access. Private Realtime Broadcast authorization needs its own coordinated policies and client configuration; it is a separate production-hardening task.
 
+## Shared-link preview
+
+Both public pages include static Open Graph and large-image card metadata, with a branded 1200 × 630 PNG at `/social-preview.png`. Room invitations use the same generic preview; room codes and PINs are not included in the card metadata.
+
+The artwork source is [`scripts/social-preview.html`](scripts/social-preview.html). After editing it, regenerate the committed image:
+
+```sh
+npx playwright install chromium
+npm run preview:social
+```
+
+Generation loads Instrument Sans from Google Fonts; the deployed PNG has no font or browser dependency. CI checks that crawlers can fetch the metadata and correctly sized image without authentication. Social apps control their own preview caches, so existing shared links may take time to refresh.
+
 ## Architecture
 
 The frontend is HTML, CSS, and browser JavaScript modules. Instrument Sans and an outlined `f.` mark provide the visual identity.

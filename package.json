@@ -8,7 +8,8 @@
     "start": "node server.js",
     "dev": "node server.js",
     "test:db": "node --test scripts/sql-integration.test.cjs",
-    "test:browser": "node scripts/browser-ci.cjs"
+    "test:browser": "node scripts/browser-ci.cjs",
+    "preview:social": "node scripts/generate-social-preview.cjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.110.0",
