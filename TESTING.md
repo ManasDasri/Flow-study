@@ -48,7 +48,7 @@ The test server clears AI and Twilio provider credentials before loading Express
 | `timer.js` | Start/pause/reset, all modes, settings bounds, rejected malformed sync, completion, wall-time catch-up after simulated throttling |
 | `presence.js`, `profile.js` | Local/remote status, focus transitions, profile edits/failure recovery, session completion and stats refresh, matching live profile/card time, pause exclusion, save reconciliation, local-midnight accounting |
 | `socket.js` | Subscription state, tracking rejection/recovery, participant leave/rejoin grace period, disconnect and stale callback suppression |
-| `rtc.js` | Denied-media fallback, local offer and answer negotiation, two received synthetic tracks, peer removal, track shutdown, late peer creation cancellation |
+| `rtc.js` | Denied-media fallback, stalled TURN request deadline, local offer and answer negotiation, two received synthetic tracks, peer removal, track shutdown, late peer creation cancellation |
 | `supabase.js`, `utils.js` | Request deadlines and caller cancellation, corrupted storage, Unicode escaping, supported YouTube/Spotify URLs and lookalike rejection |
 | audio.js | YouTube/Spotify provider switching, canonical embeds, stopping the old player, invalid link rejection, incoming room audio |
 | CSS and HTML | Browser-rendered checks at 320, 390, 768, 1024, and 1440px; horizontal overflow, primary text contrast in all themes, reduced motion, desktop/mobile screenshots |

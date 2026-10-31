@@ -7,6 +7,8 @@ const rateLimit = require('express-rate-limit');
 const twilio = require('twilio');
 
 const app = express();
+// Vercel replaces X-Forwarded-For with the client address at its edge.
+if (process.env.VERCEL) app.set('trust proxy', 1);
 const server = http.createServer(app);
 
 const PORT = process.env.PORT || 3000;
@@ -23,13 +25,17 @@ const aiLimiter = rateLimit({
 // Serve static files from the 'public' directory
 app.use(express.static(path.join(__dirname, 'public')));
 app.use(express.json({ limit: '16kb' }));
+app.use('/api', (req, res, next) => {
+    res.set('Cache-Control', 'private, no-store');
+    next();
+});
 
 // AI Chat Route
 const Groq = require('groq-sdk');
 const hasGroqApiKey = Boolean(
     process.env.GROQ_API_KEY && process.env.GROQ_API_KEY !== 'your_groq_api_key_here'
 );
-const groq = hasGroqApiKey ? new Groq({ apiKey: process.env.GROQ_API_KEY }) : null;
+const groq = hasGroqApiKey ? new Groq({ apiKey: process.env.GROQ_API_KEY, timeout: 15000, maxRetries: 0 }) : null;
 
 app.post('/api/ai', aiLimiter, async (req, res) => {
     try {
@@ -70,7 +76,7 @@ app.post('/api/turn-credentials', turnLimiter, async (req, res) => {
             return res.status(500).json({ error: "Twilio credentials not configured on server." });
         }
         
-        const client = twilio(accountSid, authToken);
+        const client = twilio(accountSid, authToken, { timeout: 4000, autoRetry: false });
         const token = await client.tokens.create();
         
         res.json({ iceServers: token.iceServers });

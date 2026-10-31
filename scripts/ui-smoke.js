@@ -5,7 +5,10 @@ async (page) => {
     const failures = [];
     page.on('pageerror', error => failures.push(error.message));
     const assert = (condition, message) => { if (!condition) throw new Error(message); };
-    const visible = async selector => { await page.locator(selector).waitFor({ state: 'visible' }); };
+    const visible = async selector => {
+        await page.locator(selector).waitFor({ state: 'visible' });
+        if (selector === '#join-modal') await page.waitForFunction(() => !document.getElementById('join-btn').disabled);
+    };
     const fitsViewport = async () => assert(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), 'Page overflows horizontally');
     await page.emulateMedia({ reducedMotion: 'reduce' });
 
@@ -344,7 +347,7 @@ async (page) => {
 
     // Actual local WebRTC negotiation with synthetic media and host-only ICE.
     // Supabase signalling and provider endpoints remain mocked.
-    await page.route('**/api/turn-credentials', route => route.fulfill({ contentType: 'application/json', body: '{"iceServers":[]}' }));
+    await page.route('**/api/turn-credentials', () => {}); // Deliberately stalled: the client must time out and continue.
     const rtcResult = await page.evaluate(async () => {
         const rtc = await import('/js/modules/rtc.js');
         const NativePeer = window.RTCPeerConnection;
@@ -352,7 +355,9 @@ async (page) => {
         let remote;
         let local;
         try {
+            const turnStart = performance.now();
             await rtc.callUser('outbound-test', () => {});
+            const turnFallbackMs = performance.now() - turnStart;
             const offered = window.__fixture.calls.some(call => call.value?.payload?.to === 'outbound-test' && call.value?.payload?.signal?.type === 'offer');
             rtc.removePeer('outbound-test');
             remote = new NativePeer({ iceServers: [] });
@@ -383,7 +388,7 @@ async (page) => {
                 local.addEventListener('connectionstatechange', check);
                 check();
             });
-            return { offered, connected: local.connectionState, tracks: received.length, needsCall: rtc.peerNeedsCall('loopback-test') };
+            return { offered, connected: local.connectionState, tracks: received.length, needsCall: rtc.peerNeedsCall('loopback-test'), turnFallbackMs };
         } finally {
             remote?.close();
             rtc.removePeer('loopback-test');
@@ -391,6 +396,7 @@ async (page) => {
         }
     });
     assert(rtcResult.offered && rtcResult.connected === 'connected' && rtcResult.tracks === 2 && !rtcResult.needsCall, 'Local WebRTC must negotiate and deliver audio/video tracks');
+    assert(rtcResult.turnFallbackMs >= 4500 && rtcResult.turnFallbackMs < 10000, 'A stalled TURN provider must not block connection setup indefinitely');
 
     // 16 simulated participants exercise tile creation and name handling.
     await page.evaluate(() => {
@@ -490,7 +496,7 @@ async (page) => {
     await visible('#join-modal');
     await fitsViewport();
     await page.screenshot({ path: 'output/playwright/after-lobby-mobile.png', fullPage: true });
-    assert(await page.getByLabel('Room code', { exact: true }).inputValue() === 'FOCUS6', 'Last room should be ready to rejoin without storing its PIN');
+    await page.waitForFunction(() => document.getElementById('room-code-input').value === 'FOCUS6' && document.getElementById('room-pin-input').value === '');
     await page.getByRole('button', { name: 'Join room', exact: true }).click();
     await visible('#app');
     await page.waitForFunction(() => !document.getElementById('new-task-input').disabled);

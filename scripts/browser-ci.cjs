@@ -9,18 +9,19 @@ const app = require('../server');
 
 (async () => {
     mkdirSync('output/playwright', { recursive: true });
-    const server = app.listen(0, '127.0.0.1');
+    const externalOrigin = process.env.FLOW_TEST_ORIGIN ? new URL(process.env.FLOW_TEST_ORIGIN).origin : null;
+    const server = externalOrigin ? null : app.listen(0, '127.0.0.1');
     let browser, context, page;
     const watchdog = setTimeout(() => {
         console.error('Browser suite exceeded its three-minute limit');
         process.exitCode = 1;
         browser?.close();
-        server.close();
+        server?.close();
     }, 180000);
     watchdog.unref();
     const errors = [];
     try {
-        await once(server, 'listening');
+        if (server) await once(server, 'listening');
         browser = await chromium.launch({
             headless: true,
             ...(process.env.FLOW_TEST_BROWSER_EXECUTABLE ? { executablePath: process.env.FLOW_TEST_BROWSER_EXECUTABLE } : {})
@@ -30,7 +31,7 @@ const app = require('../server');
         page = await context.newPage();
         page.setDefaultTimeout(15000);
         page.on('pageerror', error => errors.push(error.message));
-        const origin = 'http://127.0.0.1:' + server.address().port;
+        const origin = externalOrigin || 'http://127.0.0.1:' + server.address().port;
         await page.route(origin + '/login.html', route => route.fulfill({ body: '<!doctype html><title>Flow test setup</title>', contentType: 'text/html' }), { times: 1 });
         await page.goto(origin + '/login.html');
         const results = {};
@@ -50,6 +51,6 @@ const app = require('../server');
     } finally {
         clearTimeout(watchdog);
         await browser?.close();
-        await new Promise(resolve => server.close(resolve));
+        if (server) await new Promise(resolve => server.close(resolve));
     }
 })();

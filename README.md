@@ -115,6 +115,8 @@ Browser screenshots, results, and failure traces are uploaded as `browser-diagno
 
 ## Deploy
 
-Run `npm ci --omit=dev` and `npm start` on a Node.js host with the server environment configured. Serve the public site over HTTPS for camera/microphone access. Keep server credentials in the host's secret settings.
+For free CDN hosting, use the included `vercel.json`: the `public` directory is served directly by the CDN, and the two files in `api` expose the existing Express endpoints as Node functions. This keeps Render's web-service startup out of page loads. See [HOSTING.md](HOSTING.md) for credentials, domain cutover, verification, and rollback.
+
+Conventional Node hosting remains supported with `npm ci --omit=dev` and `npm start`. Serve the public site over HTTPS for camera/microphone access. Keep server credentials in the host's secret settings.
 
 Before a wider launch, validate live authentication, two-account room behavior, physical media across networks, TURN, provider success paths, and browser compatibility. Local fixture stress checks are documented measurements, not a hosted-capacity guarantee.

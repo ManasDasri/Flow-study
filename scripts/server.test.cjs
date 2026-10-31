@@ -3,7 +3,7 @@ const assert = require('node:assert/strict');
 process.env.GROQ_API_KEY = '';
 process.env.TWILIO_ACCOUNT_SID = '';
 process.env.TWILIO_AUTH_TOKEN = '';
-const app = require('../server');
+const app = require('../api/ai');
 
 test('HTTP boundaries and bounded local concurrency', async t => {
     const server = app.listen(0, '127.0.0.1');
@@ -63,7 +63,9 @@ test('HTTP boundaries and bounded local concurrency', async t => {
         assert.equal((await post(JSON.stringify({ message: 'x'.repeat(20000) }))).status, 413);
     });
     await t.test('unconfigured AI returns 503 and bursts are throttled', async () => {
-        assert.equal((await post(JSON.stringify({ message: 'Explain photosynthesis' }))).status, 503);
+        const unavailable = await post(JSON.stringify({ message: 'Explain photosynthesis' }));
+        assert.equal(unavailable.status, 503);
+        assert.equal(unavailable.headers.get('cache-control'), 'private, no-store');
         const responses = await Promise.all(Array.from({ length: 25 }, () => post(JSON.stringify({ message: 'Test' }))));
         assert(responses.some(response => response.status === 429));
         assert(responses.every(response => response.status === 429 || response.status === 503));

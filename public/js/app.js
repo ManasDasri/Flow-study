@@ -394,6 +394,7 @@ const initApp = async () => {
         disconnectSocket();
     });
 
+    setRoomBusy(false);
 };
 
 const renderProfileStats = stats => {
