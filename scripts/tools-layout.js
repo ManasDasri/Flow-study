@@ -27,6 +27,7 @@ async page => {
     });
     await page.getByLabel('Room atmosphere').selectOption('amethyst');
 
+
     const measurements = [];
     for (const [width, height] of [[1440, 900], [1366, 768], [1280, 720], [1366, 600], [1100, 650], [1440, 500], [1024, 768], [768, 1024], [390, 844], [320, 568]]) {
         await page.setViewportSize({ width, height });
@@ -59,6 +60,7 @@ async page => {
         assert(layout.chatHeight >= (height <= 560 && width > 1050 ? 80 : 110), width + 'x' + height + ': message area is too cramped (' + layout.chatHeight + 'px)');
         assert(layout.composerBottom <= layout.panelBottom, width + 'x' + height + ': composer should remain inside panel');
         if (width > 1050) assert(layout.panelBottom <= height + 1, width + 'x' + height + ': tools should fit the viewport ' + JSON.stringify(layout));
+        if (width === 1440 && height === 900) await page.screenshot({ path: 'output/playwright/workspace-amethyst.png', fullPage: true });
         if (width === 1440 && height === 900) await page.locator('.right-sidebar').screenshot({ path: 'output/playwright/tools-amethyst-desktop.png' });
         if (width === 1366 && height === 600) await page.locator('.right-sidebar').screenshot({ path: 'output/playwright/tools-amethyst-short-desktop.png' });
         if (width === 390) await page.locator('.right-sidebar').screenshot({ path: 'output/playwright/tools-amethyst-mobile.png' });
@@ -67,8 +69,9 @@ async page => {
         assert(await page.locator('#focus-mode-toggle').isVisible(), 'Focus mode must retain its exit control');
         await page.waitForFunction(() => {
             const rect = document.querySelector('.right-sidebar').getBoundingClientRect();
-            return rect.left >= 0 && rect.right <= innerWidth && rect.bottom <= innerHeight && rect.top >= 0;
+            return [...document.querySelectorAll('.mode-btn')].filter(button => button.getClientRects().length).every(button => button.scrollWidth <= button.clientWidth && button.getBoundingClientRect().right <= rect.right) && rect.left >= 0 && rect.right <= innerWidth && rect.bottom <= innerHeight && rect.top >= 0;
         }, undefined, { polling: 50 });
+        if (width === 1440 && height === 900) await page.screenshot({ path: 'output/playwright/fullscreen-amethyst.png' });
         await page.getByRole('button', { name: 'Toggle Focus Mode', exact: true }).click();
         await page.waitForFunction(() => !document.body.classList.contains('focus-active'));
     }

@@ -84,8 +84,14 @@ input.brutal-input:focus, input.input-field:focus, select.brutal-input:focus {
 .modal-overlay:has(#join-modal:not(.hidden)) { background: var(--bg-main); backdrop-filter: none; }
 .modal { background: var(--surface); border: 1px solid var(--glass-border); border-radius: var(--radius-lg); padding: 32px; width: min(460px, 100%); max-height: calc(100dvh - 48px); overflow-y: auto; color: var(--text-primary); }
 .lobby-brand { margin-bottom: 36px; font-size: 2.3rem; align-self: flex-start; }
-#join-modal { padding: 40px; }
-#join-title { font-size: 1.8rem; }
+#join-modal { width: min(960px, 100%); padding: 0; display: grid; grid-template-columns: 1fr 1fr; }
+.lobby-intro { display: flex; flex-direction: column; justify-content: space-between; padding: 40px; color: #f5f7ef; background: linear-gradient(180deg, #0b181d70, #0b181de8), url('/thunderstorm_wp.png') center / cover; }
+.lobby-intro .brand-period { color: #b6d3ac; }
+#join-title { font-size: clamp(2.5rem, 4vw, 3.5rem); line-height: 1.08; letter-spacing: -.055em; }
+.lobby-intro h1 + p { color: #d1ddd8; margin-top: 24px; max-width: 28ch; line-height: 1.7; }
+.lobby-intro-note { color: #b7c8c1; font-size: .78rem; line-height: 1.8; margin-top: 48px; }
+.lobby-form { display: flex; flex-direction: column; padding: 48px 40px 32px; }
+.lobby-form h2 { font-size: 1.5rem; letter-spacing: -.035em; }
 .lobby-description { color: var(--text-secondary); font-size: .88rem; margin: 14px 0 30px; }
 #join-modal label { margin-bottom: 8px; font-size: .82rem; }
 #join-modal input { margin-bottom: 20px; }
@@ -125,20 +131,63 @@ input.brutal-input:focus, input.input-field:focus, select.brutal-input:focus {
 .focus-active .pill-timer { flex-direction: row; align-items: center; gap: 16px; padding: 12px; border: 0; }
 .focus-active .timer-heading { display: contents; }
 .focus-active .timer-main { order: 0; gap: 10px; }
-.focus-active .timer-modes { order: 1; }
+.focus-active .timer-modes { order: 1; flex: 0 0 auto; width: max-content; min-width: max-content; }
+.focus-active .mode-btn { flex: 0 0 auto; }
 .focus-active .timer-utilities { order: 2; }
 .focus-active .pill-timer .time-display { font-size: 2rem; }
 .focus-active #timer-toggle-btn { width: 40px; height: 40px; }
 .focus-active #timer-reset-btn { width: 36px; height: 36px; }
 .room-guidance { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin: 0 24px; padding: 16px 0; border-top: 1px solid var(--glass-border); color: var(--text-muted); font-size: .78rem; }
 .room-guidance .btn { font-size: .75rem; padding: 8px 12px; }
+.profile-open-hint { display: flex; justify-content: space-between; align-items: center; gap: 8px; border-top: 1px solid var(--glass-border); padding-top: 12px; margin-top: 16px; color: var(--text-muted); font-size: .7rem; }
+.profile-open-hint > span { font-size: 1rem; }
+.profile-identity { display: flex; align-items: center; gap: 14px; margin: 12px 0 28px; font-size: .85rem; }
+.profile-identity .avatar { width: 48px; height: 48px; font-size: 1.2rem; }
+.profile-identity p span { font-size: .75rem; color: var(--text-muted); }
+.profile-name-form > label { display: block; font-size: .8rem; margin-bottom: 8px; color: var(--text-secondary); }
+.profile-name-form .input-row input { min-width: 0; }
+.focus-summary { border-top: 1px solid var(--glass-border); margin-top: 28px; padding: 24px 0; display: flex; flex-direction: column; gap: 4px; }
+.focus-summary > span { font-size: .8rem; color: var(--text-secondary); }
+.focus-summary strong { font-size: 3rem; line-height: 1.2; font-weight: 500; letter-spacing: -.06em; font-variant-numeric: tabular-nums; }
+.focus-summary p { font-size: .75rem; color: var(--text-muted); }
+.profile-stat-list { border-block: 1px solid var(--glass-border); }
+.profile-stat-list > div { display: flex; justify-content: space-between; align-items: center; gap: 16px; padding: 12px 0; font-size: .82rem; }
+.profile-stat-list > div + div { border-top: 1px solid color-mix(in srgb, var(--glass-border) 50%, transparent); }
+.profile-stat-list dt { color: var(--text-secondary); }
+.profile-stat-list dd { font-weight: 500; font-variant-numeric: tabular-nums; }
+.profile-footnote { font-size: .72rem; color: var(--text-muted); line-height: 1.7; margin-top: 20px; }
+.audio-providers { display: flex; gap: 4px; padding: 3px; background: var(--glass-bg-soft); border-radius: 8px; }
+.provider-btn { flex: 1; border: 0; border-radius: 5px; background: transparent; padding: 7px 4px; font-size: .72rem; color: var(--text-muted); cursor: pointer; }
+.provider-btn[aria-pressed="true"] { color: var(--text-primary); background: var(--glass-bg-hover); }
+.audio-empty { min-height: 152px; display: flex; flex-direction: column; justify-content: center; padding: 18px; border: 1px dashed var(--glass-border); border-radius: 8px; }
+.audio-empty > span { font-size: .82rem; font-weight: 500; }
+.audio-empty p { font-size: .74rem; color: var(--text-muted); margin-top: 8px; }
+.audio-note { font-size: .68rem; color: var(--text-muted); line-height: 1.6; }
+.dummy-placeholder { background: linear-gradient(180deg, #0b181d91, #0b181de8), url('/thunderstorm_wp.png') center / cover; }
+.dummy-placeholder .avatar { width: 64px; height: 64px; background: #15251ce0; border-color: #ffffff26; color: #d8e7d1; font-size: 1.5rem; }
+.dummy-placeholder .text { color: #d1ddd8; }
+@media (min-width: 761px) and (max-width: 1050px) {
+    .ambience-panel { grid-template-columns: minmax(0, 1fr) 180px; }
+    .ambience-panel > :first-child, .ambience-panel .audio-providers, .ambience-panel .audio-note { grid-column: 1; }
+    .ambience-panel iframe, .ambience-panel .audio-empty { grid-column: 2; grid-row: 1 / 5; height: 152px; }
+}
+@media (max-width: 700px) {
+    #join-modal { grid-template-columns: 1fr; padding: 0; }
+    .lobby-intro { padding: 28px; }
+    .lobby-brand { margin-bottom: 28px; }
+    #join-title { font-size: 2.3rem; }
+    .lobby-intro h1 + p { margin-top: 16px; font-size: .85rem; max-width: 40ch; }
+    .lobby-intro-note { display: none; }
+    .lobby-form { padding: 28px; }
+    .lobby-form h2 { font-size: 1.25rem; }
+}
 @media (max-width: 760px) {
     .focus-active .timer-modes { display: none; }
 }
 @media (max-width: 480px) {
     .modal-overlay { padding: 16px; }
     .modal { padding: 24px; max-height: calc(100dvh - 32px); }
-    #join-modal { padding: 28px; }
+    #join-modal { padding: 0; }
 }
 @media (min-width: 1051px) and (max-height: 700px) {
     body:not(.focus-active) .right-sidebar .pill-timer { padding: 14px; gap: 10px; }

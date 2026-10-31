@@ -1,122 +1,107 @@
-<div align="center">
-  <img src="https://capsule-render.vercel.app/api?type=waving&color=timeGradient&height=200&section=header&text=Flow.&fontSize=70&fontAlignY=35&desc=Study%20Better.%20Together.&descAlignY=55" width="100%" />
+# Flow.
 
-  <h3>A highly scalable, minimalist virtual study space built for extreme focus.</h3>
-  
-  <p>
-    <a href="#features"><strong>Explore Features</strong></a> ·
-    <a href="#tech-stack"><strong>Tech Stack</strong></a> ·
-    <a href="#getting-started"><strong>Getting Started</strong></a>
-  </p>
+[![CI](https://github.com/ManasDasri/Flow-study/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/ManasDasri/Flow-study/actions/workflows/ci.yml)
+[![Node.js](https://img.shields.io/badge/Node.js-22%20%7C%2024%20%7C%2026-5f8056)](https://nodejs.org/)
+[![Open Flow](https://img.shields.io/badge/demo-flow--study.me-b6d3ac)](https://flow-study.me)
 
-  <p>
-    <img src="https://img.shields.io/badge/Status-Live-success?style=for-the-badge" alt="Status">
-    <img src="https://img.shields.io/badge/Architecture-Serverless-blueviolet?style=for-the-badge" alt="Serverless">
-  </p>
-</div>
+A shared study room for focused work. Bring your group, set a timer, and work through your goals together.
 
----
+![Flow login](assets/ui-preview/after-login-desktop.png)
 
-## The Vision
+## Inside a room
 
-**Flow.** is not just a pomodoro timer. It is a fully decentralized, real-time virtual study room designed to connect students across the globe. Built on a massively scalable serverless architecture, Flow eliminates backend bottlenecks, allowing users to study together simultaneously.
+- **Shared focus timer:** focus, short break, and long break modes with adjustable durations, room updates, and a distraction-free view.
+- **Study partners:** camera and microphone controls, presence, reactions, and peer-to-peer WebRTC calls.
+- **Shared tasks:** add, assign, complete, and remove room goals with persistent storage.
+- **Room chat:** send messages and ask the study assistant with `/ai`.
+- **Room audio:** share YouTube or Spotify content links through official embedded players. Everyone controls their own playback; playheads are not synchronized.
+- **Your focus:** the room card and profile include live focus from this visit. Pauses do not count. Completed focus sessions are saved to your history; unsaved progress is lost on refresh or leaving the page.
+- **Five atmospheres:** Forest, Midnight, Warm, Aqua, and Amethyst, with responsive tools, keyboard navigation, and reduced-motion support.
+- **Leave and rejoin:** confirm before disconnecting, then return using the room code and PIN. Saved tasks remain in the room.
 
-The UI employs a beautiful, glassmorphic **minimal** aesthetic, making the tools feel tactile, responsive, and visually distinct.
+![Flow workspace](assets/ui-preview/workspace-amethyst.png)
 
----
+## Run locally
 
-## Features
+Use Node.js 22, 24, or 26. CI exercises all three.
 
-- **P2P Serverless Rooms:** Join instantly using a 6-character room code. No heavy WebSockets to crash the server—all states sync via Supabase Realtime Edge nodes.
-- **WebRTC Video:** See your study partners in real-time. Built with pure WebRTC, the video feeds route directly peer-to-peer for zero-latency connection.
-- **Synchronized Pomodoro:** A synchronized focus timer that updates seamlessly for everyone in the room. If one person pauses, everyone pauses. 
-- **Integrated AI Assistant:** Stuck on a problem? Type `/ai` in the room chat, and Groq's high-speed AI will instantly respond to everyone in the room with the answer.
-- **Real-Time Task Management:** Add shared goals. When a task is checked off, the progress bar updates live on everyone's screen, backed persistently by PostgreSQL.
+```sh
+git clone https://github.com/ManasDasri/Flow-study.git
+cd Flow-study
+npm ci
+cp .env.example .env
+npm start
+```
 
----
+Open `http://localhost:3000`. Set `PORT` to use another port.
 
-## Tech Stack
+The browser connects to the Supabase project configured in [`public/js/modules/supabase.js`](public/js/modules/supabase.js). For your own deployment, replace its project URL and **public publishable/anon key** with your project's values. Never put a service-role key in browser code.
 
-Flow leverages a bleeding-edge, lightweight stack for maximum performance and zero infrastructure cost.
+### Server configuration
 
-**Frontend:**
-- HTML5 / Vanilla CSS (Neo-Brutalist Design System)
-- Vanilla JavaScript (ES6 Modules)
-- WebRTC (P2P Video & Audio Signaling)
+| Variable | Purpose |
+| --- | --- |
+| `PORT` | HTTP port; defaults to `3000` |
+| `GROQ_API_KEY` | Optional; enables `/api/ai` for study-assistant questions |
+| `TWILIO_ACCOUNT_SID` | Optional; used with the auth token to obtain TURN credentials |
+| `TWILIO_AUTH_TOKEN` | Optional; server-side Twilio credential |
 
-**Backend / Infrastructure:**
-- **Node.js & Express:** Ultra-lightweight static file server & AI secure endpoint.
-- **Supabase Realtime:** Phoenix/Elixir edge nodes for millisecond-latency state syncing.
-- **Supabase PostgreSQL:** Persistent storage for user profiles and shared tasks.
-- **Groq AI:** Llama 3 model for the integrated high-speed study assistant.
+Keep `.env` out of version control. Without Groq, rooms still work and AI requests return a configuration message. Without TURN credentials, calls fall back to STUN and may fail across restrictive networks. Spotify embeds require no application API key; available playback depends on Spotify, the user's account, and browser permissions. YouTube availability depends on the video's embedding permissions.
 
----
+### Supabase setup
 
-## Getting Started
+Enable email/password authentication and configure your site URL, redirect URLs, and confirmation email delivery. The UI supports both immediate sessions and email-confirmation flows.
 
-Want to run Flow locally or deploy it yourself?
+For a **new, empty database**, run these files in order in the Supabase SQL editor:
 
-### Prerequisites
-- Node.js installed
-- A [Supabase](https://supabase.com/) project (Free Tier)
-- A [Groq](https://console.groq.com/) API Key (**optional**, only needed for `/ai` chat)
+1. [`sql/schema.sql`](sql/schema.sql)
+2. [`sql/002_profiles.sql`](sql/002_profiles.sql)
+3. [`sql/003_task_assignment.sql`](sql/003_task_assignment.sql)
+4. [`sql/004_room_access_compatibility.sql`](sql/004_room_access_compatibility.sql)
 
-### Installation
+**`schema.sql` drops existing tables. Do not run it as an upgrade on a database with data.** For an existing installation, use the additive migration sequence and compatibility notes in [TESTING.md](TESTING.md#supabase-compatibility).
 
-1. **Clone the repository:**
-   ```bash
-   git clone https://github.com/ManasDasri/Flow-study.git
-   cd Flow-study
-   ```
+The app uses profiles, rooms, room participants, tasks, sessions, the `join_room` RPC, and task Realtime updates. Migration 004 supports the older TEXT room references and the newer UUID schema, preserves existing rows, and scopes task access to room participants.
 
-2. **Install dependencies:**
-   ```bash
-   npm install
-   ```
+Database RLS protects table access. Private Realtime Broadcast authorization needs its own coordinated policies and client configuration; it is a separate production-hardening task.
 
-3. **Set up environment variables:**
-   Create a `.env` file in the root directory and add your Groq API Key (optional):
-   ```env
-   GROQ_API_KEY=your_groq_api_key_here
-   ```
-   If omitted, the app still runs and the `/ai` command will return a configuration message.
+## Architecture
 
-4. **Start the server:**
-   ```bash
-   npm start
-   ```
+The frontend is HTML, CSS, and browser JavaScript modules. Instrument Sans and an outlined `f.` mark provide the visual identity.
 
-5. **Open in browser:**
-   Navigate to `http://localhost:3000`
+Express serves the site and the AI/TURN endpoints. Supabase handles authentication, PostgreSQL persistence, task changes, presence, and room broadcasts. WebRTC carries camera and microphone media between peers, with TURN relay support when configured. Groq handles assistant requests through the server. Room chat and broadcasts are transient; tasks, profiles, and completed sessions are stored.
 
----
+## Checks and CI
 
-## 📦 2. Supabase Setup (Database & Auth)
-Flow uses Supabase for Realtime WebRTC signaling, Chat, and Tasks.
+```sh
+npm test
+npx playwright install chromium
+npm run test:browser
+```
 
-### Authentication Setup
-Choose one mode:
+The browser command starts and stops its own local server. It tests login through leaving/rejoining a room with isolated Supabase/provider fixtures and synthetic media. No live user data, camera, microphone, or paid provider calls are used.
 
-1. **Fast login (recommended for local/testing):**
-   1. Go to Supabase Dashboard.
-   2. Go to **Authentication** -> **Providers** -> **Email**.
-   3. Toggle **Confirm email** to **OFF** and click Save.
-2. **Verified-email login (production):**
-   1. Keep **Confirm email** ON.
-   2. Configure **Auth -> Email Templates/SMTP** with a real provider (Resend, SendGrid, etc.).
-   3. Without SMTP, confirmation emails will not be delivered.
+For database tests, start an isolated local PostgreSQL server with a test superuser named `flow_test`:
 
-### Database Setup
-For an existing database using the older TEXT `room_id` schema, use the compatibility steps in [TESTING.md](TESTING.md#supabase-compatibility). The bootstrap script below drops existing tables and is intended for a fresh database.
+```sh
+FLOW_TEST_PGPORT=55439 npm run test:db
+```
 
-Run the SQL in [`sql/schema.sql`](sql/schema.sql) in your Supabase SQL Editor. It creates the `rooms`, `room_participants`, `tasks`, and `sessions` tables, sets up Row Level Security, and defines the `join_room` RPC that the app uses to securely join a room (with optional PIN checking) — all of the app's room/task/session features depend on this exact schema, not a simplified version of it.
+The database suite creates and removes throwaway databases on `127.0.0.1`. See [TESTING.md](TESTING.md) for setup, coverage, and integration limits.
 
-### Production Recommendations
-If you plan to host Flow for public use beyond a trusted circle, we highly recommend:
-- **Configure TURN for global camera reliability:** Flow fetches TURN credentials from Twilio at runtime via the server (`TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN` in `.env`) and falls back to STUN-only if that's unavailable, which will fail to connect users behind restrictive NATs/corporate firewalls. Configure a paid Twilio account (or another provider) before relying on this for real-world use — a free/trial TURN allotment will run out under real traffic.
+GitHub Actions runs on pull requests to `main`, pushes/merges to `main`, and manual dispatch:
 
----
+| Check | What it verifies |
+| --- | --- |
+| Node.js 22 / 24 / 26 | JavaScript parsing, HTTP boundaries, local concurrency, URL validation, and focus accounting |
+| PostgreSQL 17 | Both schema variants, migration repeatability, preserved data, room/PIN access, and task policies |
+| Chromium | Complete interactive flows, failure recovery, stress fixtures, and ten responsive tool layouts |
+| Dependency audit | Production dependencies fail the job on reported high/critical vulnerabilities |
 
-<div align="center">
-  <b>Built with extreme focus</b>
-</div>
+Browser screenshots, results, and failure traces are uploaded as `browser-diagnostics` and retained for seven days. A failing check marks the run red. To block merges, configure the desired checks as required in the repository's branch rules.
+
+## Deploy
+
+Run `npm ci --omit=dev` and `npm start` on a Node.js host with the server environment configured. Serve the public site over HTTPS for camera/microphone access. Keep server credentials in the host's secret settings.
+
+Before a wider launch, validate live authentication, two-account room behavior, physical media across networks, TURN, provider success paths, and browser compatibility. Local fixture stress checks are documented measurements, not a hosted-capacity guarantee.

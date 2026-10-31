@@ -10,6 +10,7 @@ async (page) => {
     await page.emulateMedia({ reducedMotion: 'reduce' });
 
     await page.route('https://cdn.jsdelivr.net/**', route => route.fulfill({ body: '', contentType: 'text/javascript' }));
+    await page.route('https://open.spotify.com/**', route => route.fulfill({ body: '<body>Spotify player fixture</body>', contentType: 'text/html' }));
     await page.route('https://www.youtube.com/**', route => route.fulfill({ body: '<body style="background:#14221b;color:#9baa9c;font:12px sans-serif;padding:20px">Background audio preview</body>', contentType: 'text/html' }));
     await page.route('**/js/modules/supabase.js', route => route.fulfill({ contentType: 'text/javascript', body: `
         const user = { id: 'test-user', email: 'alex@example.com' };
@@ -88,6 +89,12 @@ async (page) => {
     }
     await page.setViewportSize({ width: 1440, height: 1000 });
     await page.screenshot({ path: 'output/playwright/after-login-desktop.png' });
+    await page.getByRole('button', { name: 'Long break', exact: true }).click();
+    assert(await page.locator('#preview-time').textContent() === '15:00', 'Entry preview should respond to mode selection');
+    await page.getByRole('button', { name: 'Show password', exact: true }).click();
+    assert(await page.locator('#password-input').getAttribute('type') === 'text', 'Password visibility should toggle');
+    await page.getByRole('button', { name: 'Hide password', exact: true }).click();
+    await page.getByRole('button', { name: 'Focus', exact: true }).click();
     await page.getByLabel('Your atmosphere').selectOption('midnight');
     await page.reload();
     assert(await page.locator('html').getAttribute('data-theme') === 'midnight', 'Theme should persist');
@@ -263,13 +270,35 @@ async (page) => {
     await page.waitForFunction(() => !document.getElementById('save-profile-name-btn').disabled);
     await page.keyboard.press('Escape');
 
+    await page.getByRole('button', { name: 'Edit your profile', exact: true }).click();
+    await page.getByLabel('Display name', { exact: true }).fill('Alex');
+    await page.getByRole('button', { name: 'Save Name', exact: true }).click();
+    await page.waitForFunction(() => !document.getElementById('save-profile-name-btn').disabled);
+    await page.keyboard.press('Escape');
+
     // Background media accepts actual YouTube hosts, not lookalike domains.
     await page.getByLabel('YouTube video or playlist link').fill('https://youtube.com.attacker.example/watch?v=jfKfPfyJRdk');
     const previousSrc = await page.locator('#youtube-iframe').getAttribute('src');
-    await page.getByRole('button', { name: 'Sync', exact: true }).click();
+    await page.getByRole('button', { name: 'Share audio with room', exact: true }).click();
     assert(await page.locator('#youtube-iframe').getAttribute('src') === previousSrc, 'Invalid media URL must not load');
     await page.getByLabel('YouTube video or playlist link').fill('https://youtu.be/jfKfPfyJRdk');
-    await page.getByRole('button', { name: 'Sync', exact: true }).click();
+    await page.getByRole('button', { name: 'Share audio with room', exact: true }).click();
+
+    await page.getByRole('button', { name: 'Spotify', exact: true }).click();
+    await visible('#spotify-empty');
+    assert(await page.locator('#youtube-iframe').getAttribute('src') === 'about:blank', 'Switching provider must unload the previous player');
+    const spotifyInput = page.getByLabel('Spotify track, album, or playlist link');
+    await spotifyInput.fill('https://open.spotify.com.attacker.example/track/4uLU6hMCjMI75M1A2tKUQC');
+    await page.getByRole('button', { name: 'Share audio with room', exact: true }).click();
+    await visible('#spotify-empty');
+    await spotifyInput.fill('https://open.spotify.com/track/4uLU6hMCjMI75M1A2tKUQC?si=test');
+    await page.getByRole('button', { name: 'Share audio with room', exact: true }).click();
+    await visible('#spotify-iframe');
+    assert(await page.locator('#spotify-iframe').getAttribute('src') === 'https://open.spotify.com/embed/track/4uLU6hMCjMI75M1A2tKUQC?theme=0', 'Spotify should use the canonical official embed');
+    await page.evaluate(() => window.__fixture.handlers['broadcast:audio-sync']({ payload: { provider: 'spotify', url: 'https://open.spotify.com/album/4uLU6hMCjMI75M1A2tKUQC' } }));
+    assert((await page.locator('#spotify-iframe').getAttribute('src')).includes('/album/'), 'Incoming room audio should update the player');
+    await page.getByRole('button', { name: 'YouTube', exact: true }).click();
+    assert(await page.locator('#spotify-iframe').getAttribute('src') === 'about:blank', 'Returning to YouTube must stop Spotify');
 
     // Local backend failures show retry feedback without losing the question.
     await page.getByRole('tab', { name: 'Chat', exact: true }).click();
@@ -395,7 +424,16 @@ async (page) => {
     await page.clock.fastForward(61000);
     const elapsedTime = await page.locator('#time-display').innerText();
     assert(['28:59', '28:58'].includes(elapsedTime), 'Timer should follow elapsed wall time after throttled ticks');
+    await page.getByRole('button', { name: 'Edit your profile', exact: true }).click();
+    await page.waitForFunction(() => document.getElementById('profile-today-value')?.textContent === '1m');
+    assert((await page.locator('#my-focus-time').textContent()).includes('1m'), 'Card and open profile must agree on live focus');
+    await page.clock.fastForward(60000);
+    await page.waitForFunction(() => document.getElementById('profile-today-value')?.textContent === '2m');
+    await page.screenshot({ path: 'output/playwright/profile-live-focus.png' });
+    await page.keyboard.press('Escape');
     await page.getByRole('button', { name: 'Pause timer', exact: true }).click();
+    await page.clock.fastForward(60000);
+    assert((await page.locator('#my-focus-time').textContent()).includes('2m'), 'Paused time must not count as focus');
     await page.getByRole('button', { name: 'Reset timer', exact: true }).click();
 
     // Local timer rejects malformed peer state and completes without waiting 25 minutes.
@@ -407,6 +445,12 @@ async (page) => {
     await page.evaluate(async () => { (await import('/js/modules/timer.js')).syncState({ mode: 'focus', timeLeft: 0, duration: 60, isRunning: true }); });
     await visible('#timer-alert-modal');
     await page.getByRole('button', { name: 'Continue', exact: true }).click();
+
+    await page.waitForFunction(() => window.__fixture.tables.sessions.length === 1);
+    await page.getByRole('button', { name: 'Edit your profile', exact: true }).click();
+    await page.waitForFunction(() => document.getElementById('profile-today-value')?.textContent === '2m');
+    assert((await page.locator('#my-focus-time').textContent()).includes('2m'), 'Saved focus must replace live focus without double counting');
+    await page.keyboard.press('Escape');
 
     // Leave supports cancellation and keeps the session active.
     await page.getByRole('button', { name: 'Leave', exact: true }).click();

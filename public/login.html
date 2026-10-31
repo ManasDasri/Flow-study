@@ -28,30 +28,34 @@
     </header>
     <main class="login-layout">
         <section class="login-intro" aria-labelledby="intro-title">
-            <h1 id="intro-title">Study with<br>intention.</h1>
-            <p>A considered space for focused work. Connect with your study group, set a goal, and give it your full attention.</p>
-            <div class="focus-illustration" aria-hidden="true">
-                <div class="orbit orbit-outer"></div>
-                <div class="orbit orbit-middle"></div>
-                <div class="focus-dial"><span class="dial-label">Focus session</span><span class="dial-time">25:00</span><span>Time to focus</span></div>
+            <h1 id="intro-title">A space to think.<br>A rhythm to work.</h1>
+            <p>Set a goal, settle into a session, and work alongside the people who keep you going.</p>
+            <div class="entry-preview" aria-label="Timer preview">
+                <div class="preview-heading"><span>Timer preview</span><span>Find your rhythm</span></div>
+                <div id="preview-time" class="preview-time">25:00</div>
+                <div class="preview-modes" role="group" aria-label="Preview timer modes">
+                    <button type="button" data-preview-minutes="25" aria-pressed="true">Focus</button>
+                    <button type="button" data-preview-minutes="5" aria-pressed="false">Short break</button>
+                    <button type="button" data-preview-minutes="15" aria-pressed="false">Long break</button>
+                </div>
             </div>
-            <p class="intro-footnote">Shared timers. Clear goals. Undivided attention.</p>
+            <div class="entry-features"><span>Shared timers</span><span>Clear goals</span><span>Good company</span></div>
         </section>
         <section class="login-card" aria-labelledby="login-title">
-            <h2 id="login-title">Welcome to Flow.</h2>
-            <p class="login-description" id="subtitle-text">Log in to continue to your study space.</p>
+            <h2 id="login-title">Welcome to your space.</h2>
+            <p class="login-description" id="subtitle-text">Log in to pick up where you left off.</p>
             <form id="auth-form">
                 <label for="email-input">Email address</label>
                 <input type="email" id="email-input" class="brutal-input" placeholder="you@example.com" autocomplete="email" required>
                 <label for="password-input">Password</label>
-                <input type="password" id="password-input" class="brutal-input" placeholder="At least 6 characters" autocomplete="current-password" minlength="6" required>
+                <div class="password-field"><input type="password" id="password-input" class="brutal-input" placeholder="At least 6 characters" autocomplete="current-password" minlength="6" required><button id="toggle-password" type="button" aria-label="Show password" aria-pressed="false">Show</button></div>
                 <button type="submit" id="login-btn" class="btn btn-primary">Log in</button>
                 <div class="signup-divider"><span>New to Flow?</span></div>
                 <button type="button" id="signup-btn" class="btn btn-secondary">Create an account</button>
             </form>
             <div id="error-message" class="auth-message error-msg" role="alert"></div>
             <div id="success-message" class="auth-message success-msg" role="status"></div>
-            <p class="login-note">Your next session starts here.</p>
+            <p class="login-note">A room, a goal, and a little momentum.</p>
         </section>
     </main>
     <footer class="login-footer"><span>Study better, together.</span><span>A space for uninterrupted work.</span></footer>
