@@ -317,6 +317,8 @@ test('compatibility migration on legacy TEXT and current UUID schemas', async t 
             assert.equal(asUser(stranger, "SELECT public.api_allow('turn');"), 't', 'Each kind has its own ceiling');
             run(database, "UPDATE public.api_usage SET at = now() - interval '2 hours' WHERE kind = 'ai';");
             assert.equal(asUser(stranger, "SELECT public.api_allow('ai');"), 't', 'The ceiling is per hour');
+            run(database, `DELETE FROM public.api_usage WHERE user_id = '${two}'; INSERT INTO public.api_usage (user_id, kind, at) SELECT '${two}', 'ai', now() - interval '20 minutes' FROM generate_series(1, 30);`);
+            assert.equal(asUser(two, "SELECT public.api_allow('ai');"), 'f', 'One account cannot take more than its hourly share of the ceiling');
             assert.equal(run(database, "SELECT count(*) FROM public.api_usage WHERE at < now() - interval '1 day';").trim(), '0', 'Old usage is cleared for everyone, not just the caller');
 
             const migration014 = readFileSync('sql/014_deny_by_default.sql', 'utf8');
