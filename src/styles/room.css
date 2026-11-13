@@ -51,9 +51,10 @@ body[data-timer="break"] .sun { animation: breathe 10s ease-in-out infinite; }
 /* Stepped away: the tile quiets down, nothing else in the room changes. */
 .video-wrapper > video, .video-wrapper > .dummy-placeholder { transition: opacity .5s, filter .5s; }
 .video-wrapper.is-away > video, .video-wrapper.is-away > .dummy-placeholder { opacity: .35; filter: grayscale(.6); }
-.away-btn { height: 40px; padding: 0 14px; border: 0; border-radius: 999px; background: #000a; color: #fff; font: inherit; font-size: .8rem; font-weight: 600; white-space: nowrap; cursor: pointer; }
+.away-btn { position: absolute; top: 10px; right: 10px; z-index: 20; height: 28px; padding: 0 12px; border: 0; border-radius: 999px; background: #000a; color: #fff; font: inherit; font-size: .8rem; font-weight: 600; white-space: nowrap; cursor: pointer; }
 .away-btn:hover { background: #000c; }
 .away-btn[aria-pressed="true"] { background: #fff; color: #111; }
+#video-wrapper-local .hand-raised-badge { top: 46px; }
 .icon-btn.toggle .on, .icon-btn.toggle[aria-pressed="true"] .off { display: none; }
 .icon-btn.toggle[aria-pressed="true"] .on { display: block; }
 .toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); z-index: 2000; width: max-content; max-width: min(520px, calc(100vw - 32px)); padding: 13px 20px; border-radius: 999px; background: var(--text); color: var(--bg); box-shadow: 0 8px 32px #0005; font-size: .88rem; font-weight: 500; overflow-wrap: anywhere; }
@@ -103,6 +104,9 @@ kbd { display: inline-block; min-width: 26px; padding: 2px 7px; border-radius: 6
 .rounds i.done { background: var(--text); }
 /* Tabular figures keep the clock still while digits change. */
 .time-display { font-size: clamp(4.4rem, 13vh, 6.6rem); font-weight: 800; line-height: .85; letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
+.time-toggle { width: max-content; margin-top: -8px; padding: 2px 0; border: 0; background: none; color: var(--text-3); font: inherit; font-size: .78rem; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+.time-toggle:hover { color: var(--text-2); }
+.hide-time .time-display { display: none; }
 .breath { display: none; font-size: .84rem; color: var(--text-2); }
 body[data-timer="break"] .breath { display: block; }
 .timer-controls { display: flex; gap: 8px; align-items: center; }

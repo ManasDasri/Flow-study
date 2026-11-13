@@ -20,6 +20,8 @@ import Icon from '../Icon.astro';
         <div class="video-wrapper" id="video-wrapper-local">
             <video id="local-video" autoplay muted playsinline></video>
             <span class="name-tag">You</span>
+            <!-- Stepping away dims your tile and pauses your focus time; the room's sun carries on. -->
+            <button id="toggle-away" class="away-btn" type="button" aria-pressed="false">Be right back</button>
             <div class="dummy-placeholder hidden" id="local-dummy-placeholder">
                 <div class="avatar" id="local-dummy-avatar">?</div>
                 <div class="text">Camera unavailable</div>
@@ -35,8 +37,6 @@ import Icon from '../Icon.astro';
                 </div>
             </details>
             <div class="media-controls">
-                <!-- Stepping away dims your tile and pauses your focus time; the room's sun carries on. -->
-                <button id="toggle-away" class="away-btn" type="button" aria-pressed="false">Be right back</button>
                 <button id="toggle-mic" class="icon-btn toggle active" aria-label="Toggle microphone" aria-pressed="true" title="Microphone (M)"><Icon name="mic" class="on" /><Icon name="micOff" class="off" /></button>
                 <button id="toggle-cam" class="icon-btn toggle active" aria-label="Toggle camera" aria-pressed="true" title="Camera (V)"><Icon name="cam" class="on" /><Icon name="camOff" class="off" /></button>
             </div>

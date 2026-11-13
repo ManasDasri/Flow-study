@@ -860,6 +860,7 @@ function bindRoomControls() {
         showReaction(getMyUserId(), emoji); // broadcasts don't echo to the sender
     }));
     on('toggle-away', () => setAwayState(!away));
+    on('time-visibility', () => UI.setTimeHidden(!UI.timeHidden()));
     on<HTMLButtonElement>('toggle-hand', event => {
         handRaised = !handRaised;
         setToggle(event.currentTarget, handRaised);
