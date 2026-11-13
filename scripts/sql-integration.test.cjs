@@ -307,6 +307,12 @@ test('compatibility migration on legacy TEXT and current UUID schemas', async t 
             assert.equal(fn(stranger, 'claim_host'), 'f', 'Nobody else can take it once the host is back');
             assert.equal(asUser(fresh, `SELECT public.lists_room('${otherRoom}');`), 't', 'The host can tell this room\'s listing is theirs');
             assert.equal(asUser(two, `SELECT public.lists_room('${otherRoom}');`), 'f');
+
+            // 015: members can ask whether their room is on the board (to hide IPs by default), and nobody else can.
+            run(database, readFileSync('sql/015_room_listed.sql', 'utf8'));
+            assert.equal(asUser(two, `SELECT public.room_listed('${otherRoom}');`), 't', 'A member learns their room is listed');
+            assert.equal(asUser(one, `SELECT public.room_listed('${otherRoom}');`), 'f', 'Someone outside the room learns nothing');
+            assert.equal(asUser(two, `SELECT public.room_listed('${room}');`), 'f', 'An unlisted room is not listed');
         } finally {
             run('postgres', 'DROP DATABASE ' + database + ' WITH (FORCE);');
         }

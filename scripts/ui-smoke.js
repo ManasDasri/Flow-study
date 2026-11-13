@@ -907,6 +907,14 @@ async (page) => {
     await page.getByRole('button', { name: 'Save Changes', exact: true }).click();
     await page.waitForFunction(() => window.__rtcPolicies.at(-1) === 'all', undefined, { timeout: 10000 });
     assert(await page.evaluate(() => localStorage.getItem('flow_hide_ip')) === '0', 'Turning it off is remembered, and calls reconnect directly');
+    // With no relay available, hiding the IP fails closed: the call stays relay-only, and the person is told.
+    await page.unroute('**/api/turn-credentials');
+    await page.route('**/api/turn-credentials', route => route.fulfill({ status: 503, body: '' }));
+    await page.evaluate(() => { localStorage.setItem('flow_hide_ip', '1'); });
+    await page.getByRole('button', { name: 'Timer settings', exact: true }).click();
+    await page.locator('#setting-hide-ip').check();
+    await page.getByRole('button', { name: 'Save Changes', exact: true }).click();
+    await page.waitForFunction(() => window.__rtcPolicies.at(-1) === 'relay', undefined, { timeout: 10000 });
     await page.evaluate(() => localStorage.removeItem('flow_hide_ip'));
     await page.unroute('**/api/turn-credentials');
     await page.evaluate(() => window.__fixture.handlers['broadcast:bye']({ payload: { userId: 'zz-stranger' } }));

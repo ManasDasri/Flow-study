@@ -61,6 +61,9 @@ const fetchTurnCredentials = async () => {
             }
         } catch (e) {
             console.warn('TURN fetch failed, using STUN only.', e);
+        } finally {
+            // A failed fetch is not remembered, so the next call tries again.
+            if (!hasRelay) fetchTurnPromise = null;
         }
     })();
     return fetchTurnPromise;
@@ -221,9 +224,11 @@ export const getOrCreatePeerConnection = async (userId: string, onRemoteStream: 
         const generation = mediaGeneration;
         await fetchTurnCredentials();
         if (generation !== mediaGeneration) throw new Error('Room media has been closed');
-        // Without a relay server there is no way to hide the address; say so once rather than fail the call.
-        const relayOnly = hideIp && hasRelay;
+        // Fails closed: with the address to be hidden and no relay to hide it behind, the call
+        // stays relay-only and simply doesn't connect, and the person is told how to choose.
+        const relayOnly = hideIp;
         if (hideIp && !hasRelay && !warnedNoRelay) { warnedNoRelay = true; onRelayUnavailable?.(); }
+        if (hasRelay) warnedNoRelay = false;
         const pc = new RTCPeerConnection({ ...iceConfig, iceTransportPolicy: relayOnly ? 'relay' : 'all' });
         peers[userId] = pc;
         candidateQueues[userId] = candidateQueues[userId] || [];

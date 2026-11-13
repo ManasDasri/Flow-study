@@ -232,7 +232,8 @@ async function joinRoom() {
         currentPin = pin;
         enteredAt = Date.now();
         toldLate = false;
-        setHideIp(hidingIp()); // before any call is set up
+        applyHideIp(); // before any call is set up
+        await checkListed(); // and before anyone is called, now that the board's answer is in
         await syncHost('', false);
         if (isHost) adoptListing(); // back after stepping away: the listing is still ours
         // A saved display name overrides the email-derived default.
@@ -493,6 +494,7 @@ async function listOnBoard(details: Omit<GroupDetails, 'host_name'>) {
         seats_taken: peopleHere(), closed: byId<HTMLInputElement>('board-closed').checked, ...timerSnapshot()
     });
     listed = result === 'listed';
+    if (listed && !fromBoard) { fromBoard = true; applyHideIp(); } // now on the board: strangers may join
     status.textContent = listed ? `Listed as “${details.topic}” with ${details.seats} seats. It comes off the board when you leave.`
         : result === 'locked' ? 'This room can’t go on the board. Only the person who created it can list it, and not if it has a PIN.'
         : 'The room could not be listed just now. Check your connection and try again.';
@@ -536,7 +538,20 @@ setInterval(refreshBoard, 45000);
 let fromBoard = false;
 let hideIpOverride: boolean | null = (() => { try { const saved = localStorage.getItem('flow_hide_ip'); return saved === null ? null : saved === '1'; } catch { return null; } })();
 const hidingIp = () => hideIpOverride ?? fromBoard;
-whenRelayUnavailable(() => notify('Your IP address could not be hidden: the relay server is unavailable, so this call connects directly.', 'error'));
+whenRelayUnavailable(() => notify('Calls are waiting for the relay server, which hides your IP address. To connect directly instead, turn off “Hide my IP address” in timer settings.', 'error'));
+// The room's real status decides the default, however you arrived: a listed room is
+// full of strangers even if you came in by code. Changing it reconnects calls.
+function applyHideIp() {
+    const before = hiding;
+    hiding = hidingIp();
+    setHideIp(hiding);
+    if (before !== null && before !== hiding) Object.keys(partners).forEach(removePeer);
+}
+let hiding: boolean | null = null;
+async function checkListed() {
+    const { data } = await supabase.rpc('room_listed', { p_room: currentRoomId });
+    if (data === true && !fromBoard) { fromBoard = true; applyHideIp(); }
+}
 
 // ── Stepping away ──────────────────────────────────────────────────────────
 // A quiet personal state: your tile dims and your focus time pauses, while the
@@ -926,8 +941,7 @@ function bindRoomControls() {
         if (hideIpBox.checked !== hidingIp()) {
             try { localStorage.setItem('flow_hide_ip', hideIpBox.checked ? '1' : '0'); } catch { /* Private mode: this visit only. */ }
             hideIpOverride = hideIpBox.checked;
-            setHideIp(hideIpBox.checked);
-            Object.keys(partners).forEach(removePeer); // the three-second check calls everyone back
+            applyHideIp(); // the three-second check calls everyone back
             notify(hideIpBox.checked ? 'Your IP address is hidden. Reconnecting calls through the relay…' : 'Calls connect directly again. Reconnecting…');
         }
     });
