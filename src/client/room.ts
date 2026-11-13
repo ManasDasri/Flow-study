@@ -996,8 +996,10 @@ function bindRoomControls() {
                 : choice === 'away' ? await supabase.rpc('step_away', { p_room: currentRoomId })
                 : await supabase.rpc('end_room', { p_room: currentRoomId });
             button.disabled = false;
-            if (error) { notify(choice === 'handover' ? 'The room could not be handed over. They may have just left; try again.' : choice === 'away' ? 'The room could not be kept open. Try again, or end it.' : 'The room could not be ended. Try again.', 'error'); return; }
-            if (choice !== 'end') listed = false; // the listing stays up: theirs now, or kept for our return
+            // Before sql/012 there is no stepping away: just leave, as hosts always could.
+            const plainLeave = choice === 'away' && error?.code === 'PGRST202';
+            if (error && !plainLeave) { notify(choice === 'handover' ? 'The room could not be handed over. They may have just left; try again.' : choice === 'away' ? 'The room could not be kept open. Try again, or end it.' : 'The room could not be ended. Try again.', 'error'); return; }
+            if (choice !== 'end' && !plainLeave) listed = false; // the listing stays up: theirs now, or kept for our return
             ended = choice === 'end';
         }
         leaving = true;
