@@ -41,6 +41,8 @@ export const timeHidden = () => hideTime;
 export const updateTimerUI = (state: TimerState) => {
     lastTimer = state;
     document.body.classList.toggle('hide-time', hideTime);
+    // Transitions only after the first paint, so a saved choice doesn't animate on arrival.
+    if (!document.body.classList.contains('timer-ready')) requestAnimationFrame(() => requestAnimationFrame(() => document.body.classList.add('timer-ready')));
     byId<HTMLElement>('time-visibility').textContent = hideTime ? 'Show time' : 'Hide time';
     const m = Math.floor(state.timeLeft / 60).toString().padStart(2, '0');
     const s = (state.timeLeft % 60).toString().padStart(2, '0');

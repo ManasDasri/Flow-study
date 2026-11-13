@@ -181,9 +181,11 @@ async (page) => {
     // The digits can be hidden; the sun still shows the block, and the choice is remembered.
     await page.evaluate(() => window.__fixture.handlers['broadcast:timer-updated']({ payload: { action: 'sync', mode: 'focus', duration: 1500, timeLeft: 900, isRunning: true } }));
     await page.getByRole('button', { name: 'Hide time', exact: true }).click();
-    assert(await page.locator('#time-display').isHidden() && await page.title() === 'Focusing | Flow' && await page.evaluate(() => localStorage.getItem('flow_hide_time')) === '1', 'Hiding the time should hide the digits, also from the tab title');
+    await page.waitForFunction(() => getComputedStyle(document.getElementById('time-display')).visibility === 'hidden');
+    assert(await page.title() === 'Focusing | Flow' && await page.evaluate(() => localStorage.getItem('flow_hide_time')) === '1', 'Hiding the time should hide the digits, also from the tab title');
     await page.getByRole('button', { name: 'Show time', exact: true }).click();
-    assert(await page.locator('#time-display').isVisible() && /^\d\d:\d\d \| Flow$/.test(await page.title()), 'Showing the time brings the digits back');
+    await page.waitForFunction(() => getComputedStyle(document.getElementById('time-display')).visibility === 'visible');
+    assert(/^\d\d:\d\d \| Flow$/.test(await page.title()), 'Showing the time brings the digits back');
     await page.evaluate(() => window.__fixture.handlers['broadcast:timer-updated']({ payload: { action: 'sync', mode: 'focus', duration: 1500, timeLeft: 1500, isRunning: false } }));
     // Someone else stepping away is shown on their tile only: no sound, no note.
     await page.evaluate(() => window.__fixture.handlers['presence:join']({ key: 'zz-away', newPresences: [{ username: 'Noor', isDummyMedia: true, status: 'Stepped away' }] }));
@@ -193,6 +195,11 @@ async (page) => {
     assert(await page.locator('#toggle-cam').getAttribute('aria-pressed') === 'false', 'Unavailable camera should display its off state');
     await page.locator('.reactions-menu summary').click();
     for (const name of ['Thumbs up', 'Heart', 'Laugh', 'Celebrate']) await page.getByRole('button', { name, exact: true }).click();
+    // Reactions are drawn icons thrown into the tile; they settle on its floor and are gone after a few seconds.
+    assert(await page.locator('#video-wrapper-local .floating-reaction svg').count() === 4, 'Each reaction shows its icon, not an emoji');
+    await page.waitForTimeout(2500);
+    assert(await page.locator('#video-wrapper-local').evaluate(tile => [...tile.querySelectorAll('.floating-reaction')].every(el => { const box = el.getBoundingClientRect(), frame = tile.getBoundingClientRect(); return box.left >= frame.left - 1 && box.right <= frame.right + 1 && box.bottom <= frame.bottom + 1; })), 'Reactions stay inside the tile');
+    await page.waitForFunction(() => !document.querySelector('#video-wrapper-local .floating-reaction'), undefined, { timeout: 4000 });
     await page.getByRole('button', { name: 'Raise hand', exact: true }).click();
     await visible('.hand-raised-badge');
     await page.getByRole('button', { name: 'Raise hand', exact: true }).click();
