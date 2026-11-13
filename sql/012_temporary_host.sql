@@ -31,7 +31,7 @@ CREATE POLICY open_rooms_select ON public.open_rooms FOR SELECT TO anon, authent
 -- Whoever is filling in for the host must check in every 45 seconds; after 90
 -- seconds of silence (a closed laptop) the next person may take over.
 CREATE OR REPLACE FUNCTION public.acting_live(p_room public.rooms) RETURNS BOOLEAN LANGUAGE sql STABLE AS $$
-  SELECT p_room.acting_host IS NOT NULL AND p_room.acting_seen > now() - interval '90 seconds';
+  SELECT p_room.acting_host IS NOT NULL AND p_room.acting_seen > now() - interval '90 seconds' AND NOT public.is_flagged(p_room.acting_host);
 $$;
 
 CREATE OR REPLACE FUNCTION public.host_name_of(p_user UUID) RETURNS TEXT LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
@@ -90,7 +90,7 @@ CREATE OR REPLACE FUNCTION public.room_checkin(p_room UUID, p_seats_taken INT, p
 RETURNS BOOLEAN LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
 BEGIN
   UPDATE public.rooms SET acting_seen = now()
-  WHERE id = p_room AND host_away AND acting_host = auth.uid() AND ended_at IS NULL
+  WHERE id = p_room AND host_away AND acting_host = auth.uid() AND ended_at IS NULL AND NOT public.is_flagged(auth.uid())
     AND EXISTS (SELECT 1 FROM public.room_participants WHERE room_id = p_room AND user_id = auth.uid());
   IF NOT FOUND THEN RETURN false; END IF;
   UPDATE public.open_rooms SET seats_taken = LEAST(GREATEST(p_seats_taken, 1), seats),
