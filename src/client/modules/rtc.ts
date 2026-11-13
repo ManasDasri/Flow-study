@@ -24,6 +24,16 @@ const DEFAULT_ICE: RTCConfiguration = {
 
 let iceConfig = { ...DEFAULT_ICE };
 let fetchTurnPromise: Promise<void> | null = null;
+let hasRelay = false;
+
+// Hide my IP: calls go through the relay (TURN) server, so this browser only ever
+// offers the relay's address and the people in the room never learn its own.
+// Costs a little delay. Applies to calls set up after it changes.
+let hideIp = false;
+export const setHideIp = (on: boolean) => { hideIp = on; };
+let onRelayUnavailable: (() => void) | undefined;
+export const whenRelayUnavailable = (run: () => void) => { onRelayUnavailable = run; };
+let warnedNoRelay = false;
 
 const serializeCandidate = (candidate: RTCIceCandidate | null) => {
     if (!candidate) return null;
@@ -44,6 +54,7 @@ const fetchTurnCredentials = async () => {
             if (!response.ok) return;
             const data = await response.json();
             if (Array.isArray(data.iceServers) && data.iceServers.length) {
+                hasRelay = data.iceServers.some((server: RTCIceServer) => [server.urls].flat().some(url => /^turns?:/.test(String(url))));
                 iceConfig = {
                     iceServers: [...(DEFAULT_ICE.iceServers || []), ...data.iceServers]
                 };
@@ -210,7 +221,10 @@ export const getOrCreatePeerConnection = async (userId: string, onRemoteStream: 
         const generation = mediaGeneration;
         await fetchTurnCredentials();
         if (generation !== mediaGeneration) throw new Error('Room media has been closed');
-        const pc = new RTCPeerConnection(iceConfig);
+        // Without a relay server there is no way to hide the address; say so once rather than fail the call.
+        const relayOnly = hideIp && hasRelay;
+        if (hideIp && !hasRelay && !warnedNoRelay) { warnedNoRelay = true; onRelayUnavailable?.(); }
+        const pc = new RTCPeerConnection({ ...iceConfig, iceTransportPolicy: relayOnly ? 'relay' : 'all' });
         peers[userId] = pc;
         candidateQueues[userId] = candidateQueues[userId] || [];
         makingOffer[userId] = false;
@@ -223,6 +237,8 @@ export const getOrCreatePeerConnection = async (userId: string, onRemoteStream: 
 
         pc.onicecandidate = (event) => {
             if (!event.candidate) return;
+            // Belt and braces: in relay mode nothing but relay candidates ever leaves this browser.
+            if (relayOnly && !/ typ relay/.test(event.candidate.candidate)) return;
             sendSignal(userId, { type: 'candidate', candidate: serializeCandidate(event.candidate) });
         };
 
