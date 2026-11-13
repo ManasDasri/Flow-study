@@ -165,6 +165,8 @@ async (page) => {
     await page.evaluate(() => window.__fixture.handlers['broadcast:timer-updated']({ payload: { action: 'sync', mode: 'focus', duration: 1500, timeLeft: 600, isRunning: true } }));
     await page.waitForFunction(() => document.getElementById('toast').textContent.includes('15 min into a focus block'));
     // Stepping away during the block: the room's clock carries on, your tile quiets down.
+    await page.getByRole('button', { name: 'Be right back', exact: true }).hover();
+    await page.waitForFunction(() => { const button = document.getElementById('toggle-away'); return button.dataset.tip.includes('pauses your focus time') && getComputedStyle(button, '::after').opacity === '1'; });
     await page.getByRole('button', { name: 'Be right back', exact: true }).click();
     assert(await page.locator('#video-wrapper-local').evaluate(tile => tile.classList.contains('is-away')) && await page.locator('#toggle-away').getAttribute('aria-pressed') === 'true', 'Stepping away should dim your tile');
     assert(await page.locator('#timer-toggle-btn').getAttribute('aria-pressed') === 'true', 'Stepping away must not touch the room\'s timer');

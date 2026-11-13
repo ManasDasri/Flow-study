@@ -542,7 +542,10 @@ function updateAwayButton() {
     const button = byId<HTMLButtonElement>('toggle-away');
     button.setAttribute('aria-pressed', String(away));
     button.textContent = away ? 'I’m back' : focusRunning() ? 'Be right back' : 'Back next block';
-    button.title = away ? 'Let the room see you’re back' : focusRunning() ? 'Dim your tile and pause your focus time; the room carries on' : 'Take longer than the break; the room starts without you';
+    // Shown as a hint on hover and focus (room.css), and read out by screen readers.
+    const hint = away ? 'Let the room know you’re back.' : focusRunning() ? 'Dims your tile and pauses your focus time. The room’s timer keeps going.' : 'Need a longer break? The room can start the next block without you.';
+    button.dataset.tip = hint;
+    button.setAttribute('aria-description', hint);
 }
 function setAwayState(on: boolean) {
     if (on === away) return;

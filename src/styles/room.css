@@ -49,6 +49,9 @@ body[data-timer="break"] .sun { animation: breathe 10s ease-in-out infinite; }
 .away-btn { position: absolute; top: 10px; right: 10px; z-index: 20; height: 28px; padding: 0 12px; border: 0; border-radius: 999px; background: #000a; color: #fff; font: inherit; font-size: .8rem; font-weight: 600; white-space: nowrap; cursor: pointer; }
 .away-btn:hover { background: #000c; }
 .away-btn[aria-pressed="true"] { background: #fff; color: #111; }
+.away-btn::after { content: attr(data-tip) / ""; position: absolute; top: calc(100% + 6px); right: 0; width: max-content; max-width: 210px; padding: 6px 11px; border-radius: 12px; background: var(--text); color: var(--bg); font-size: .72rem; font-weight: 500; line-height: 1.35; white-space: normal; text-align: left; opacity: 0; translate: 0 -3px; pointer-events: none; transition: opacity .15s, translate .15s; }
+.away-btn:hover::after, .away-btn:focus-visible::after { opacity: 1; translate: 0 0; }
+@media (hover: none) { .away-btn::after { display: none; } }
 #video-wrapper-local .hand-raised-badge { top: 46px; }
 .icon-btn.toggle .on, .icon-btn.toggle[aria-pressed="true"] .off { display: none; }
 .icon-btn.toggle[aria-pressed="true"] .on { display: block; }
