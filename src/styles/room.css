@@ -315,7 +315,20 @@ body[data-timer="break"] .breath { display: block; }
 .home-main h2 { font-size: 2.4rem; }
 .home-main .inline-error { margin-top: 16px; }
 .home-actions { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; margin-top: 22px; }
-.home-card { display: flex; flex-direction: column; min-width: 0; padding: 20px; border-radius: var(--radius-md); background: var(--field); }
+.home-card { position: relative; display: flex; flex-direction: column; min-width: 0; padding: 20px; border-radius: var(--radius-md); background: var(--field); }
+/* An open group's details: one line on the card, edited in a panel laid over it. */
+.create-details { margin: -4px 0 6px; color: var(--text-2); font-size: .8rem; line-height: 1.4; }
+.create-details summary { display: flex; gap: 6px; list-style: none; cursor: pointer; }
+#create-summary { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.create-details summary .link-btn { flex-shrink: 0; }
+.create-details summary::-webkit-details-marker { display: none; }
+.create-details summary .link-btn { font-size: inherit; }
+.create-details-panel { position: absolute; inset: auto 10px 10px; z-index: 5; display: flex; flex-direction: column; gap: 4px; padding: 16px; border-radius: var(--radius-sm); background: var(--card); box-shadow: 0 12px 36px #0007; animation: panelUp .2s var(--ease); }
+.create-details-panel .btn { margin-top: 10px; }
+.create-details-panel .home-row.even { grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); }
+.create-details-panel select.input { padding-inline: 12px 26px; background-position: right 8px center; }
+#create-open .input { margin-top: 0; }
+@keyframes panelUp { from { opacity: 0; translate: 0 8px; } }
 .home-card h3 { font-size: 1.5rem; font-stretch: 82%; font-variation-settings: 'wdth' 82; }
 .home-card > p { margin: 6px 0 16px; color: var(--text-2); font-size: .86rem; line-height: 1.5; }
 .home-card label { margin: 0 0 6px; font-size: .8rem; }

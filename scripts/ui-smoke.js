@@ -205,7 +205,12 @@ async (page) => {
     await page.getByRole('button', { name: 'Raise hand', exact: true }).click();
     await visible('.hand-raised-badge');
     await page.getByRole('button', { name: 'Raise hand', exact: true }).click();
+    assert(await page.locator('.reactions-menu').evaluate(menu => menu.open), 'Picking reactions keeps the tray open');
+    await page.locator('.stage-header h1').click();
+    assert(!await page.locator('.reactions-menu').evaluate(menu => menu.open), 'Clicking anywhere else closes the reaction tray');
     await page.locator('.reactions-menu summary').click();
+    await page.keyboard.press('Escape');
+    assert(!await page.locator('.reactions-menu').evaluate(menu => menu.open), 'Escape closes the reaction tray');
     await page.getByRole('button', { name: 'Toggle microphone', exact: true }).click();
     assert(await page.locator('#toggle-mic').getAttribute('aria-pressed') === 'false', 'Mic should toggle off');
     await page.getByRole('button', { name: 'Toggle microphone', exact: true }).click();
@@ -861,10 +866,17 @@ async (page) => {
     await visible('#lobby-error');
     assert(await page.evaluate(() => window.__fixture.tables.rooms.length) === 0, 'An open group needs a topic before any room is made');
     await page.getByLabel('Topic for the board').fill('Past papers, timed');
+    // The group's details sit on one line and open in a panel over the card, so Home never grows a scroll.
+    const homeScroll = () => page.locator('#modal-overlay').evaluate(overlay => overlay.scrollHeight - overlay.clientHeight);
+    const scrollBefore = await homeScroll();
+    await page.getByText('Change', { exact: true }).click();
+    assert(await homeScroll() === scrollBefore, 'Editing an open group\'s details must not make Home scroll');
     await page.getByLabel('Subject', { exact: true }).first().selectOption('exams');
     assert(await page.locator('#create-camera').inputValue() === 'optional' && await page.locator('#create-vibe').inputValue() === 'quiet', 'A group opened from home should default to optional cameras and quiet');
     await page.getByLabel('Cameras', { exact: true }).first().selectOption('on');
     await page.getByLabel('Talking', { exact: true }).first().selectOption('chatty');
+    await page.getByRole('button', { name: 'Done', exact: true }).click();
+    assert(await page.locator('#create-summary').innerText() === 'Exam prep · 4 seats · Cameras on · Chatty', 'The summary line should show the chosen details');
     await page.getByRole('button', { name: 'Open a study group', exact: true }).click();
     await page.waitForFunction(() => window.__fixture.tables.open_rooms.length === 1 && !document.getElementById('new-task-input').disabled);
     assert(await page.evaluate(() => { const row = window.__fixture.tables.open_rooms[0]; return row.topic === 'Past papers, timed' && row.subject === 'exams' && window.__fixture.tables.rooms.at(-1).is_locked === false; }), 'Opening a study group from home should create an unlocked room and list it');

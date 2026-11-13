@@ -776,6 +776,21 @@ async function showHome(user: { id: string; email: string }) {
     homeGroups();
     watchBoard(() => { if (!appContainer.classList.contains('hidden')) return; homeGroups(); });
 
+    // An open group's details, summed up on one line; the panel that edits them sits over the card.
+    const details = byId<HTMLDetailsElement>('create-details');
+    const optionText = (id: string) => byId<HTMLSelectElement>(id).selectedOptions[0]?.textContent ?? '';
+    const summarise = () => { const line = byId<HTMLElement>('create-summary'); line.title = line.textContent = `${optionText('create-subject')} · ${optionText('create-seats')} seats · Cameras ${optionText('create-camera').toLowerCase()} · ${optionText('create-vibe')}`; };
+    ['create-subject', 'create-seats', 'create-camera', 'create-vibe'].forEach(id => byId(id).addEventListener('change', summarise));
+    summarise();
+    on('create-details-done', () => { details.open = false; details.querySelector('summary')!.focus(); });
+    details.addEventListener('keydown', event => { if (event.key === 'Escape' && details.open) { event.stopPropagation(); details.open = false; details.querySelector('summary')!.focus(); } });
+    // These small menus close on a click anywhere else, or Escape, like the bell does.
+    const menus = () => document.querySelectorAll<HTMLDetailsElement>('.reactions-menu[open], #create-details[open]');
+    document.addEventListener('click', event => {
+        const target = event.target as Node;
+        if (target.isConnected) menus().forEach(menu => { if (!menu.contains(target)) menu.open = false; });
+    });
+    document.addEventListener('keydown', event => { if (event.key === 'Escape') menus().forEach(menu => { menu.open = false; }); });
     // "Start a room": the audience choice swaps between a PIN and a board topic.
     const audience = () => (document.querySelector<HTMLInputElement>('input[name="audience"]:checked')!).value;
     document.querySelectorAll('input[name="audience"]').forEach(radio => radio.addEventListener('change', () => {
