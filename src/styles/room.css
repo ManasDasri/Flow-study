@@ -47,6 +47,13 @@ body[data-timer="break"] .sun { animation: breathe 10s ease-in-out infinite; }
 .dot { display: inline-block; width: 7px; height: 7px; flex-shrink: 0; border-radius: 50%; }
 .dot.green { background: var(--ok); }
 .dot.yellow { background: var(--accent); }
+.dot.away { background: #fff8; }
+/* Stepped away: the tile quiets down, nothing else in the room changes. */
+.video-wrapper > video, .video-wrapper > .dummy-placeholder { transition: opacity .5s, filter .5s; }
+.video-wrapper.is-away > video, .video-wrapper.is-away > .dummy-placeholder { opacity: .35; filter: grayscale(.6); }
+.away-btn { height: 40px; padding: 0 14px; border: 0; border-radius: 999px; background: #000a; color: #fff; font: inherit; font-size: .8rem; font-weight: 600; white-space: nowrap; cursor: pointer; }
+.away-btn:hover { background: #000c; }
+.away-btn[aria-pressed="true"] { background: #fff; color: #111; }
 .icon-btn.toggle .on, .icon-btn.toggle[aria-pressed="true"] .off { display: none; }
 .icon-btn.toggle[aria-pressed="true"] .on { display: block; }
 .toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); z-index: 2000; width: max-content; max-width: min(520px, calc(100vw - 32px)); padding: 13px 20px; border-radius: 999px; background: var(--text); color: var(--bg); box-shadow: 0 8px 32px #0005; font-size: .88rem; font-weight: 500; overflow-wrap: anywhere; }

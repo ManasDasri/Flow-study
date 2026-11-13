@@ -4,6 +4,7 @@ import { byId } from '../dom';
 import { getMyUserId } from './socket';
 import { currentUser } from './session';
 import { initial } from './ui';
+import { AWAY_STATUSES } from './presence';
 
 const videoGrid = byId<HTMLElement>('video-grid');
 const wrapperFor = (userId: string) =>
@@ -48,8 +49,12 @@ function labelTile(userId: string, partner: Participant) {
     const status = String(partner.presence?.status || partner.status || 'Online').replace(/^[🟢🟡]\s*/u, '');
     tag.querySelector('b')!.textContent = partner.username || 'Partner';
     tag.querySelector('small')!.textContent = status === 'Online' ? '' : status;
-    tag.querySelector('i')!.className = `dot ${status.includes('Break') ? 'yellow' : 'green'}`;
+    const away = AWAY_STATUSES.includes(status);
+    tag.querySelector('i')!.className = `dot ${away ? 'away' : status.includes('Break') ? 'yellow' : 'green'}`;
+    setAwayTile(userId, away);
 }
+
+export const setAwayTile = (userId: string, away: boolean) => wrapperFor(userId)?.classList.toggle('is-away', away);
 
 // Shows "Host" on the host's tile, and nowhere else. Called whenever the host changes.
 let hostId = '';

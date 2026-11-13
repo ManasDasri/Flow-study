@@ -2,6 +2,7 @@ import { completeTask } from '../motion';
 import type { TimerState, Participants, Task, TaskStats, PresenceState } from '../types';
 import { byId } from '../dom';
 import { escapeHTML } from './utils';
+import { AWAY_STATUSES } from './presence';
 
 export const ROUNDS = 4;
 
@@ -140,6 +141,6 @@ export const updateMyPresenceUI = (state: PresenceState, username: string) => {
     els.myUsername.textContent = username;
     els.myAvatar.textContent = initial(username);
     els.myStatusText.textContent = statusText(state.status);
-    els.myStatusText.previousElementSibling!.className = `dot ${state.status.includes('Break') ? 'yellow' : 'green'}`;
+    els.myStatusText.previousElementSibling!.className = `dot ${AWAY_STATUSES.includes(state.status) ? 'away' : state.status.includes('Break') ? 'yellow' : 'green'}`;
     if (state.focusTime !== undefined) els.myFocusTime.textContent = `Today: ${state.focusTime}m focused`;
 };

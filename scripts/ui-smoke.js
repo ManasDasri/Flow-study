@@ -161,6 +161,28 @@ async (page) => {
     await page.getByRole('button', { name: 'Join room', exact: true }).click();
     await page.locator('#new-task-input').waitFor({ state: 'visible' });
     await page.waitForFunction(() => !document.getElementById('new-task-input').disabled);
+    // Arriving partway through a block: the sun takes the room's place, and a note says so.
+    await page.evaluate(() => window.__fixture.handlers['broadcast:timer-updated']({ payload: { action: 'sync', mode: 'focus', duration: 1500, timeLeft: 600, isRunning: true } }));
+    await page.waitForFunction(() => document.getElementById('toast').textContent.includes('15 min into a focus block'));
+    // Stepping away during the block: the room's clock carries on, your tile quiets down.
+    await page.getByRole('button', { name: 'Be right back', exact: true }).click();
+    assert(await page.locator('#video-wrapper-local').evaluate(tile => tile.classList.contains('is-away')) && await page.locator('#toggle-away').getAttribute('aria-pressed') === 'true', 'Stepping away should dim your tile');
+    assert(await page.locator('#timer-toggle-btn').getAttribute('aria-pressed') === 'true', 'Stepping away must not touch the room\'s timer');
+    await page.waitForFunction(() => document.body.textContent.includes('Stepped away'));
+    await page.getByRole('button', { name: 'I’m back', exact: true }).click();
+    await page.waitForFunction(() => /Welcome back\. \d+ min left in this block\./.test(document.getElementById('toast').textContent));
+    assert(!await page.locator('#video-wrapper-local').evaluate(tile => tile.classList.contains('is-away')), 'Coming back should restore your tile');
+    // Between blocks the same button means "start without me".
+    await page.evaluate(() => window.__fixture.handlers['broadcast:timer-updated']({ payload: { action: 'sync', mode: 'shortBreak', duration: 300, timeLeft: 300, isRunning: false } }));
+    await page.getByRole('button', { name: 'Back next block', exact: true }).click();
+    await page.waitForFunction(() => document.body.textContent.includes('Back for the next block'));
+    await page.getByRole('button', { name: 'I’m back', exact: true }).click();
+    await page.evaluate(() => window.__fixture.handlers['broadcast:timer-updated']({ payload: { action: 'sync', mode: 'focus', duration: 1500, timeLeft: 1500, isRunning: false } }));
+    // Someone else stepping away is shown on their tile only: no sound, no note.
+    await page.evaluate(() => window.__fixture.handlers['presence:join']({ key: 'zz-away', newPresences: [{ username: 'Noor', isDummyMedia: true, status: 'Stepped away' }] }));
+    await page.waitForFunction(() => document.getElementById('video-wrapper-zz-away')?.classList.contains('is-away'));
+    await page.evaluate(() => window.__fixture.handlers['broadcast:bye']({ payload: { userId: 'zz-away' } }));
+    await page.waitForFunction(() => !document.getElementById('video-wrapper-zz-away'), undefined, { timeout: 10000 });
     assert(await page.locator('#toggle-cam').getAttribute('aria-pressed') === 'false', 'Unavailable camera should display its off state');
     await page.locator('.reactions-menu summary').click();
     for (const name of ['Thumbs up', 'Heart', 'Laugh', 'Celebrate']) await page.getByRole('button', { name, exact: true }).click();
