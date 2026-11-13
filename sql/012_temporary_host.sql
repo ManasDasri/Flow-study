@@ -67,6 +67,8 @@ BEGIN
      OR EXISTS (SELECT 1 FROM public.room_bans WHERE room_id = p_room AND user_id = auth.uid()) THEN
     RAISE EXCEPTION 'Not in this room';
   END IF;
+  -- Someone reported off the board is not put back on it as a host.
+  IF public.is_flagged(auth.uid()) THEN RETURN false; END IF;
   SELECT * INTO v_room FROM public.rooms WHERE id = p_room FOR UPDATE;
   IF v_room.ended_at IS NOT NULL OR NOT v_room.host_away OR v_room.created_by = auth.uid() THEN RETURN false; END IF;
   IF v_room.acting_host = auth.uid() THEN
@@ -88,7 +90,8 @@ CREATE OR REPLACE FUNCTION public.room_checkin(p_room UUID, p_seats_taken INT, p
 RETURNS BOOLEAN LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
 BEGIN
   UPDATE public.rooms SET acting_seen = now()
-  WHERE id = p_room AND host_away AND acting_host = auth.uid() AND ended_at IS NULL;
+  WHERE id = p_room AND host_away AND acting_host = auth.uid() AND ended_at IS NULL
+    AND EXISTS (SELECT 1 FROM public.room_participants WHERE room_id = p_room AND user_id = auth.uid());
   IF NOT FOUND THEN RETURN false; END IF;
   UPDATE public.open_rooms SET seats_taken = LEAST(GREATEST(p_seats_taken, 1), seats),
     timer_mode = CASE WHEN p_timer_mode IN ('focus', 'shortBreak', 'longBreak') THEN p_timer_mode END, timer_ends_at = p_timer_ends_at
