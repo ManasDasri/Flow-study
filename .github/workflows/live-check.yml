@@ -23,6 +23,7 @@ jobs:
             supabase.config.json
           sparse-checkout-cone-mode: false
       - id: check
+        shell: bash # with pipefail, so tee doesn't hide a failure
         run: node scripts/check-live.cjs | tee report.txt
         continue-on-error: true
       - uses: actions/github-script@v9
