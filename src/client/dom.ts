@@ -8,3 +8,6 @@ export function byId<T extends HTMLElement = HTMLElement>(id: string): T {
 // A click handler on a required element.
 export const on = <T extends HTMLElement = HTMLElement>(id: string, handler: (event: MouseEvent & { currentTarget: T }) => void) =>
     byId<T>(id).addEventListener('click', handler as EventListener);
+
+// Dry run of the PR procedure.   
+export const dryRun = () => console.log("dry run");
