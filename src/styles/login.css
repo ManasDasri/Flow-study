@@ -29,7 +29,7 @@
 .success-msg { color: var(--ok); }
 .login-note { margin-top: clamp(10px, 2svh, 22px); color: var(--text-3); font-size: .78rem; line-height: 1.6; text-align: center; }
 /* Short screens: the button already says it; the whole card fits without scrolling. */
-@media (max-height: 700px) and (min-width: 761px) { .login-note { display: none; } }
+@media (max-height: 700px) and (min-width: 761px) { .login-page:not(.verify-page) .login-note { display: none; } }
 
 @media (max-width: 760px) {
     .login-page { display: block; height: auto; }
@@ -44,3 +44,8 @@
     .login-card { padding-top: 24px; }
     .login-card h1 { font-size: 2.4rem; }
 }
+
+/* Email verification reuses the login layout. */
+.verify-card [data-state] .btn { margin-top: 6px; }
+.verify-card #verify-form .input { margin-bottom: 14px; }
+.verify-status { min-height: 1.4em; margin-top: 14px; color: var(--text-2); font-size: .86rem; text-align: center; }

@@ -3,7 +3,7 @@ import { bindThemePicker } from './theme';
 import { markSignedIn } from './modules/session';
 import { leaveWithLoader } from './loader';
 import supabase from './modules/supabase';
-import { bindSocialButtons, finishOAuth } from './modules/oauth';
+import { bindSocialButtons, finishOAuth } from './modules/sign-in';
 
 // DOM Elements
 const emailInput = byId<HTMLInputElement>('email-input');
@@ -64,9 +64,16 @@ const logIn = async () => {
     loginBtn.innerText = 'Logging in…';
     try {
         const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+        if (error && /confirm|verif/i.test(error.message)) {
+            // Not confirmed yet: offer the inbox page, which can send the link again.
+            showError('Confirm your email first: open the link we sent you. ');
+            try { sessionStorage.setItem('flow_verify_email', email); } catch { /* the inbox page asks for it instead */ }
+            const resend = Object.assign(document.createElement('a'), { href: '/verify.html' + location.search, textContent: 'Send it again' });
+            errorMsg.append(resend);
+            return;
+        }
         if (error) {
-            showError(/confirm|verif/i.test(error.message) ? 'Confirm your email first: open the link we sent you, then log in.'
-                : /invalid/i.test(error.message) ? 'That email and password don’t match an account. Check them, or set up a new space.'
+            showError(/invalid/i.test(error.message) ? 'That email and password don’t match an account. Check them, or set up a new space.'
                 : error.message);
             return;
         }

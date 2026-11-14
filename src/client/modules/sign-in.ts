@@ -1,14 +1,24 @@
-// Signing in with GitHub or Google (Supabase OAuth). The provider sends the browser
-// back to /login.html, where finishOAuth() completes it: a new account gets the name
+// The ways in that leave Flow and come back: GitHub, Google, or Apple (Supabase OAuth),
+// which return to /login.html, and the verification email, whose link opens
+// /verify.html. Both finish through completeSignIn(): a new account gets the name
 // typed during setup, and an invite carries on to its room.
 import defaults from '../../../supabase.config.json';
 import supabase from './supabase';
 import { markSignedIn } from './session';
 import { saveDisplayName } from './profile';
 
-type Provider = 'github' | 'google';
+type Provider = 'github' | 'google' | 'apple';
+const KNOWN: readonly string[] = ['github', 'google', 'apple'];
 // Only the providers switched on for this Supabase project (Authentication → Sign In / Providers).
-export const PROVIDERS = ((defaults as { oauthProviders?: string[] }).oauthProviders ?? []).filter((p): p is Provider => p === 'github' || p === 'google');
+export const PROVIDERS = ((defaults as { oauthProviders?: string[] }).oauthProviders ?? []).filter((p): p is Provider => KNOWN.includes(p));
+
+// An invite survives a sign-up that finishes elsewhere (the email may be opened in another tab).
+const INVITE = 'flow_invite_room';
+const validRoom = (room: string | null) => room && /^[A-Za-z0-9]{6}$/.test(room) ? room.toUpperCase() : null;
+export function rememberInvite() {
+    const room = validRoom(new URLSearchParams(location.search).get('room'));
+    try { if (room) localStorage.setItem(INVITE, room); else localStorage.removeItem(INVITE); } catch { /* storage blocked: the invite is lost, Home still works */ }
+}
 
 export async function continueWith(provider: Provider) {
     // Only the invite survives the round trip; nothing else rides along in the address.
@@ -23,15 +33,20 @@ export async function continueWith(provider: Provider) {
 export async function finishOAuth(): Promise<string | null> {
     const { data } = await supabase.auth.getSession();
     const user = data.session?.user;
-    if (!user) return null;
+    return user ? completeSignIn(user) : null;
+}
+
+// Someone is now signed in: note it, save the name from setup, and return where to go next.
+export async function completeSignIn(user: { id: string }): Promise<string> {
     markSignedIn();
     const pendingName = localStorage.getItem('flow_pending_name');
     if (pendingName && await saveDisplayName(user.id, pendingName)) {
         localStorage.setItem('flow_named', '1');
         localStorage.removeItem('flow_pending_name');
     }
-    const room = new URLSearchParams(location.search).get('room');
-    return '/room.html' + (room && /^[A-Za-z0-9]{6}$/.test(room) ? '?room=' + room.toUpperCase() : '');
+    let room = validRoom(new URLSearchParams(location.search).get('room'));
+    try { room ||= validRoom(localStorage.getItem(INVITE)); localStorage.removeItem(INVITE); } catch { /* storage blocked */ }
+    return '/room.html' + (room ? '?room=' + room : '');
 }
 
 // Wires the buttons from SocialSignIn.astro. `before` runs first (setup saves its choices).
