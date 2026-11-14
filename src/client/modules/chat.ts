@@ -47,7 +47,15 @@ export const handleIncomingMessage = (message: unknown, own = false) => {
     name.textContent = label;
     const body = Object.assign(document.createElement('div'), { className: 'message-body' });
     body.append(renderMarkdown(text));
-    div.append(name, body);
+    div.append(name);
+    // An answer shows the question it answers, and who asked it (by the name the database verified).
+    const question = assistant && 'question' in message && typeof message.question === 'string' ? message.question.trim().slice(0, 300) : '';
+    if (question) {
+        const asked = Object.assign(document.createElement('div'), { className: 'ai-question' });
+        asked.append(Object.assign(document.createElement('span'), { textContent: own || !from ? 'You asked' : `${verified} asked` }), ' ', question);
+        div.append(asked);
+    }
+    div.append(body);
     chatMessages.append(div);
     // Keep this ephemeral conversation bounded during long study sessions.
     while (chatMessages.children.length > 300) chatMessages.firstElementChild!.remove();
@@ -115,7 +123,7 @@ async function sendMessage() {
             if (trigger || (Number.isFinite(at) && at > Date.now())) { setReminder(trigger ? { text: reminder.text, trigger } : { text: reminder.text, at }); return; }
         }
         if (typeof data.text !== 'string') throw new Error('Invalid assistant response');
-        const message = { sender: 'AI Assistant', text: data.text };
+        const message = { sender: 'AI Assistant', text: data.text, question: query };
         handleIncomingMessage(message, true);
         await sendToRoom('chat-message', message);
     } catch {

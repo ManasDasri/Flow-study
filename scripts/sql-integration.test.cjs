@@ -349,6 +349,18 @@ test('compatibility migration on legacy TEXT and current UUID schemas', async t 
             assert.equal(asServer(`SELECT public.api_allow_for('${two}', 'ai');`), 't', 'The server records usage');
             assert.equal(run(database, `SELECT count(*) FROM public.api_usage WHERE user_id = '${two}';`).trim(), '1');
             assert.throws(() => asServer("SELECT public.api_allow_for('99999999-9999-4999-8999-999999999999', 'ai');"), /Command failed/, 'Only for real accounts');
+
+            // 017: the room keeps its latest full timer state, so a reload can put it back.
+            run(database, readFileSync('sql/017_room_timer.sql', 'utf8'));
+            run(database, readFileSync('sql/017_room_timer.sql', 'utf8'));
+            run(database, `UPDATE public.rooms SET timer = NULL WHERE id = '${otherRoom}'; DELETE FROM realtime.sent;`);
+            asUser(two, `SELECT public.room_send('${otherRoom}', 'timer-updated', '{"action":"sync","mode":"focus","timeLeft":2690,"isRunning":true,"duration":2700,"sessionCount":1,"durations":{"focus":2700,"shortBreak":300,"longBreak":900},"autoAdvance":true,"extra":"<b>not kept</b>"}');`);
+            assert.equal(run(database, `SELECT (timer->>'mode') || ' ' || (timer->>'timeLeft') || ' ' || (timer->>'isRunning') || ' ' || (timer->'durations'->>'focus') || ' ' || (timer ? 'at') || ' ' || (timer ? 'extra') || ' ' || (timer ? 'action') FROM public.rooms WHERE id = '${otherRoom}';`).trim(), 'focus 2690 true 2700 true false false', 'A full timer state is kept, with only its own fields and the server\'s time');
+            asUser(two, `SELECT public.room_send('${otherRoom}', 'timer-updated', '{"action":"sync","timeLeft":2600}');`);
+            assert.equal(run(database, `SELECT timer->>'timeLeft' FROM public.rooms WHERE id = '${otherRoom}';`).trim(), '2690', 'The ten-second ticks are not written');
+            assert.equal(run(database, "SELECT count(*) FROM realtime.sent WHERE event = 'timer-updated';").trim(), '2', 'Both still reach the room');
+            assert.equal(asUser(two, `SELECT timer->>'mode' FROM public.rooms WHERE id = '${otherRoom}';`), 'focus', 'People in the room can read it');
+            assert.equal(asUser(one, `SELECT count(*) FROM public.rooms WHERE id = '${otherRoom}';`), '0', 'Nobody else can');
         } finally {
             run('postgres', 'DROP DATABASE ' + database + ' WITH (FORCE);');
         }

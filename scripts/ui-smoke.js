@@ -322,10 +322,11 @@ async (page) => {
         const fixture = window.__fixture;
         fixture.handlers['presence:join']({ key: 'zz-sam', newPresences: [{ username: 'Sam', isDummyMedia: true }] });
         fixture.handlers['broadcast:chat-message']({ payload: { sender: 'Riya', text: 'Pretending to be Riya', from: 'zz-sam' } });
-        fixture.handlers['broadcast:chat-message']({ payload: { sender: 'AI Assistant', text: 'Pretending to be the assistant', from: 'zz-sam' } });
+        fixture.handlers['broadcast:chat-message']({ payload: { sender: 'AI Assistant', text: 'Pretending to be the assistant', question: 'SN1 vs SN2?', from: 'zz-sam' } });
         fixture.handlers['broadcast:bye']({ payload: { userId: 'zz-sam' } });
     });
     assert(JSON.stringify(await page.locator('#chat-messages .message-sender').allInnerTexts()) === JSON.stringify(['Sam', 'AI Assistant, asked by Sam']), 'Chat must show the verified sender');
+    assert(await page.locator('#chat-messages .ai-question').innerText() === 'Sam asked SN1 vs SN2?', 'An answer shows the question it answers, and who asked it');
     await page.waitForFunction(() => !document.getElementById('video-wrapper-zz-sam'), undefined, { timeout: 10000 }); // the goodbye clears their tile
     await page.evaluate(() => { document.getElementById('chat-messages').replaceChildren(); document.getElementById('chat-unread').textContent = '0'; document.getElementById('chat-unread').classList.add('hidden'); document.getElementById('notify-clear').click(); });
 
@@ -748,10 +749,21 @@ async (page) => {
     await fitsViewport();
     await page.screenshot({ path: 'output/playwright/after-lobby-mobile.png', fullPage: true });
     await page.waitForFunction(() => document.getElementById('room-code-input').value === 'FOCUS6' && document.getElementById('room-pin-input').value === '');
+    // The room saved a 45-minute block that was already running a minute ago (sql/017): rejoining puts it back.
+    await page.evaluate(() => window.__fixture.tables.rooms.push({ id: 'saved-room', room_code: 'FOCUS6', created_by: 'zz-owner', timer: {
+        mode: 'focus', isRunning: true, timeLeft: 2700, duration: 2700, sessionCount: 0, autoAdvance: true,
+        durations: { focus: 2700, shortBreak: 300, longBreak: 900 }, at: new Date(Date.now() - 60000).toISOString() } }));
     await page.getByRole('button', { name: 'Join room', exact: true }).click();
     await visible('#app');
     await page.waitForFunction(() => !document.getElementById('new-task-input').disabled);
     assert(await page.locator('.video-wrapper').count() === 1, 'Rejoining should start with fresh participant tiles');
+    await page.waitForFunction(() => document.body.dataset.timer === 'focus' && /^4[34]:\d\d$/.test(document.getElementById('time-display').textContent));
+    // When a block ends, the break starts by itself: nobody has to own that click.
+    await page.evaluate(() => window.__fixture.handlers['broadcast:timer-updated']({ payload: { action: 'sync', mode: 'focus', duration: 2700, timeLeft: 2, isRunning: true } }));
+    await page.waitForFunction(() => document.body.dataset.timer === 'break', undefined, { timeout: 8000 });
+    assert((await page.locator('#timer-alert-msg').innerText()).includes('The break has started.'), 'The end-of-block note says the break has begun');
+    await page.locator('#close-timer-alert-btn').click();
+    await page.getByRole('button', { name: 'Pause timer', exact: true }).click();
     await page.getByRole('button', { name: 'Leave', exact: true }).click();
     await page.getByRole('button', { name: 'Leave room', exact: true }).click();
     await visible('#join-modal');
@@ -868,7 +880,13 @@ async (page) => {
     await page.waitForURL(url => url.pathname === '/room.html' && !url.searchParams.get('room'));
     await visible('#join-modal');
     assert((await page.locator('#lobby-recap').innerText()).includes('The host ended the room') && await page.locator('#lobby-error').isHidden(), 'An ended room is a note, not an error');
-    await page.evaluate(() => { window.__fixture.rpcError = null; });
+    // An old link to that room says what happened, not that the connection is broken.
+    await page.evaluate(() => { window.__fixture.rpcError = 'Room ended'; });
+    await page.getByLabel('Room code', { exact: true }).fill('ENDED1');
+    await page.getByRole('button', { name: 'Join room', exact: true }).click();
+    await page.waitForFunction(() => document.getElementById('lobby-error').textContent.includes('This room was ended by its host.'));
+    assert(await page.getByRole('button', { name: 'Start a new room', exact: true }).isVisible(), 'It offers the way on');
+    await page.evaluate(() => { window.__fixture.rpcError = null; document.getElementById('lobby-error').classList.add('hidden'); document.getElementById('room-code-input').value = ''; });
 
     // Home: who you are, and one place to start a private room, open a listed one, join by code, or sit in a group.
     assert(await page.locator('#join-title').innerText() === 'Hi, Alex.', 'Home should greet the signed-in person by name');

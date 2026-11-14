@@ -55,6 +55,8 @@ body[data-timer="break"] .sun { animation: breathe 10s ease-in-out infinite; }
 #video-wrapper-local .hand-raised-badge { top: 46px; }
 .icon-btn.toggle .on, .icon-btn.toggle[aria-pressed="true"] .off { display: none; }
 .icon-btn.toggle[aria-pressed="true"] .on { display: block; }
+.ai-question { margin: 2px 0 6px; padding-left: 9px; border-left: 2px solid var(--line); color: var(--text-2); font-size: .82rem; line-height: 1.4; overflow-wrap: anywhere; }
+.ai-question span { font-weight: 600; }
 .toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); z-index: 2000; width: max-content; max-width: min(520px, calc(100vw - 32px)); padding: 13px 20px; border-radius: 999px; background: var(--text); color: var(--bg); box-shadow: 0 8px 32px #0005; font-size: .88rem; font-weight: 500; overflow-wrap: anywhere; }
 .toast[data-kind="error"] { border-radius: var(--radius-sm); background: var(--danger); color: var(--bg); }
 .network-banner { flex-shrink: 0; margin-bottom: 12px; padding: 12px 16px; border-radius: var(--radius-sm); background: var(--accent); color: var(--bg); font-size: .84rem; font-weight: 500; }

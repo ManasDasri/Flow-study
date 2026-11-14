@@ -15,7 +15,9 @@ let state: TimerState = {
     isRunning: false,
     duration: 25 * 60,
     sessionCount: 0,
-    durations: { focus: 25 * 60, shortBreak: 5 * 60, longBreak: 15 * 60 }
+    durations: { focus: 25 * 60, shortBreak: 5 * 60, longBreak: 15 * 60 },
+    // In a group nobody owns the click that starts the break, so by default nobody has to.
+    autoAdvance: true
 };
 
 let timerInterval: ReturnType<typeof setInterval> | null = null;
@@ -43,6 +45,8 @@ export const syncState = (newState: Partial<TimerState>) => {
     if (newState.durations && !validDurations(newState.durations)) return;
     if (newState.isRunning !== undefined && typeof newState.isRunning !== 'boolean') return;
     if (newState.sessionCount !== undefined && (!Number.isInteger(newState.sessionCount) || newState.sessionCount < 0 || newState.sessionCount > 10000)) return;
+    if (newState.autoAdvance !== undefined && typeof newState.autoAdvance !== 'boolean') return;
+    if (newState.autoAdvance !== undefined) state.autoAdvance = newState.autoAdvance;
     // If we receive a sync with the full state, update our local state
     if (newState.durations) state.durations = newState.durations;
     if (newState.mode) state.mode = newState.mode;
@@ -60,6 +64,21 @@ export const syncState = (newState: Partial<TimerState>) => {
 
     renderTimer();
 };
+
+// Back in a room after a reload or a sleeping laptop: put its saved timer (sql/017) back,
+// less the time that has passed since it was saved. Someone already in the room will
+// send the live state straight after, which wins. A block that ran out while everyone
+// was away is finished on the next tick, like any other.
+// ponytail: catches up one block at most, and trusts this device's clock against the server's.
+export function restoreTimer(saved: unknown) {
+    if (!saved || typeof saved !== 'object') return;
+    const timer = saved as Partial<TimerState> & { at?: string };
+    const savedAt = typeof timer.at === 'string' ? Date.parse(timer.at) : NaN;
+    if (!Number.isFinite(savedAt) || !Number.isInteger(timer.timeLeft)) return;
+    const elapsed = timer.isRunning ? Math.max(0, Math.round((Date.now() - savedAt) / 1000)) : 0;
+    const { mode, isRunning, duration, sessionCount, durations, autoAdvance: advance } = timer;
+    syncState({ mode, isRunning, duration, sessionCount, durations, autoAdvance: advance, timeLeft: Math.max(0, timer.timeLeft! - elapsed) });
+}
 
 const broadcastState = () => {
     socketUpdateTimer(roomId, 'sync', state);
@@ -106,9 +125,11 @@ export const setMode = (mode: TimerMode, broadcast = true) => {
 
 const validDurations = (values: Durations) => (['focus', 'shortBreak', 'longBreak'] as const).every(key => Number.isInteger(values[key]) && values[key] >= 60 && values[key] <= (key === 'focus' ? 7200 : 3600));
 
-export const setTimerSettings = (durations: Durations, broadcast = true) => {
+export const autoAdvance = () => state.autoAdvance !== false;
+export const setTimerSettings = (durations: Durations, broadcast = true, advance = autoAdvance()) => {
     if (!validDurations(durations)) return;
     state.durations = durations;
+    state.autoAdvance = advance;
     state.duration = MODES[state.mode]();
     if (!state.isRunning) {
         state.timeLeft = state.duration;
@@ -178,6 +199,7 @@ const handleComplete = () => {
         const longBreak = state.sessionCount % ROUNDS === 0;
         title = 'Focus session complete';
         msg = longBreak ? `That’s ${ROUNDS} rounds. Take a long break; you’ve earned it.` : 'Nice work. Take a short break before the next one.';
+        if (autoAdvance()) msg += ' The break has started.';
         setMode(longBreak ? 'longBreak' : 'shortBreak');
         document.body.classList.remove('focus-active');
         const focusBtn = byId<HTMLElement>('focus-mode-toggle');
@@ -185,8 +207,16 @@ const handleComplete = () => {
         focusBtn.setAttribute('aria-pressed', 'false');
     } else {
         title = 'Break complete';
-        msg = 'Ready for your next focus session?';
+        msg = autoAdvance() ? 'The next focus block has started.' : 'Ready for your next focus session?';
         setMode('focus');
+    }
+    // Every browser in the room reaches the end at the same moment and starts the next block;
+    // they all send the same state, so it settles the same way whoever is first.
+    if (autoAdvance()) {
+        state.isRunning = true;
+        startLocalTick();
+        renderTimer();
+        broadcastState();
     }
 
     chime('done');
