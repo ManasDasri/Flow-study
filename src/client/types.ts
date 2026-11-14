@@ -4,6 +4,7 @@ export type Durations = Record<TimerMode, number>;
 export interface TimerState {
     mode: TimerMode; timeLeft: number; isRunning: boolean; duration: number;
     sessionCount: number; durations: Durations;
+    autoAdvance?: boolean; // when a block ends, the next one starts by itself
 }
 export interface Task {
     id: string; room_id: string; title: string; completed: boolean;
@@ -53,7 +54,7 @@ export interface ProfileStats {
     totalMinutes: number; todayMinutes: number; liveMinutes: number;
 }
 interface Session { id: string; user_id: string; room_id: string; mode: string; duration_seconds: number; completed_at: string; }
-interface Room { id: string; room_code: string; is_locked: boolean; pin: string | null; created_at: string; created_by?: string | null; host_away?: boolean; acting_host?: string | null; }
+interface Room { id: string; room_code: string; is_locked: boolean; pin: string | null; created_at: string; created_by?: string | null; host_away?: boolean; acting_host?: string | null; timer?: unknown; }
 export interface GroupDetails { host_name: string; topic: string; subject: string; camera: string; vibe: string; seats: number; }
 export interface OpenRoom extends GroupDetails { id: string; host_id: string; seats_taken: number; closed: boolean; timer_mode: string | null; timer_ends_at: string | null; last_seen: string; away_until?: string | null; acting_name?: string | null; }
 export interface PlannedGroup extends GroupDetails { id: string; host_id: string; starts_at: string; going: number; }

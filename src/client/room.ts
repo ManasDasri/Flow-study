@@ -8,7 +8,7 @@ import { bindThemePicker } from './theme';
 import { initSocket, disconnectSocket, reloadTasks, getMyUserId, updateCameraState, updateMyUsername, sendReaction, sendHandRaise, sendRemoved, sendBye } from './modules/socket';
 import { initNotifications, pushNote, systemNotify } from './modules/notifications';
 import { initMedia, toggleAudio, toggleVideo, handleSignal, removePeer, callUser, hasPeer, peerNeedsCall, isPeerConnected, cleanupMedia, isVideoActive, hasAudioTrack, setHideIp, whenRelayUnavailable } from './modules/rtc';
-import { initTimer, toggleTimer, resetTimer, setMode, syncState, setTimerSettings, broadcastCurrentState, saveFocus } from './modules/timer';
+import { initTimer, toggleTimer, resetTimer, setMode, syncState, setTimerSettings, broadcastCurrentState, saveFocus, restoreTimer, autoAdvance } from './modules/timer';
 import { initTasks, addTask, toggleTask, deleteTask, assignTask, rerenderTasks, setSharedTasks } from './modules/tasks';
 import { initPresence, updatePresence, startFocusTracking, stopFocusTracking, formatFocusTime, setAway } from './modules/presence';
 import { initChat, handleIncomingMessage } from './modules/chat';
@@ -88,8 +88,13 @@ function setRoomBusy(busy: boolean, action = 'join') {
     joinBtn.textContent = busy && action === 'join' ? 'Joining…' : 'Join room';
     hostBtn.textContent = busy && action === 'host' ? 'Creating…' : document.querySelector<HTMLInputElement>('input[name="audience"]:checked')?.value === 'open' ? 'Open a study group' : 'Create a room';
 }
-function showLobbyError(message: string) {
+function showLobbyError(message: string, action?: { label: string; run: () => void }) {
     lobbyError.textContent = message;
+    if (action) {
+        const button = Object.assign(document.createElement('button'), { type: 'button', className: 'link-btn', textContent: action.label });
+        button.addEventListener('click', action.run);
+        lobbyError.append(' ', button);
+    }
     lobbyError.classList.remove('hidden');
 }
 function connectionStatus(status: string) {
@@ -218,6 +223,12 @@ async function joinRoom() {
     try {
         const { data: roomUuid, error } = await supabase.rpc('join_room', { p_room_code: roomCode, p_pin: pin });
         if (error || !roomUuid) {
+            // An ended room is not a connection problem: say what happened, and offer the way on.
+            if (error?.message?.includes('Room ended')) {
+                showLobbyError('This room was ended by its host.', { label: 'Start a new room', run: () => { lobbyError.classList.add('hidden'); roomCodeInput.value = ''; byId<HTMLButtonElement>('host-btn').focus(); byId<HTMLButtonElement>('host-btn').click(); } });
+                sessionStorage.removeItem('flow_last_room');
+                return;
+            }
             showLobbyError(!error ? 'No room matches that code and PIN. Check both and try again.'
                 : error.message?.includes('Too many attempts') ? 'Too many wrong codes. Wait ten minutes, then try again.'
                 : error.message?.includes('Incorrect PIN') ? 'This room needs a different PIN. Enter it above and try again.'
@@ -237,6 +248,8 @@ async function joinRoom() {
         await checkListed(); // and before anyone is called, now that the board's answer is in
         await syncHost('', false);
         if (isHost) adoptListing(); // back after stepping away: the listing is still ours
+        // The room's saved timer (sql/017), put back once the room is open. Older servers have none.
+        pendingTimer = (await supabase.from('rooms').select('timer').eq('room_code', roomCode).maybeSingle()).data?.timer ?? null;
         // A saved display name overrides the email-derived default.
         currentUsername = (await getMyProfile(user.id))?.display_name || user.email.split('@')[0];
         await enterRoom(roomUuid, roomCode);
@@ -437,6 +450,8 @@ async function enterRoom(roomId: string, roomCode: string) {
             notify(`The room is ${elapsed} min into a focus block. Settle in; your time counts from now.`);
         }
     });
+    restoreTimer(pendingTimer); // where the room's block really is, after a reload
+    pendingTimer = null;
     initTasks(roomId, [], (tasks, stats) => {
         const everyone = { [getMyUserId() || '']: { username: currentUsername }, ...partners };
         UI.renderTaskList(byId<HTMLElement>('room-task-list'), tasks, toggleTask, deleteTask, everyone, assignTask);
@@ -562,6 +577,7 @@ let away = false;
 let awaySince = 0;
 let toldLate = false;
 let lastTimer: TimerState | null = null;
+let pendingTimer: unknown = null;
 const focusRunning = () => !!lastTimer?.isRunning && lastTimer.mode === 'focus';
 const awayStatus = () => focusRunning() ? 'Stepped away' : 'Back for the next block';
 function updateAwayButton() {
@@ -919,7 +935,7 @@ function bindRoomControls() {
     on<HTMLButtonElement>('focus-mode-toggle', event => setToggle(event.currentTarget, document.body.classList.toggle('focus-active')));
     UI.UI.timerModes.forEach(button => button.addEventListener('click', () => setMode(button.dataset.mode as TimerMode)));
     const hideIpBox = byId<HTMLInputElement>('setting-hide-ip');
-    on('open-timer-settings-btn', () => { hideIpBox.checked = hidingIp(); });
+    on('open-timer-settings-btn', () => { hideIpBox.checked = hidingIp(); byId<HTMLInputElement>('setting-auto-advance').checked = autoAdvance(); });
     const notifyBox = byId<HTMLInputElement>('setting-notify');
     notifyBox.checked = localStorage.getItem('flow_notify') === '1';
     on('open-timer-settings-btn', () => openModal('timer-settings-modal'));
@@ -928,7 +944,7 @@ function bindRoomControls() {
         const inputs = ['setting-focus-duration', 'setting-short-break-duration', 'setting-long-break-duration'].map(id => byId<HTMLInputElement>(id));
         if (!inputs.every(input => input.reportValidity())) return;
         const [focus, shortBreak, longBreak] = inputs.map(input => Number(input.value) * 60);
-        setTimerSettings({ focus, shortBreak, longBreak });
+        setTimerSettings({ focus, shortBreak, longBreak }, true, byId<HTMLInputElement>('setting-auto-advance').checked);
         closeModal();
         // Ask for permission only when the user ticks the box, never on page load.
         let allowed = false;
