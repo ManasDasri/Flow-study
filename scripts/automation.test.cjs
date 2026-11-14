@@ -45,9 +45,11 @@ test('the pull request check wants a linked issue assigned to its author', () =>
 test('style looks only at added lines, and only for real problems', () => {
     const diff = ['diff --git a/src/a.ts b/src/a.ts', '--- a/src/a.ts', '+++ b/src/a.ts', '@@ -1,0 +10,4 @@',
         '+const ok = 1;', '+console.log(ok);   ', '+\tdebugger;', '+console.warn(ok);',
-        '+++ b/README.md', '@@ -1,0 +1,1 @@', '+A line break  '].join('\n');
+        '+++ b/README.md', '@@ -1,0 +1,1 @@', '+A line break  ',
+        '+++ b/scripts/tool.cjs', '@@ -1,0 +1,2 @@', '+console.log(\'scripts may print\');', '+const marker = /<<<<<<< text/;',
+        '+++ b/src/b.ts', '@@ -1,0 +1,1 @@', '+<<<<<<< HEAD'].join('\n');
     const lines = addedLines(diff);
     assert.deepEqual(lines.slice(0, 2).map(l => [l.file, l.line]), [['src/a.ts', 10], ['src/a.ts', 11]]);
     const found = problems(lines).map(p => `${p.line}:${p.message.split(' ')[0]}`);
-    assert.deepEqual(found, ['11:Trailing', '11:Leftover', '12:Indent', '12:Leftover'], 'console.warn and Markdown line breaks are fine');
+    assert.deepEqual(found, ['11:Trailing', '11:Leftover', '12:Indent', '12:Leftover', '1:Unresolved'], 'console.warn, Markdown line breaks, scripts printing, and a regex about markers are fine');
 });

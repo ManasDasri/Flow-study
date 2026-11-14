@@ -3,12 +3,14 @@
 // annotations on the exact lines.
 const { execFileSync } = require('node:child_process');
 
+// [pattern, message, which files] - app code is held to more than command-line scripts.
+const APP = file => /^(src\/|api\/|server\.js$)/.test(file);
 const RULES = [
-    [/[ \t]+$/, 'Trailing whitespace.'],
-    [/^\t/, 'Indent with spaces, not tabs.'],
-    [/\bconsole\.log\(/, 'Leftover console.log; use console.warn or console.error for real messages, or remove it.'],
-    [/^\s*debugger\b/, 'Leftover debugger statement.'],
-    [/<<<<<<<|>>>>>>>|^=======$/, 'Unresolved merge conflict marker.']
+    [/[ \t]+$/, 'Trailing whitespace.', () => true],
+    [/^\t/, 'Indent with spaces, not tabs.', () => true],
+    [/\bconsole\.log\(/, 'Leftover console.log; use console.warn or console.error for real messages, or remove it.', APP],
+    [/^\s*debugger\b/, 'Leftover debugger statement.', APP],
+    [/^(<{7}|>{7})( |$)|^={7}$/, 'Unresolved merge conflict marker.', () => true]
 ];
 const CHECKED = /\.(ts|js|cjs|mjs|astro|css|sql|json|yml|md|html)$/;
 
@@ -26,7 +28,7 @@ function addedLines(diff) {
 
 function problems(lines) {
     return lines.filter(l => CHECKED.test(l.file) && !l.file.startsWith('public/') && !l.file.endsWith('package-lock.json'))
-        .flatMap(l => RULES.filter(([pattern]) => pattern.test(l.text))
+        .flatMap(l => RULES.filter(([pattern, , applies]) => applies(l.file) && pattern.test(l.text))
             // Markdown uses two trailing spaces for a line break.
             .filter(([, message]) => !(l.file.endsWith('.md') && message.startsWith('Trailing')))
             .map(([, message]) => ({ ...l, message })));
