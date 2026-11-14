@@ -132,6 +132,24 @@ function normalizeReminder(args, { now = Date.now(), tz = 0 } = {}) {
     return null;
 }
 
+// Errors from visitors' browsers (src/client/report-errors.ts), written to the server logs
+// as one JSON line each, where Vercel's Logs page shows them. Open to everyone (errors
+// happen before sign-in too), so it is rate-limited, size-capped, and only keeps known
+// fields of known lengths; JSON.stringify also stops anyone forging extra log lines.
+const text = (value, max) => typeof value === 'string' ? value.slice(0, max) : '';
+app.post('/api/errors', limiter(30), (req, res) => {
+    const body = req.body;
+    if (!body || typeof body !== 'object' || typeof body.message !== 'string' || !body.message) return refuse(res, 400, 'Invalid report.');
+    const report = {
+        kind: body.kind === 'rejection' ? 'rejection' : 'error',
+        message: text(body.message, 300), source: text(body.source, 200),
+        line: Number.isInteger(body.line) ? body.line : 0, column: Number.isInteger(body.column) ? body.column : 0,
+        stack: text(body.stack, 2000), page: text(body.page, 100)
+    };
+    console.error('[client-error] ' + JSON.stringify(report));
+    res.status(204).end();
+});
+
 app.post('/api/ai', limiter(10), requireUser('ai'), async (req, res) => {
     try {
         const message = req.body?.message;

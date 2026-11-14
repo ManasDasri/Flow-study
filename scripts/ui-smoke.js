@@ -3,7 +3,7 @@
 async (page) => {
     const origin = new URL(page.url()).origin;
     const failures = [];
-    page.on('pageerror', error => failures.push(error.message));
+    page.on('pageerror', error => { if (!error.message.includes('Smoke test error')) failures.push(error.message); });
     const assert = (condition, message) => { if (!condition) throw new Error(message); };
     const visible = async selector => {
         await page.locator(selector).waitFor({ state: 'visible' });
@@ -32,6 +32,11 @@ async (page) => {
     }
     await page.setViewportSize({ width: 1440, height: 1000 });
     assert(await page.locator('.intro').isHidden(), 'Reduced motion must skip the opening animation');
+    // An error on the page is reported to /api/errors, without the address's query string.
+    const reported = page.waitForRequest(request => request.url().endsWith('/api/errors') && request.method() === 'POST');
+    await page.evaluate(() => setTimeout(() => { throw new Error('Smoke test error'); }));
+    const report = JSON.parse((await reported).postData());
+    assert(report.message.includes('Smoke test error') && report.kind === 'error' && !report.page.includes('?'), 'Browser errors are reported to Flow\'s own endpoint');
     // Trusted Types: a raw HTML string is refused by the browser itself, so a missed escape cannot become script.
     assert(await page.evaluate(() => { try { document.createElement('div').innerHTML = '<img src=x onerror=alert(1)>'; return false; } catch { return true; } }), 'The page must refuse raw HTML strings (Trusted Types)');
     assert(await page.evaluate(() => { try { document.createElement('script').src = '/elsewhere.js'; return false; } catch { return true; } }), 'Script URLs must go through a policy too');
