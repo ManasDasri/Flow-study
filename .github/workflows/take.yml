@@ -1,0 +1,36 @@
+name: Take an issue
+
+# "/take" on an issue assigns it, but only to someone who has already described their
+# approach in an earlier comment (rules: .github/scripts/take.cjs). "/drop" gives it back.
+on:
+  issue_comment:
+    types: [created]
+
+permissions:
+  issues: write
+
+jobs:
+  take:
+    # Issues only (not pull requests), and only comments that start with /take or /drop.
+    if: ${{ !github.event.issue.pull_request && (startsWith(github.event.comment.body, '/take') || startsWith(github.event.comment.body, '/drop')) }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          sparse-checkout: .github/scripts
+      - uses: actions/github-script@v9
+        with:
+          script: |
+            const { decide } = require('./.github/scripts/take.cjs');
+            const { issue, comment } = context.payload;
+            const commenter = comment.user.login;
+            const command = /^\s*\/drop/i.test(comment.body) ? 'drop' : 'take';
+            const maintainer = ['OWNER', 'MEMBER', 'COLLABORATOR'].includes(comment.author_association);
+            const all = await github.paginate(github.rest.issues.listComments, { ...context.repo, issue_number: issue.number, per_page: 100 });
+            const comments = all.filter(c => c.id !== comment.id && new Date(c.created_at) <= new Date(comment.created_at))
+              .map(c => ({ user: c.user.login, body: c.body || '' }));
+            const result = decide({ command, commenter, maintainer, issue, comments });
+            if (result.assign) await github.rest.issues.addAssignees({ ...context.repo, issue_number: issue.number, assignees: [result.assign] });
+            if (result.unassign) await github.rest.issues.removeAssignees({ ...context.repo, issue_number: issue.number, assignees: [result.unassign] });
+            if (result.reply) await github.rest.issues.createComment({ ...context.repo, issue_number: issue.number, body: result.reply });

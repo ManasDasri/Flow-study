@@ -32,6 +32,17 @@ jobs:
       - run: npm ci
       - run: npm test
 
+  style:
+    name: Style
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - run: node scripts/pr-style.cjs origin/${{ github.base_ref }}
+
   database:
     name: Database migrations
     runs-on: ubuntu-latest
