@@ -28,6 +28,8 @@
 .error-msg { color: var(--danger); }
 .success-msg { color: var(--ok); }
 .login-note { margin-top: clamp(10px, 2svh, 22px); color: var(--text-3); font-size: .78rem; line-height: 1.6; text-align: center; }
+/* Short screens: the button already says it; the whole card fits without scrolling. */
+@media (max-height: 700px) and (min-width: 761px) { .login-note { display: none; } }
 
 @media (max-width: 760px) {
     .login-page { display: block; height: auto; }

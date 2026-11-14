@@ -188,6 +188,11 @@ select.input {
 .segmented button:hover { color: var(--text); }
 .segmented button[aria-pressed="true"] { background: var(--text); color: var(--bg); }
 
+.social-signin { display: grid; gap: 8px; }
+.social-signin .btn-social { min-height: 44px; }
+.social-signin .divider { margin: 6px 0 2px; }
+.btn-social { display: inline-flex; align-items: center; justify-content: center; gap: 10px; }
+.btn-social svg { flex-shrink: 0; }
 .divider { display: flex; align-items: center; gap: 12px; margin: 22px 0; color: var(--text-3); font-size: .78rem; }
 .divider::before, .divider::after { content: ''; flex: 1; height: 1px; background: var(--line); }
 .inline-error { padding: 12px 14px; border-radius: var(--radius-sm); background: color-mix(in srgb, var(--danger) 12%, transparent); color: var(--danger); font-size: .84rem; }
