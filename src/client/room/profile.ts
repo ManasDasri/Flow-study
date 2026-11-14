@@ -1,0 +1,101 @@
+// Your profile: name, and focus stats with a seven-day chart (also used on Home).
+import type { ProfileStats } from '../types';
+import { byId, on } from '../dom';
+import { setMarkup } from '../modules/markup';
+import { notify, openModal, closeModal } from '../modules/feedback';
+import { formatFocusTime, updatePresence } from '../modules/presence';
+import { getStats as getProfileStats, saveDisplayName, withLiveFocus } from '../modules/profile';
+import { getMyUserId, updateMyUsername } from '../modules/socket';
+import * as UI from '../modules/ui';
+import { refreshBoard } from './hosting';
+import { here } from './state';
+
+// Seven days of focus as small bars, oldest first; today includes time still in progress.
+export function weekChart(stats: ProfileStats) {
+    const minutes = stats.weekSeconds.map((seconds, index) => index === 6 ? stats.todayMinutes : Math.floor(seconds / 60));
+    const peak = Math.max(...minutes, 1);
+    const days = minutes.map((value, index) => {
+        const date = new Date();
+        date.setDate(date.getDate() - (6 - index));
+        const day = date.toLocaleDateString(undefined, { weekday: 'short' });
+        return { day, value, tip: `${index === 6 ? 'Today' : day}: ${formatFocusTime(value)}` };
+    });
+    return `<div class="week" role="img" aria-label="Focus over the last seven days. ${days.map(d => d.tip).join(', ')}.">` +
+        days.map((d, index) => `<div class="week-day${index === 6 ? ' today' : ''}" data-tip="${d.tip}"><i style="height:${Math.round(d.value / peak * 58)}px"></i>${d.day.charAt(0)}</div>`).join('') + '</div>';
+}
+
+function renderProfileStats(stats: ProfileStats) {
+    const week = weekChart(stats);
+    const note = stats.liveMinutes ? `Includes ${stats.liveMinutes} live minute${stats.liveMinutes === 1 ? '' : 's'} from this visit.` : 'Your focus time, one session at a time.';
+    const rows = [
+        ['All-time focus', formatFocusTime(stats.totalMinutes)],
+        ['Current streak', `${stats.streak} day${stats.streak === 1 ? '' : 's'}`],
+        ['Completed sessions', stats.sessionsCompleted],
+        ['Completed tasks', stats.tasksCompleted]
+    ];
+    const markup = `<div class="focus-summary"><div><span>Focused today</span><strong id="profile-today-value">${formatFocusTime(stats.todayMinutes)}</strong><p>${note}</p></div>${week}</div>` +
+        `<dl class="profile-stat-list">${rows.map(([label, value]) => `<div><dt>${label}</dt><dd>${value}</dd></div>`).join('')}</dl>`;
+    const container = byId<HTMLElement>('profile-stats');
+    if (container.innerHTML !== markup) setMarkup(container, markup);
+}
+const profileOpen = () => !byId<HTMLElement>('profile-modal').classList.contains('hidden');
+
+async function openProfile() {
+    openModal('profile-modal');
+    byId<HTMLInputElement>('profile-display-name-input').value = here.username;
+    byId<HTMLElement>('profile-avatar').textContent = UI.initial(here.username);
+    const statsEl = byId<HTMLElement>('profile-stats');
+    cachedProfileStats = null;
+    statsEl.replaceChildren(Object.assign(document.createElement('p'), { className: 'panel-description', textContent: 'Loading…' }));
+    try {
+        cachedProfileStats = await getProfileStats(getMyUserId());
+        renderProfileStats(withLiveFocus(cachedProfileStats));
+    } catch {
+        statsEl.textContent = 'Stats are unavailable right now. Close and reopen your profile to retry.';
+    }
+}
+
+async function saveProfileName() {
+    const input = byId<HTMLInputElement>('profile-display-name-input');
+    const button = byId<HTMLButtonElement>('save-profile-name-btn');
+    const newName = input.value.trim();
+    if (!newName || newName.length > 40) { input.reportValidity(); return; }
+    button.textContent = 'Saving…';
+    button.disabled = true;
+    const saved = await saveDisplayName(getMyUserId(), newName);
+    button.textContent = 'Save Name';
+    button.disabled = false;
+    if (!saved) { notify('Your name could not be saved. Please try again.', 'error'); return; }
+
+    here.username = newName;
+    updateMyUsername(newName);
+    updatePresence({});
+    byId<HTMLElement>('local-dummy-avatar').textContent = byId<HTMLElement>('profile-avatar').textContent = UI.initial(newName);
+    notify('Display name saved.');
+    refreshBoard(); // a listed room shows the host's new name straight away
+}
+
+
+let cachedProfileStats: ProfileStats | null = null;
+
+// The presence card opens it; live focus time keeps its numbers current while open.
+export function bindProfile() {
+    const profileCard = byId<HTMLElement>('my-presence-card');
+    profileCard.addEventListener('click', openProfile);
+    profileCard.addEventListener('keydown', event => {
+        if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); openProfile(); }
+    });
+    on('close-profile-btn', closeModal);
+    on('save-profile-name-btn', saveProfileName);
+    document.addEventListener('focus-progress', () => {
+        if (cachedProfileStats && profileOpen()) renderProfileStats(withLiveFocus(cachedProfileStats));
+    });
+    document.addEventListener('session-completed', async () => {
+        cachedProfileStats = null;
+        if (!profileOpen()) return;
+        try {
+            cachedProfileStats = await getProfileStats(getMyUserId());
+            renderProfileStats(withLiveFocus(cachedProfileStats));
+        } catch { notify('Your focus summary could not be refreshed. Reopen it to retry.', 'error'); }
+    });
+}

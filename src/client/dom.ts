@@ -4,3 +4,7 @@ export function byId<T extends HTMLElement = HTMLElement>(id: string): T {
     if (!element) throw new Error('Missing Flow element: ' + id);
     return element as T;
 }
+
+// A click handler on a required element.
+export const on = <T extends HTMLElement = HTMLElement>(id: string, handler: (event: MouseEvent & { currentTarget: T }) => void) =>
+    byId<T>(id).addEventListener('click', handler as EventListener);

@@ -1,49 +1,40 @@
 // The room page: lobby (name, join, create) first, then the live room.
 import { reveal } from './motion';
 import { showLoader, hideLoader, leaveWithLoader, loaderText } from './loader';
-import { setMarkup } from './modules/markup';
-import { resolveHost, hostChangeNote, awayCopy, welcomeBack, type HostState } from './modules/host-state';
-import type { Participants, ProfileStats, TimerMode, TimerState } from './types';
-import { byId } from './dom';
+import type { Participants, TimerMode } from './types';
+import { byId, on } from './dom';
 import { bindThemePicker } from './theme';
-import { initSocket, disconnectSocket, reloadTasks, getMyUserId, updateCameraState, updateMyUsername, sendReaction, sendHandRaise, sendRemoved, sendBye } from './modules/socket';
+import { initSocket, disconnectSocket, reloadTasks, getMyUserId, updateCameraState, sendReaction, sendHandRaise, sendBye } from './modules/socket';
 import { initNotifications, pushNote, systemNotify } from './modules/notifications';
-import { initMedia, toggleAudio, toggleVideo, handleSignal, removePeer, callUser, hasPeer, peerNeedsCall, isPeerConnected, cleanupMedia, isVideoActive, hasAudioTrack, setHideIp, whenRelayUnavailable } from './modules/rtc';
+import { initMedia, toggleAudio, toggleVideo, handleSignal, removePeer, callUser, hasPeer, peerNeedsCall, isPeerConnected, cleanupMedia, isVideoActive, hasAudioTrack } from './modules/rtc';
 import { initTimer, toggleTimer, resetTimer, setMode, syncState, setTimerSettings, broadcastCurrentState, saveFocus, restoreTimer, autoAdvance } from './modules/timer';
 import { initTasks, addTask, toggleTask, deleteTask, assignTask, rerenderTasks, setSharedTasks } from './modules/tasks';
-import { initPresence, updatePresence, startFocusTracking, stopFocusTracking, formatFocusTime, setAway } from './modules/presence';
+import { initPresence, startFocusTracking, stopFocusTracking, formatFocusTime } from './modules/presence';
 import { initChat, handleIncomingMessage } from './modules/chat';
-import { getMyProfile, hasDisplayName, saveDisplayName, getStats as getProfileStats, withLiveFocus } from './modules/profile';
+import { getMyProfile, hasDisplayName, saveDisplayName } from './modules/profile';
 import * as UI from './modules/ui';
 import supabase from './modules/supabase';
 import { initAudio, loadRoomAudio } from './modules/audio';
 import { notify, openModal, closeModal, initDialogs } from './modules/feedback';
 import { loadUser, currentUser, markSignedOut } from './modules/session';
-import { ensureTile, attachStream, removeTile, markLeft, setCameraOff, showReaction, setHandRaised, setHost, setAwayTile } from './modules/stage';
+import { ensureTile, attachStream, removeTile, markLeft, setCameraOff, showReaction, setHandRaised } from './modules/stage';
 import { playSound, stopSound, setSoundVolume, isSound, type Sound } from './modules/soundscape';
 import { chime } from './modules/chime';
 import { initReminders, timerReached } from './modules/reminders';
-import { listRoom, refreshListing, unlistRoom, setClosed, cancelPlan, fetchOpenRooms, takeSeat, statusOf, hostedBy, watchBoard } from './modules/board';
-import { timerSnapshot } from './modules/timer';
+import { unlistRoom, cancelPlan } from './modules/board';
 import { getStats as getTaskStats } from './modules/tasks';
 import type { GroupDetails } from './types';
 import { initShortcuts } from './modules/shortcuts';
+import { here, partners, pendingLeaves, lastHeard, peopleHere } from './room/state';
+import { applyHideIp, checkListed, chooseHideIp, hidingIp, setFromBoard } from './room/hide-ip';
+import { awayTimer, isAway, setAwayState } from './room/away';
+import { adoptListing, bindHosting, boardForm, listOnBoard, prepareLeave, refreshBoardSoon, roomEnded, confirmRemoval, syncHost, updateLeaveButton } from './room/hosting';
+import { bindProfile } from './room/profile';
+import { showHome } from './room/home';
 
-let currentRoomId = '';
-let currentRoomCode = '';
-let currentPin = '';
-let listed = false; // this room is on the study-groups board, and we are its host
-let isHost = false; // we host this room, so we may remove people, hand it over, or end it
-let isActing = false; // the host stepped away and we host for now (sql/012): we keep the listing current
-let hostAway = false;
-let hostId = ''; // whoever hosts right now: the host, someone standing in, or nobody
-let enteredAt = 0;
-let currentUsername = '';
-let partners: Participants = {};
 let handRaised = false;
-let roomActionBusy = false;
-let leaving = false;
-let cachedProfileStats: ProfileStats | null = null;
+let toldLate = false;
+let pendingTimer: unknown = null; // the room's saved timer (sql/017), put back once the room is open
 
 const joinBtn = byId<HTMLButtonElement>('join-btn');
 const hostBtn = byId<HTMLButtonElement>('host-btn');
@@ -51,20 +42,16 @@ const lobbyError = byId<HTMLElement>('lobby-error');
 const roomCodeInput = byId<HTMLInputElement>('room-code-input');
 const pinInput = byId<HTMLInputElement>('room-pin-input');
 const appContainer = byId<HTMLElement>('app');
-const on = <T extends HTMLElement = HTMLElement>(id: string, handler: (event: MouseEvent & { currentTarget: T }) => void) =>
-    byId<T>(id).addEventListener('click', handler as EventListener);
 
 // A participant's realtime channel can drop and reconnect on its own (network
 // blips, provider-side churn); closed-to-resubscribed takes a few seconds.
 // Holding a leave past that window lets a rejoin cancel the teardown instead
 // of rebuilding the peer connection and video tile for someone who never left.
-const pendingLeaves: Record<string, ReturnType<typeof setTimeout>> = {};
 const LEAVE_GRACE_MS = 18000;
 // Someone who said goodbye, or has gone silent with a dead connection, is not coming back from a blip.
 const CERTAIN_LEAVE_MS = 4000;
 // Background tabs may only get to send a heartbeat about once a minute, so allow for that.
 const SILENCE_MS = 95000;
-const lastHeard: Record<string, number> = {};
 const cancelLeave = (userId: string) => {
     if (!(userId in pendingLeaves)) return;
     clearTimeout(pendingLeaves[userId]);
@@ -84,7 +71,7 @@ function signOutLocally(message?: string) {
     else window.location.replace('/login.html');
 }
 function setRoomBusy(busy: boolean, action = 'join') {
-    roomActionBusy = busy;
+    here.busy = busy;
     joinBtn.disabled = hostBtn.disabled = busy;
     joinBtn.textContent = busy && action === 'join' ? 'Joining…' : 'Join room';
     hostBtn.textContent = busy && action === 'host' ? 'Creating…' : document.querySelector<HTMLInputElement>('input[name="audience"]:checked')?.value === 'open' ? 'Open a study group' : 'Create a room';
@@ -114,11 +101,11 @@ function showLocalCamera(active: boolean) {
     const placeholder = byId<HTMLElement>('local-dummy-placeholder');
     placeholder.classList.toggle('hidden', active);
     placeholder.querySelector<HTMLElement>('.text')!.textContent = 'Camera off';
-    byId<HTMLElement>('local-dummy-avatar').textContent = UI.initial(currentUsername);
+    byId<HTMLElement>('local-dummy-avatar').textContent = UI.initial(here.username);
 }
 const inviteUrl = () => {
     const url = new URL('/room.html', location.origin);
-    url.searchParams.set('room', currentRoomCode);
+    url.searchParams.set('room', here.code);
     return url.toString();
 };
 
@@ -163,8 +150,8 @@ async function firstRunName(userId: string) {
 // Creates a room and walks into it. With `open`, the new room is also listed on
 // the study-groups board; such a room never has a PIN.
 async function createRoom(open?: Omit<GroupDetails, 'host_name'> & { planId?: string }) {
-    if (roomActionBusy) return;
-    fromBoard = !!open;
+    if (here.busy) return;
+    setFromBoard(!!open);
     const pin = open ? '' : byId<HTMLInputElement>('create-pin-input').value.trim();
     if (pin && !/^\d{4}$/.test(pin)) { showLobbyError('A PIN is 4 digits. Fix it, or leave it empty for no PIN.'); return; }
     setRoomBusy(true, 'host');
@@ -192,7 +179,7 @@ async function createRoom(open?: Omit<GroupDetails, 'host_name'> & { planId?: st
     roomCodeInput.value = createdCode;
     pinInput.value = pin;
     await joinRoom();
-    if (open && currentRoomCode === createdCode) {
+    if (open && here.code === createdCode) {
         // Fill the listing form, so what the board shows is exactly what "Update listing" would send.
         byId<HTMLInputElement>('board-topic').value = open.topic;
         for (const [id, value] of [['board-seats', String(open.seats)], ['board-subject', open.subject], ['board-camera', open.camera], ['board-vibe', open.vibe]]) {
@@ -204,14 +191,14 @@ async function createRoom(open?: Omit<GroupDetails, 'host_name'> & { planId?: st
     }
     // A new room starts with the focus length its creator chose during setup.
     const minutes = Number(localStorage.getItem('flow_focus_minutes'));
-    if (currentRoomCode === createdCode && minutes >= 10 && minutes <= 90 && minutes !== 25) {
+    if (here.code === createdCode && minutes >= 10 && minutes <= 90 && minutes !== 25) {
         setTimerSettings({ focus: minutes * 60, shortBreak: 5 * 60, longBreak: 15 * 60 });
         byId<HTMLInputElement>('setting-focus-duration').value = String(minutes);
     }
 }
 
 async function joinRoom() {
-    if (roomActionBusy) return;
+    if (here.busy) return;
     const roomCode = roomCodeInput.value.trim().toUpperCase();
     const pin = pinInput.value.trim();
     if (!/^[A-Z0-9]{6}$/.test(roomCode)) { showLobbyError('Enter the 6-character code shared by your study group.'); roomCodeInput.focus(); return; }
@@ -240,19 +227,19 @@ async function joinRoom() {
                 : 'Could not join this room. Check your connection and try again.');
             return;
         }
-        currentRoomId = roomUuid;
-        currentRoomCode = roomCode;
-        currentPin = pin;
-        enteredAt = Date.now();
+        here.id = roomUuid;
+        here.code = roomCode;
+        here.pin = pin;
+        here.enteredAt = Date.now();
         toldLate = false;
         applyHideIp(); // before any call is set up
         await checkListed(); // and before anyone is called, now that the board's answer is in
         await syncHost('', false);
-        if (isHost) adoptListing(); // back after stepping away: the listing is still ours
+        if (here.isHost) adoptListing(); // back after stepping away: the listing is still ours
         // The room's saved timer (sql/017), put back once the room is open. Older servers have none.
         pendingTimer = (await supabase.from('rooms').select('timer').eq('room_code', roomCode).maybeSingle()).data?.timer ?? null;
         // A saved display name overrides the email-derived default.
-        currentUsername = (await getMyProfile(user.id))?.display_name || user.email.split('@')[0];
+        here.username = (await getMyProfile(user.id))?.display_name || user.email.split('@')[0];
         await enterRoom(roomUuid, roomCode);
     } catch {
         cleanupMedia();
@@ -267,6 +254,13 @@ async function joinRoom() {
 }
 
 // ── Entering the room ──────────────────────────────────────────────────────
+
+// What the timer callback remembers between ticks (enterRoom).
+let lastPhase = '';
+let lastMode = '';
+let wasFocusing = false;
+// A long block is saved every five minutes as it runs, so a crash loses little.
+setInterval(() => { if (wasFocusing) saveFocus('focus-partial', true); }, 5 * 60 * 1000);
 
 async function enterRoom(roomId: string, roomCode: string) {
     closeModal();
@@ -289,7 +283,7 @@ async function enterRoom(roomId: string, roomCode: string) {
     await initMedia(byId<HTMLVideoElement>('local-video'));
     clearTimeout(asking);
     loaderText('Opening your room…');
-    if (leaving) return;
+    if (here.leaving) return;
     showLocalCamera(isVideoActive());
     // The camera can work while the microphone is busy or denied. With no
     // track to toggle, disable the control instead of leaving a dead button.
@@ -301,7 +295,7 @@ async function enterRoom(roomId: string, roomCode: string) {
     }
 
     // People inside their leave grace period are already gone as far as the room is concerned.
-    const countPeople = () => UI.updateRoomInfo(roomCode, Object.keys(partners).filter(id => !(id in pendingLeaves)).length + 1);
+    const countPeople = () => UI.updateRoomInfo(roomCode, peopleHere());
     // One path for every kind of departure: say so at once (chime, a note on the
     // tile, one fewer in the count), then clear the tile after `grace`.
     // `unverified` is for a goodbye message, which anyone in the room could send
@@ -354,7 +348,7 @@ async function enterRoom(roomId: string, roomCode: string) {
         broadcastCurrentState(); // bring the newcomer's timer in step
     };
 
-    initSocket(roomId, currentUsername, !isVideoActive(), {
+    initSocket(roomId, here.username, !isVideoActive(), {
         onConnectionStatus: connectionStatus,
         onRoomState: state => {
             const users = state.participants || {};
@@ -441,12 +435,10 @@ async function enterRoom(roomId: string, roomCode: string) {
         if (phase !== lastPhase) { lastPhase = phase; refreshBoardSoon(); }
         if (timerState.isRunning && timerState.mode === 'focus') startFocusTracking();
         else stopFocusTracking(timerState.isRunning ? 'On Break' : 'Online');
-        lastTimer = timerState;
-        if (away) setAway(awayStatus());
-        updateAwayButton();
+        awayTimer(timerState);
         // Arriving partway through a block: the sun is already where the room's is. Say so, once.
         const elapsed = Math.floor((timerState.duration - timerState.timeLeft) / 60);
-        if (!toldLate && timerState.isRunning && timerState.mode === 'focus' && elapsed >= 1 && Date.now() - enteredAt < 15000) {
+        if (!toldLate && timerState.isRunning && timerState.mode === 'focus' && elapsed >= 1 && Date.now() - here.enteredAt < 15000) {
             toldLate = true;
             notify(`The room is ${elapsed} min into a focus block. Settle in; your time counts from now.`);
         }
@@ -454,14 +446,14 @@ async function enterRoom(roomId: string, roomCode: string) {
     restoreTimer(pendingTimer); // where the room's block really is, after a reload
     pendingTimer = null;
     initTasks(roomId, [], (tasks, stats) => {
-        const everyone = { [getMyUserId() || '']: { username: currentUsername }, ...partners };
+        const everyone = { [getMyUserId() || '']: { username: here.username }, ...partners };
         UI.renderTaskList(byId<HTMLElement>('room-task-list'), tasks, toggleTask, deleteTask, everyone, assignTask);
         UI.updateTaskStatsUI(stats);
         if (tasks.length) check('task');
     });
     taskInput.disabled = addTaskBtn.disabled = false;
-    initPresence(roomId, presenceState => UI.updateMyPresenceUI(presenceState, currentUsername));
-    initChat(roomId, currentUsername, (sender, text) => {
+    initPresence(roomId, presenceState => UI.updateMyPresenceUI(presenceState, here.username));
+    initChat(roomId, here.username, (sender, text) => {
         // Only interrupt when the message would otherwise go unseen.
         const chatOpen = byId('chat-tab').classList.contains('active') && !document.body.classList.contains('focus-active') && !document.hidden;
         if (chatOpen) return;
@@ -500,395 +492,6 @@ function updatePartnerUI(userId: string) {
     setCameraOff(userId, !!partner.isDummyMedia);
 }
 
-// ── Study-groups board ─────────────────────────────────────────────────────
-
-const peopleHere = () => Object.keys(partners).filter(id => !(id in pendingLeaves)).length + 1;
-
-async function listOnBoard(details: Omit<GroupDetails, 'host_name'>) {
-    const status = byId<HTMLElement>('board-status');
-    const result = await listRoom({
-        ...details, host_id: getMyUserId(), room_id: currentRoomId, host_name: currentUsername.slice(0, 40),
-        seats_taken: peopleHere(), closed: byId<HTMLInputElement>('board-closed').checked, ...timerSnapshot()
-    });
-    listed = result === 'listed';
-    if (listed && !fromBoard) { fromBoard = true; applyHideIp(); } // now on the board: strangers may join
-    status.textContent = listed ? `Listed as “${details.topic}” with ${details.seats} seats. It comes off the board when you leave.`
-        : result === 'locked' ? 'This room can’t go on the board. Only the person who created it can list it, and not if it has a PIN.'
-        : 'The room could not be listed just now. Check your connection and try again.';
-    if (!listed) notify(status.textContent, 'error');
-    byId<HTMLElement>('board-unlist-btn').classList.toggle('hidden', !listed);
-    byId<HTMLElement>('board-closed-row').classList.toggle('hidden', !listed);
-    byId<HTMLButtonElement>('board-list-btn').textContent = listed ? 'Update listing' : 'List this room';
-    if (listed) notify('Your room is on the study-groups board.');
-    return listed;
-}
-const boardForm = () => ({
-    topic: byId<HTMLInputElement>('board-topic').value.trim(), seats: Number(byId<HTMLSelectElement>('board-seats').value),
-    subject: byId<HTMLSelectElement>('board-subject').value, camera: byId<HTMLSelectElement>('board-camera').value, vibe: byId<HTMLSelectElement>('board-vibe').value
-});
-// While listed, tell the board who is here and what the clock is doing. A
-// listing nobody refreshes disappears from the board within two minutes.
-// Timer changes arrive in bursts; one refresh shortly after the last is enough.
-let lastPhase = '';
-let lastMode = '';
-let wasFocusing = false;
-// A long block is saved every five minutes as it runs, so a crash loses little.
-setInterval(() => { if (wasFocusing) saveFocus('focus-partial', true); }, 5 * 60 * 1000);
-let boardSoon: ReturnType<typeof setTimeout> | undefined;
-const refreshBoardSoon = () => { clearTimeout(boardSoon); boardSoon = setTimeout(refreshBoard, 2000); };
-const refreshBoard = () => {
-    if (listed) refreshListing(getMyUserId(), { seats_taken: peopleHere(), host_name: currentUsername.slice(0, 40), ...timerSnapshot() }).then(undefined, () => {});
-    if (!currentRoomId || !hostAway) return;
-    // The host stepped away. Whoever stands in checks in for the room (their seat stays
-    // counted); if nobody does, or the stand-in has gone quiet, the database lets us take over.
-    if (isActing) {
-        const { timer_mode, timer_ends_at } = timerSnapshot();
-        supabase.rpc('room_checkin', { p_room: currentRoomId, p_seats_taken: peopleHere() + 1, p_timer_mode: timer_mode, p_timer_ends_at: timer_ends_at })
-            .then(({ data }) => { if (data === false) syncHost(); }, () => {});
-    } else if (!hostId || !partners[hostId]) claimHost();
-};
-setInterval(refreshBoard, 45000);
-
-// ── Hiding your IP address ─────────────────────────────────────────────────
-// Your own choice wins; otherwise it is on in groups from the public board, where
-// the others are usually strangers, and off in rooms you were invited to.
-let fromBoard = false;
-let hideIpOverride: boolean | null = (() => { try { const saved = localStorage.getItem('flow_hide_ip'); return saved === null ? null : saved === '1'; } catch { return null; } })();
-const hidingIp = () => hideIpOverride ?? fromBoard;
-whenRelayUnavailable(() => notify('Calls are waiting for the relay server, which hides your IP address. To connect directly instead, turn off “Hide my IP address” in timer settings.', 'error'));
-// The room's real status decides the default, however you arrived: a listed room is
-// full of strangers even if you came in by code. Changing it reconnects calls.
-function applyHideIp() {
-    const before = hiding;
-    hiding = hidingIp();
-    setHideIp(hiding);
-    if (before !== null && before !== hiding) Object.keys(partners).forEach(removePeer);
-}
-let hiding: boolean | null = null;
-async function checkListed() {
-    const { data } = await supabase.rpc('room_listed', { p_room: currentRoomId });
-    if (data === true && !fromBoard) { fromBoard = true; applyHideIp(); }
-}
-
-// ── Stepping away ──────────────────────────────────────────────────────────
-// A quiet personal state: your tile dims and your focus time pauses, while the
-// room's sun carries on untouched. Nobody is told, and nobody waits for you.
-
-let away = false;
-let awaySince = 0;
-let toldLate = false;
-let lastTimer: TimerState | null = null;
-let pendingTimer: unknown = null;
-const focusRunning = () => !!lastTimer?.isRunning && lastTimer.mode === 'focus';
-const awayStatus = () => awayCopy(true, focusRunning()).status;
-function updateAwayButton() {
-    const button = byId<HTMLButtonElement>('toggle-away');
-    const copy = awayCopy(away, focusRunning());
-    button.setAttribute('aria-pressed', String(away));
-    button.textContent = copy.button;
-    // Shown as a hint on hover and focus (room.css), and read out by screen readers.
-    button.dataset.tip = copy.hint;
-    button.setAttribute('aria-description', copy.hint);
-}
-function setAwayState(on: boolean) {
-    if (on === away) return;
-    away = on;
-    awaySince = Date.now();
-    setAway(on ? awayStatus() : null);
-    setAwayTile(getMyUserId(), on);
-    updateAwayButton();
-    const welcome = on ? null : welcomeBack(lastTimer);
-    if (welcome) notify(welcome);
-}
-// Coming back to the keyboard, or to the tab, ends it, after a moment so a stray key doesn't.
-const backOnReturn = (event: Event) => {
-    if (away && Date.now() - awaySince > 15000 && !(event.target instanceof Element && event.target.closest('#toggle-away'))) setAwayState(false);
-};
-document.addEventListener('keydown', backOnReturn);
-document.addEventListener('pointerdown', backOnReturn);
-document.addEventListener('visibilitychange', event => { if (!document.hidden) backOnReturn(event); });
-
-// ── Who hosts ──────────────────────────────────────────────────────────────
-
-// One place that decides who the host is, for the tiles, the remove buttons, and the leave dialog.
-// While the host is away, whoever stands in is shown as host, but cannot remove people,
-// hand the room on, or end it: those stay with the person who made it.
-function applyHost(state: HostState) {
-    ({ hostId, hostAway, isHost, isActing } = state);
-    document.body.classList.toggle('is-host', isHost);
-    setHost(hostId);
-}
-
-// Reads who hosts from the database, the only source trusted, and says what changed.
-// `name` comes with the room's message about the change, for the note.
-async function syncHost(name = '', announce = true) {
-    const room = () => supabase.from('rooms').select('created_by, host_away, acting_host').eq('room_code', currentRoomCode).maybeSingle();
-    let { data, error } = await room();
-    // Before sql/012 there is no stepping away; fall back to whoever created the room.
-    if (error) ({ data } = await supabase.from('rooms').select('created_by').eq('room_code', currentRoomCode).maybeSingle());
-    const before: HostState = { hostId, hostAway, isHost, isActing };
-    applyHost(resolveHost(data, currentUser()?.id));
-    if (hostAway && !hostId) claimHost(); // nobody is hosting: offer to
-    const change = announce ? hostChangeNote(before, { hostId, hostAway, isHost, isActing }, name || partners[hostId]?.username || 'Someone') : null;
-    if (!change) return;
-    pushNote(change.note);
-    if (change.toast) notify(change.toast);
-    if (change.becameHost) adoptListing();
-    if (!isHost && !isActing) listed = false; // the listing, if any, is the host's
-}
-
-// Only one person stands in at a time; the database decides who.
-async function claimHost() {
-    const { data } = await supabase.rpc('claim_host', { p_room: currentRoomId });
-    if (data === true && !isActing) await syncHost();
-}
-
-// If this room is on the board under our name, keep its listing checked in.
-async function adoptListing() {
-    const { data: ours } = await supabase.rpc('lists_room', { p_room: currentRoomId });
-    if (ours !== true) return;
-    const { data: listing } = await supabase.from('open_rooms').select('topic, subject, camera, vibe, seats, closed').eq('host_id', getMyUserId()).maybeSingle();
-    if (!listing) return;
-    listed = true;
-    byId<HTMLInputElement>('board-topic').value = listing.topic;
-    for (const [id, value] of [['board-seats', String(listing.seats)], ['board-subject', listing.subject], ['board-camera', listing.camera], ['board-vibe', listing.vibe]]) byId<HTMLSelectElement>(id).value = value;
-    byId<HTMLInputElement>('board-closed').checked = listing.closed;
-    byId<HTMLElement>('board-unlist-btn').classList.remove('hidden');
-    byId<HTMLElement>('board-closed-row').classList.remove('hidden');
-    byId<HTMLButtonElement>('board-list-btn').textContent = 'Update listing';
-    refreshBoard();
-}
-
-// The host ended the room. Leave quietly, with a calm note on Home.
-async function roomEnded() {
-    const { error } = await supabase.rpc('join_room', { p_room_code: currentRoomCode, p_pin: currentPin });
-    if (!error?.message?.includes('Room ended') || leaving) return;
-    leaving = true;
-    sessionStorage.setItem('flow_recap', 'The host ended the room. Your focus time from it is saved.');
-    sessionStorage.removeItem('flow_last_room');
-    await Promise.race([Promise.allSettled([saveFocus('focus-partial'), disconnectSocket()]), new Promise(resolve => setTimeout(resolve, 1500))]);
-    cleanupMedia();
-    stopSound();
-    leaveWithLoader('/room.html', 'The host ended the room', true);
-}
-
-// The leave dialog says plainly what happens to the room.
-const LEAVE_TEXT = 'Your camera and microphone will disconnect. You can rejoin with the room code; saved shared tasks stay in the room.';
-function prepareLeave() {
-    const others = Object.entries(partners).filter(([id]) => !(id in pendingLeaves));
-    byId<HTMLElement>('leave-text').textContent = isActing
-        ? 'You’re hosting for now. When you leave, the next person here takes over until the host is back.' : LEAVE_TEXT;
-    byId<HTMLElement>('leave-host').classList.toggle('hidden', !isHost);
-    if (!isHost) return updateLeaveButton();
-    const select = byId<HTMLSelectElement>('leave-new-host');
-    select.replaceChildren(...others.map(([id, partner]) => Object.assign(document.createElement('option'), { value: id, textContent: partner.username || 'Partner' })));
-    byId<HTMLElement>('leave-handover-row').classList.toggle('hidden', !others.length);
-    const board = listed ? ' and on the board' : '';
-    byId<HTMLElement>('leave-away-text').textContent = (others.length
-        ? `The room stays open${board}. Someone here hosts for now`
-        : `The room stays open${board}. The next person to join hosts for now`) + ', and the role comes back to you when you return.';
-    byId<HTMLElement>('leave-end-text').textContent = `Closes the room for good: ${others.length ? 'everyone here is sent Home, ' : ''}the code stops working${listed ? ', and it comes off the board' : ''}. Tasks and focus time are kept.`;
-    document.querySelector<HTMLInputElement>('input[name="leave-choice"][value="away"]')!.checked = true;
-    updateLeaveButton();
-}
-function updateLeaveButton() {
-    const choice = isHost ? document.querySelector<HTMLInputElement>('input[name="leave-choice"]:checked')?.value : 'leave';
-    byId<HTMLButtonElement>('confirm-leave-btn').textContent = choice === 'handover' ? 'Hand over and leave' : choice === 'end' ? 'End room for everyone' : choice === 'away' ? 'Step away' : 'Leave room';
-}
-
-// ── Host controls ──────────────────────────────────────────────────────────
-
-let removing = '';
-function askToRemove(userId: string) {
-    if (!isHost || !partners[userId]) return;
-    removing = userId;
-    byId<HTMLElement>('remove-title').textContent = `Remove ${partners[userId].username || 'this person'}?`;
-    openModal('remove-modal');
-}
-async function removeFromRoom() {
-    const userId = removing;
-    closeModal();
-    const { error } = await supabase.rpc('remove_participant', { p_room: currentRoomId, p_user: userId });
-    if (error) { notify('They could not be removed. Only the person who created the room can do this.', 'error'); return; }
-    // The database has already shut them out; this tells their browser to leave now.
-    sendRemoved(userId);
-    notify(`${partners[userId]?.username || 'They'} was removed from the room.`);
-    refreshBoard();
-}
-// Anyone could send a "removed" message, so it is only a hint. The database
-// decides: if it still lets us in, the message was not real and is ignored.
-async function confirmRemoval() {
-    const { error } = await supabase.rpc('join_room', { p_room_code: currentRoomCode, p_pin: currentPin });
-    if (!error?.message?.includes('Removed')) return;
-    leaving = true;
-    cleanupMedia();
-    stopSound();
-    sessionStorage.removeItem('flow_last_room');
-    sessionStorage.setItem('flow_notice', 'The host removed you from that room.');
-    await Promise.race([disconnectSocket(), new Promise(resolve => setTimeout(resolve, 1000))]);
-    leaveWithLoader('/room.html', 'Back to your space…', true);
-}
-
-// ── Lobby home ─────────────────────────────────────────────────────────────
-
-// Seven days of focus as small bars, oldest first; today includes time still in progress.
-function weekChart(stats: ProfileStats) {
-    const minutes = stats.weekSeconds.map((seconds, index) => index === 6 ? stats.todayMinutes : Math.floor(seconds / 60));
-    const peak = Math.max(...minutes, 1);
-    const days = minutes.map((value, index) => {
-        const date = new Date();
-        date.setDate(date.getDate() - (6 - index));
-        const day = date.toLocaleDateString(undefined, { weekday: 'short' });
-        return { day, value, tip: `${index === 6 ? 'Today' : day}: ${formatFocusTime(value)}` };
-    });
-    return `<div class="week" role="img" aria-label="Focus over the last seven days. ${days.map(d => d.tip).join(', ')}.">` +
-        days.map((d, index) => `<div class="week-day${index === 6 ? ' today' : ''}" data-tip="${d.tip}"><i style="height:${Math.round(d.value / peak * 58)}px"></i>${d.day.charAt(0)}</div>`).join('') + '</div>';
-}
-
-// Home: who you are and how your week went on the left; groups open right now on the right.
-async function showHome(user: { id: string; email: string }) {
-    const recap = sessionStorage.getItem('flow_recap');
-    sessionStorage.removeItem('flow_recap');
-    if (recap) byId<HTMLElement>('lobby-recap').textContent = recap;
-    const notice = sessionStorage.getItem('flow_notice');
-    sessionStorage.removeItem('flow_notice');
-    if (notice) showLobbyError(notice);
-
-    const setName = (name: string) => {
-        byId<HTMLElement>('join-title').textContent = `Hi, ${name}.`;
-        byId<HTMLElement>('home-avatar').textContent = UI.initial(name);
-        byId<HTMLInputElement>('home-name-input').value = name;
-    };
-    setName(user.email.split('@')[0]);
-    getMyProfile(user.id).then(profile => { if (profile?.display_name) setName(profile.display_name); });
-    const nameForm = byId<HTMLFormElement>('home-name-form');
-    on('home-edit-name', () => { nameForm.classList.toggle('hidden'); byId<HTMLInputElement>('home-name-input').select(); });
-    nameForm.addEventListener('submit', async event => {
-        event.preventDefault();
-        const name = byId<HTMLInputElement>('home-name-input').value.trim();
-        if (!name) return;
-        if (!await saveDisplayName(user.id, name)) { showLobbyError('Your name could not be saved. Check your connection and try again.'); return; }
-        setName(name);
-        nameForm.classList.add('hidden');
-    });
-
-    getProfileStats(user.id).then(stats => {
-        // Numbers and locale weekday names only; nothing here comes from another user.
-        setMarkup(byId<HTMLElement>('home-stats'),
-            `<div class="home-today"><div><span>Focused today</span><strong>${formatFocusTime(stats.todayMinutes)}</strong></div>${weekChart(stats)}</div>` +
-            `<dl class="home-figures"><div><dt>Streak</dt><dd>${stats.streak} day${stats.streak === 1 ? '' : 's'}</dd></div><div><dt>All time</dt><dd>${formatFocusTime(stats.totalMinutes)}</dd></div><div><dt>Sessions</dt><dd>${stats.sessionsCompleted}</dd></div></dl>`);
-    }).catch(() => {});
-
-    // Open groups on Home stay current: the board's ping refreshes them within a second.
-    const homeGroups = () => fetchOpenRooms().then(rooms => {
-        const free = rooms.filter(room => !room.closed && room.seats_taken < room.seats && (room.host_id !== user.id || !!room.away_until));
-        byId<HTMLElement>('lobby-board').replaceChildren(Object.assign(document.createElement('a'), {
-            href: '/groups.html', textContent: free.length ? `${free.length} group${free.length === 1 ? ' has' : 's have'} a free seat right now` : 'No group is open this minute. See what’s planned'
-        }), '.');
-        byId<HTMLElement>('home-groups').replaceChildren(...free.slice(0, 3).map(room => {
-            const item = document.createElement('li');
-            const text = document.createElement('div');
-            text.append(Object.assign(document.createElement('strong'), { textContent: room.topic }), Object.assign(document.createElement('span'), { textContent: `${room.host_id === user.id ? 'Your room' : hostedBy(room)}, ${statusOf(room).toLowerCase()}` }));
-            const sit = Object.assign(document.createElement('button'), { className: 'btn btn-primary', type: 'button', textContent: room.host_id === user.id ? 'Return' : 'Join' });
-            sit.setAttribute('aria-label', `Take a seat in ${room.topic}`);
-            sit.addEventListener('click', async () => {
-                if (roomActionBusy) return;
-                sit.disabled = true;
-                fromBoard = true;
-                const seat = await takeSeat(room.id);
-                if ('code' in seat) { roomCodeInput.value = seat.code; pinInput.value = ''; await joinRoom(); }
-                else { showLobbyError(seat.reason); sit.disabled = false; }
-            });
-            item.append(text, sit);
-            return item;
-        }));
-    }).catch(() => {});
-    homeGroups();
-    watchBoard(() => { if (!appContainer.classList.contains('hidden')) return; homeGroups(); });
-
-    // An open group's details, summed up on one line; the panel that edits them sits over the card.
-    const details = byId<HTMLDetailsElement>('create-details');
-    const optionText = (id: string) => byId<HTMLSelectElement>(id).selectedOptions[0]?.textContent ?? '';
-    const summarise = () => { const line = byId<HTMLElement>('create-summary'); line.title = line.textContent = `${optionText('create-subject')} · ${optionText('create-seats')} seats · Cameras ${optionText('create-camera').toLowerCase()} · ${optionText('create-vibe')}`; };
-    ['create-subject', 'create-seats', 'create-camera', 'create-vibe'].forEach(id => byId(id).addEventListener('change', summarise));
-    summarise();
-    on('create-details-done', () => { details.open = false; details.querySelector('summary')!.focus(); });
-    details.addEventListener('keydown', event => { if (event.key === 'Escape' && details.open) { event.stopPropagation(); details.open = false; details.querySelector('summary')!.focus(); } });
-    // These small menus close on a click anywhere else, or Escape, like the bell does.
-    const menus = () => document.querySelectorAll<HTMLDetailsElement>('.reactions-menu[open], #create-details[open]');
-    document.addEventListener('click', event => {
-        const target = event.target as Node;
-        if (target.isConnected) menus().forEach(menu => { if (!menu.contains(target)) menu.open = false; });
-    });
-    document.addEventListener('keydown', event => { if (event.key === 'Escape') menus().forEach(menu => { menu.open = false; }); });
-    // "Start a room": the audience choice swaps between a PIN and a board topic.
-    const audience = () => (document.querySelector<HTMLInputElement>('input[name="audience"]:checked')!).value;
-    document.querySelectorAll('input[name="audience"]').forEach(radio => radio.addEventListener('change', () => {
-        byId('create-private').classList.toggle('hidden', audience() === 'open');
-        byId('create-open').classList.toggle('hidden', audience() !== 'open');
-        hostBtn.textContent = audience() === 'open' ? 'Open a study group' : 'Create a room';
-    }));
-    on('host-btn', () => {
-        if (audience() !== 'open') return createRoom();
-        const topic = byId<HTMLInputElement>('create-topic').value.trim();
-        if (topic.length < 3) { showLobbyError('Say what you’re studying, so people know what the group is for.'); byId('create-topic').focus(); return; }
-        createRoom({ topic, subject: byId<HTMLSelectElement>('create-subject').value, seats: Number(byId<HTMLSelectElement>('create-seats').value), camera: byId<HTMLSelectElement>('create-camera').value, vibe: byId<HTMLSelectElement>('create-vibe').value });
-    });
-}
-
-// ── Profile ────────────────────────────────────────────────────────────────
-
-function renderProfileStats(stats: ProfileStats) {
-    const week = weekChart(stats);
-    const note = stats.liveMinutes ? `Includes ${stats.liveMinutes} live minute${stats.liveMinutes === 1 ? '' : 's'} from this visit.` : 'Your focus time, one session at a time.';
-    const rows = [
-        ['All-time focus', formatFocusTime(stats.totalMinutes)],
-        ['Current streak', `${stats.streak} day${stats.streak === 1 ? '' : 's'}`],
-        ['Completed sessions', stats.sessionsCompleted],
-        ['Completed tasks', stats.tasksCompleted]
-    ];
-    const markup = `<div class="focus-summary"><div><span>Focused today</span><strong id="profile-today-value">${formatFocusTime(stats.todayMinutes)}</strong><p>${note}</p></div>${week}</div>` +
-        `<dl class="profile-stat-list">${rows.map(([label, value]) => `<div><dt>${label}</dt><dd>${value}</dd></div>`).join('')}</dl>`;
-    const container = byId<HTMLElement>('profile-stats');
-    if (container.innerHTML !== markup) setMarkup(container, markup);
-}
-const profileOpen = () => !byId<HTMLElement>('profile-modal').classList.contains('hidden');
-
-async function openProfile() {
-    openModal('profile-modal');
-    byId<HTMLInputElement>('profile-display-name-input').value = currentUsername;
-    byId<HTMLElement>('profile-avatar').textContent = UI.initial(currentUsername);
-    const statsEl = byId<HTMLElement>('profile-stats');
-    cachedProfileStats = null;
-    statsEl.replaceChildren(Object.assign(document.createElement('p'), { className: 'panel-description', textContent: 'Loading…' }));
-    try {
-        cachedProfileStats = await getProfileStats(getMyUserId());
-        renderProfileStats(withLiveFocus(cachedProfileStats));
-    } catch {
-        statsEl.textContent = 'Stats are unavailable right now. Close and reopen your profile to retry.';
-    }
-}
-
-async function saveProfileName() {
-    const input = byId<HTMLInputElement>('profile-display-name-input');
-    const button = byId<HTMLButtonElement>('save-profile-name-btn');
-    const newName = input.value.trim();
-    if (!newName || newName.length > 40) { input.reportValidity(); return; }
-    button.textContent = 'Saving…';
-    button.disabled = true;
-    const saved = await saveDisplayName(getMyUserId(), newName);
-    button.textContent = 'Save Name';
-    button.disabled = false;
-    if (!saved) { notify('Your name could not be saved. Please try again.', 'error'); return; }
-
-    currentUsername = newName;
-    updateMyUsername(newName);
-    updatePresence({});
-    byId<HTMLElement>('local-dummy-avatar').textContent = byId<HTMLElement>('profile-avatar').textContent = UI.initial(newName);
-    notify('Display name saved.');
-    refreshBoard(); // a listed room shows the host's new name straight away
-}
-
 // ── Wiring ─────────────────────────────────────────────────────────────────
 
 function bindRoomControls() {
@@ -907,7 +510,7 @@ function bindRoomControls() {
         sendReaction(emoji);
         showReaction(getMyUserId(), emoji); // broadcasts don't echo to the sender
     }));
-    on('toggle-away', () => setAwayState(!away));
+    on('toggle-away', () => setAwayState(!isAway()));
     on('time-visibility', () => UI.setTimeHidden(!UI.timeHidden()));
     on<HTMLButtonElement>('toggle-hand', event => {
         handRaised = !handRaised;
@@ -943,32 +546,12 @@ function bindRoomControls() {
         localStorage.setItem('flow_notify', allowed ? '1' : '0');
         // A changed choice applies at once: calls are set up again with the new route.
         if (hideIpBox.checked !== hidingIp()) {
-            try { localStorage.setItem('flow_hide_ip', hideIpBox.checked ? '1' : '0'); } catch { /* Private mode: this visit only. */ }
-            hideIpOverride = hideIpBox.checked;
-            applyHideIp(); // the three-second check calls everyone back
+            chooseHideIp(hideIpBox.checked);
             notify(hideIpBox.checked ? 'Your IP address is hidden. Reconnecting calls through the relay…' : 'Calls connect directly again. Reconnecting…');
         }
     });
 
-    // Profile
-    const profileCard = byId<HTMLElement>('my-presence-card');
-    profileCard.addEventListener('click', openProfile);
-    profileCard.addEventListener('keydown', event => {
-        if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); openProfile(); }
-    });
-    on('close-profile-btn', closeModal);
-    on('save-profile-name-btn', saveProfileName);
-    document.addEventListener('focus-progress', () => {
-        if (cachedProfileStats && profileOpen()) renderProfileStats(withLiveFocus(cachedProfileStats));
-    });
-    document.addEventListener('session-completed', async () => {
-        cachedProfileStats = null;
-        if (!profileOpen()) return;
-        try {
-            cachedProfileStats = await getProfileStats(getMyUserId());
-            renderProfileStats(withLiveFocus(cachedProfileStats));
-        } catch { notify('Your focus summary could not be refreshed. Reopen it to retry.', 'error'); }
-    });
+    bindProfile();
 
     // Tasks
     const taskInput = byId<HTMLInputElement>('new-task-input');
@@ -994,7 +577,7 @@ function bindRoomControls() {
     const inviteInput = byId<HTMLInputElement>('invite-link-input');
     on('share-link-btn', () => {
         inviteInput.value = inviteUrl();
-        byId<HTMLElement>('invite-code-text').textContent = currentRoomCode;
+        byId<HTMLElement>('invite-code-text').textContent = here.code;
         openModal('invite-modal');
         check('invite');
         requestAnimationFrame(() => inviteInput.select());
@@ -1002,10 +585,10 @@ function bindRoomControls() {
     on('invite-empty-btn', () => byId<HTMLButtonElement>('share-link-btn').click());
     on('header-room-code', async () => {
         try {
-            await navigator.clipboard.writeText(currentRoomCode);
+            await navigator.clipboard.writeText(here.code);
             notify('Room code copied.');
         } catch {
-            notify(`Copying was blocked. The room code is ${currentRoomCode}.`, 'error');
+            notify(`Copying was blocked. The room code is ${here.code}.`, 'error');
         }
     });
     on('copy-invite-btn', async () => {
@@ -1018,32 +601,7 @@ function bindRoomControls() {
         }
     });
     on('close-invite-btn', closeModal);
-    byId<HTMLFormElement>('board-form').addEventListener('submit', async event => {
-        event.preventDefault();
-        const button = byId<HTMLButtonElement>('board-list-btn');
-        button.disabled = true;
-        try { await listOnBoard(boardForm()); }
-        finally { button.disabled = false; }
-    });
-    on('board-unlist-btn', async () => {
-        await unlistRoom(getMyUserId());
-        listed = false;
-        byId<HTMLElement>('board-unlist-btn').classList.add('hidden');
-        byId<HTMLElement>('board-closed-row').classList.add('hidden');
-        byId<HTMLButtonElement>('board-list-btn').textContent = 'List this room';
-        byId<HTMLElement>('board-status').textContent = 'Removed from the board. People already here stay.';
-    });
-    const closedBox = byId<HTMLInputElement>('board-closed');
-    closedBox.addEventListener('change', async () => {
-        const { error } = await setClosed(getMyUserId(), closedBox.checked);
-        if (error) { closedBox.checked = !closedBox.checked; notify('That could not be changed. Try again.', 'error'); return; }
-        notify(closedBox.checked ? 'New people can no longer join.' : 'Your room is taking new people again.');
-    });
-
-    // Host controls
-    document.addEventListener('flow-remove', event => askToRemove((event as CustomEvent<string>).detail));
-    on('cancel-remove-btn', closeModal);
-    on('confirm-remove-btn', removeFromRoom);
+    bindHosting();
 
     // Soundscape
     const soundButtons = document.querySelectorAll<HTMLButtonElement>('[data-sound]');
@@ -1093,37 +651,37 @@ function bindRoomControls() {
     document.querySelectorAll('input[name="leave-choice"]').forEach(radio => radio.addEventListener('change', updateLeaveButton));
     on('cancel-leave-btn', closeModal);
     on<HTMLButtonElement>('confirm-leave-btn', async event => {
-        if (leaving) return;
+        if (here.leaving) return;
         const button = event.currentTarget;
         // As host: hand the room on, or end it, before going. If that fails, stay.
-        const choice = isHost ? document.querySelector<HTMLInputElement>('input[name="leave-choice"]:checked')?.value : 'leave';
+        const choice = here.isHost ? document.querySelector<HTMLInputElement>('input[name="leave-choice"]:checked')?.value : 'leave';
         let ended = false;
         if (choice === 'handover' || choice === 'end' || choice === 'away') {
             button.disabled = true;
             const newHost = byId<HTMLSelectElement>('leave-new-host').value;
-            const { error } = choice === 'handover' ? await supabase.rpc('transfer_host', { p_room: currentRoomId, p_user: newHost })
-                : choice === 'away' ? await supabase.rpc('step_away', { p_room: currentRoomId })
-                : await supabase.rpc('end_room', { p_room: currentRoomId });
+            const { error } = choice === 'handover' ? await supabase.rpc('transfer_host', { p_room: here.id, p_user: newHost })
+                : choice === 'away' ? await supabase.rpc('step_away', { p_room: here.id })
+                : await supabase.rpc('end_room', { p_room: here.id });
             button.disabled = false;
             // Before sql/012 there is no stepping away: just leave, as hosts always could.
             const plainLeave = choice === 'away' && error?.code === 'PGRST202';
             if (error && !plainLeave) { notify(choice === 'handover' ? 'The room could not be handed over. They may have just left; try again.' : choice === 'away' ? 'The room could not be kept open. Try again, or end it.' : 'The room could not be ended. Try again.', 'error'); return; }
-            if (choice !== 'end' && !plainLeave) listed = false; // the listing stays up: theirs now, or kept for our return
+            if (choice !== 'end' && !plainLeave) here.listed = false; // the listing stays up: theirs now, or kept for our return
             ended = choice === 'end';
         }
-        leaving = true;
+        here.leaving = true;
         button.disabled = true;
         sendBye(); // tell the room now; presence may take a while, or never say
         showLoader('Leaving the room…');
         cleanupMedia();
         stopSound();
         // A one-line summary, shown in the lobby we are about to return to.
-        const minutes = Math.max(1, Math.round((Date.now() - enteredAt) / 60000));
+        const minutes = Math.max(1, Math.round((Date.now() - here.enteredAt) / 60000));
         const tasks = getTaskStats();
-        sessionStorage.setItem('flow_recap', `Last session: ${formatFocusTime(minutes)} in room ${currentRoomCode}` + (tasks.total ? `, ${tasks.completed} of ${tasks.total} tasks done.` : '.'));
+        sessionStorage.setItem('flow_recap', `Last session: ${formatFocusTime(minutes)} in room ${here.code}` + (tasks.total ? `, ${tasks.completed} of ${tasks.total} tasks done.` : '.'));
         if (ended) sessionStorage.removeItem('flow_last_room'); // its code no longer works
-        const goodbye = [saveFocus('focus-partial'), disconnectSocket(), listed ? unlistRoom(getMyUserId()) : null,
-            isActing ? supabase.rpc('release_host', { p_room: currentRoomId }) : null]; // standing in: the next person takes over
+        const goodbye = [saveFocus('focus-partial'), disconnectSocket(), here.listed ? unlistRoom(getMyUserId()) : null,
+            here.isActing ? supabase.rpc('release_host', { p_room: here.id }) : null]; // standing in: the next person takes over
         try { await Promise.race([Promise.allSettled(goodbye), new Promise(resolve => setTimeout(resolve, 1500))]); }
         finally { leaveWithLoader('/room.html', 'Back to your space…', true); }
     });
@@ -1188,15 +746,15 @@ async function start() {
         saveFocus('focus-partial'); // sent with keepalive, so it outlives the closing tab
         sendBye();
         // Closing the tab ends the listing now, rather than when it expires two minutes later.
-        if (listed) unlistRoom(getMyUserId()).then(undefined, () => {});
-        if (isActing) supabase.rpc('release_host', { p_room: currentRoomId }).then(undefined, () => {});
+        if (here.listed) unlistRoom(getMyUserId()).then(undefined, () => {});
+        if (here.isActing) supabase.rpc('release_host', { p_room: here.id }).then(undefined, () => {});
         cleanupMedia();
         disconnectSocket();
     });
 
     await firstRunName(user.id);
     setRoomBusy(false);
-    showHome(user);
+    showHome(user, { join: code => { roomCodeInput.value = code; pinInput.value = ''; return joinRoom(); }, create: createRoom, showError: showLobbyError });
 
     // Arriving from the study-groups board: either to host a new group, or with a seat already taken.
     // Both are one-time notes left by the board page in this tab. A URL alone never joins a room:
@@ -1209,7 +767,7 @@ async function start() {
         const plan = JSON.parse(hosting);
         if (typeof plan.topic === 'string') await createRoom({ topic: plan.topic, subject: plan.subject, camera: plan.camera, vibe: plan.vibe, seats: Math.min(6, Math.max(2, Number(plan.seats) || 4)), planId: typeof plan.planId === 'string' ? plan.planId : undefined });
     } else if (seat && /^[A-Z0-9]{6}$/.test(seat)) {
-        fromBoard = true;
+        setFromBoard(true);
         roomCodeInput.value = seat;
         await joinRoom();
     }
