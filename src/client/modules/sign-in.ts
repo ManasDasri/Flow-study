@@ -1,4 +1,4 @@
-// The ways in that leave Flow and come back: GitHub, Google, or Apple (Supabase OAuth),
+// The ways in that leave Flow and come back: GitHub or Google (Supabase OAuth),
 // which return to /login.html, and the verification email, whose link opens
 // /verify.html. Both finish through completeSignIn(): a new account gets the name
 // typed during setup, and an invite carries on to its room.
@@ -7,8 +7,8 @@ import supabase from './supabase';
 import { markSignedIn } from './session';
 import { saveDisplayName } from './profile';
 
-type Provider = 'github' | 'google' | 'apple';
-const KNOWN: readonly string[] = ['github', 'google', 'apple'];
+type Provider = 'github' | 'google';
+const KNOWN: readonly string[] = ['github', 'google'];
 // Only the providers switched on for this Supabase project (Authentication → Sign In / Providers).
 export const PROVIDERS = ((defaults as { oauthProviders?: string[] }).oauthProviders ?? []).filter((p): p is Provider => KNOWN.includes(p));
 
