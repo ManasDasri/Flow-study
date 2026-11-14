@@ -30,6 +30,12 @@ async function main() {
     check(enabled.includes('email'), 'Email sign-in is switched on');
     if (!settings.mailer_autoconfirm) check((await get(SITE + '/verify.html')).ok, 'Email confirmation is on, and its page exists');
 
+    // The captcha: on in Supabase only once the site has its key, or every sign-in is refused.
+    // An empty email sends nothing; with the captcha on, it's refused for the missing token first.
+    const recover = await (await get(`${config.url}/auth/v1/recover`, { method: 'POST', headers: { ...headers, 'Content-Type': 'application/json' }, body: '{"email":""}' })).json();
+    if (recover.error_code === 'captcha_failed') check(!!config.captchaSiteKey, 'The captcha is on in Supabase, and the site has its key');
+    if (config.captchaSiteKey) check(csp.includes('https://challenges.cloudflare.com'), 'The Content-Security-Policy lets the captcha load');
+
     // The database: the public board is readable, everything else is closed to signed-out visitors.
     const read = (table, columns = '*') => get(`${config.url}/rest/v1/${table}?select=${columns}&limit=1`, { headers });
     // The same columns the board asks for (src/client/modules/board.ts); a missing grant or migration fails here.
