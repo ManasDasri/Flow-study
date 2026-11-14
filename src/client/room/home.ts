@@ -35,6 +35,8 @@ export async function showHome(user: { id: string; email: string }, actions: Hom
         byId<HTMLInputElement>('home-name-input').value = name;
     };
     setName(user.email.split('@')[0]);
+    // A new account names itself on the welcome step, after Home is already drawn.
+    document.addEventListener('flow-name', event => setName((event as CustomEvent<string>).detail));
     getMyProfile(user.id).then(profile => { if (profile?.display_name) setName(profile.display_name); });
     const nameForm = byId<HTMLFormElement>('home-name-form');
     on('home-edit-name', () => { nameForm.classList.toggle('hidden'); byId<HTMLInputElement>('home-name-input').select(); });

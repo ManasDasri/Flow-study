@@ -141,6 +141,8 @@ async function firstRunName(userId: string) {
         }
         localStorage.setItem('flow_named', '1');
         localStorage.removeItem('flow_pending_name');
+        // Home was drawn before there was a name to show; this updates it.
+        document.dispatchEvent(new CustomEvent('flow-name', { detail: name }));
         step.classList.add('hidden');
         byId<HTMLElement>('lobby-step').classList.remove('hidden');
         roomCodeInput.focus();
