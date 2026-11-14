@@ -112,11 +112,23 @@ window.supabase = { createClient() {
                 },
                 resend: async ({ email }) => { fixture.calls.push({ action: 'resend', email }); return { data: {}, error: null }; },
                 // The link in the email: a good token signs the person in, a used or old one doesn't.
-                verifyOtp: async ({ token_hash }) => {
-                    fixture.calls.push({ action: 'verify', token_hash });
+                verifyOtp: async ({ token_hash, type }) => {
+                    fixture.calls.push({ action: 'verify', token_hash, type });
                     if (token_hash !== 'good-token') return { data: { user: null, session: null }, error: { message: 'Email link is invalid or has expired' } };
                     localStorage.setItem('fixture-session', '1');
                     return { data: { user, session: {} }, error: null };
+                },
+                // Forgot password. `resetError` and `updateError` stand in for Supabase's refusals.
+                resetPasswordForEmail: async (email, options) => {
+                    fixture.calls.push({ action: 'reset', email, redirectTo: options?.redirectTo });
+                    if (fixture.authFailure) throw new Error('Network unavailable');
+                    return { data: {}, error: fixture.resetError ? { message: fixture.resetError } : null };
+                },
+                updateUser: async (attributes) => {
+                    fixture.calls.push({ action: 'update-user', password: attributes.password });
+                    if (fixture.updateError) return { data: { user: null }, error: { message: fixture.updateError } };
+                    if (!localStorage.getItem('fixture-session')) return { data: { user: null }, error: { message: 'Auth session missing!' } };
+                    return { data: { user }, error: null };
                 },
                 // GitHub and Google: record where the provider would send the browser back to.
                 signInWithOAuth: async ({ provider, options }) => {

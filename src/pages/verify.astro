@@ -2,7 +2,7 @@
 import Page from '../layouts/Page.astro';
 import '../styles/login.css';
 ---
-<!-- Email verification: "check your inbox" after signing up, and where the link in the email lands. -->
+<!-- Email links: "check your inbox" after signing up or asking for a password reset, and where those links land. -->
 <Page page="verify" title="Verify your email | Flow" bodyClass="login-page verify-page">
     <aside class="login-photo">
         <a href="/" class="brand" aria-label="Flow home">flow<i></i></a>
@@ -40,6 +40,45 @@ import '../styles/login.css';
                     <button type="submit" class="btn btn-primary btn-lg btn-block">Send a new link</button>
                 </form>
                 <p class="login-note">Already confirmed? <a href="/login.html">Log in</a>.</p>
+            </div>
+            <!-- Forgot password: the same email-link flow, with type=recovery. -->
+            <div data-state="forgot" hidden>
+                <h1>Reset your password.</h1>
+                <p class="login-description">Enter the email you signed up with. We’ll send a link to choose a new password.</p>
+                <form id="forgot-form" novalidate>
+                    <label for="forgot-email">Email address</label>
+                    <input type="email" id="forgot-email" class="input" placeholder="you@example.com" autocomplete="email" required>
+                    <button type="submit" class="btn btn-primary btn-lg btn-block">Send reset link</button>
+                </form>
+                <p class="login-note">Remembered it? <a href="/login.html">Log in</a>.</p>
+            </div>
+            <div data-state="reset-sent" hidden>
+                <h1>Check your inbox.</h1>
+                <p class="login-description">If <strong id="reset-to"></strong> has a Flow account, a reset link is on its way. Open it on any device. It works once, for an hour.</p>
+                <button id="reset-again" type="button" class="btn btn-lg btn-block">Send it again</button>
+                <p class="login-note">Not there? Check spam, or <button id="reset-other" type="button" class="link-btn">use another email</button>.</p>
+            </div>
+            <div data-state="reset" hidden>
+                <h1>Reset your password.</h1>
+                <p class="login-description">One tap to choose a new password.</p>
+                <button id="reset-go" type="button" class="btn btn-primary btn-lg btn-block">Continue</button>
+            </div>
+            <div data-state="new-pw" hidden>
+                <h1>Choose a new password.</h1>
+                <p class="login-description">For <strong id="pw-account"></strong>. You’ll stay signed in on this device.</p>
+                <form id="pw-form" novalidate>
+                    <label for="pw-input">New password</label>
+                    <div class="password-field">
+                        <input type="password" id="pw-input" class="input" placeholder="At least 8 characters" autocomplete="new-password" minlength="8" required>
+                        <button id="pw-toggle" type="button" aria-label="Show password" aria-pressed="false">Show</button>
+                    </div>
+                    <button type="submit" class="btn btn-primary btn-lg btn-block">Save password</button>
+                </form>
+            </div>
+            <div data-state="changed" hidden>
+                <h1>Password changed.</h1>
+                <p class="login-description">Signed in as <strong id="changed-account"></strong>. Use the new password next time you log in.</p>
+                <a id="changed-go" href="/room.html" class="btn btn-primary btn-lg btn-block">Open my space</a>
             </div>
             <p id="verify-status" class="verify-status" role="status"></p>
         </section>

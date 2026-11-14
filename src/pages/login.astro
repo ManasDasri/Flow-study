@@ -26,7 +26,7 @@ import { SKIES } from '../client/theme';
             <form id="auth-form">
                 <label for="email-input">Email address</label>
                 <input type="email" id="email-input" class="input" placeholder="you@example.com" autocomplete="email" required>
-                <label for="password-input">Password</label>
+                <div class="pw-label"><label for="password-input">Password</label><a id="forgot-link" href="/verify.html?forgot">Forgot password?</a></div>
                 <div class="password-field">
                     <input type="password" id="password-input" class="input" placeholder="At least 6 characters" autocomplete="current-password" minlength="6" required>
                     <button id="toggle-password" type="button" aria-label="Show password" aria-pressed="false">Show</button>
