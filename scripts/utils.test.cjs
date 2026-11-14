@@ -142,3 +142,14 @@ test('HTML strings reach the page only through setMarkup', () => {
         .filter(file => /\.(innerHTML|outerHTML)\s*=[^=]|insertAdjacentHTML|document\.write/.test(readFileSync(file, 'utf8')));
     assert.deepEqual(offenders, []);
 });
+
+test('likely email typos are caught, and nothing else is', async () => {
+    const source = compile('src/client/modules/email-check.ts');
+    const { looksLikeEmail, suggestEmail } = await import('data:text/javascript;base64,' + Buffer.from(source).toString('base64'));
+    assert.equal(suggestEmail('robin@gmial.com'), 'robin@gmail.com');
+    assert.equal(suggestEmail('Robin@HOTMIAL.COM'), 'Robin@hotmail.com');
+    assert.equal(suggestEmail('robin@gmail.com'), null);
+    assert.equal(suggestEmail('robin@university.ac.uk'), null);
+    assert.equal(suggestEmail('not-an-email'), null);
+    assert(looksLikeEmail('a.b+c@example.co') && !looksLikeEmail('abc@gmail') && !looksLikeEmail('a b@x.com') && !looksLikeEmail('@x.com'));
+});

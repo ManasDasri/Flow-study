@@ -1,0 +1,48 @@
+---
+import Page from '../layouts/Page.astro';
+import '../styles/login.css';
+---
+<!-- Email verification: "check your inbox" after signing up, and where the link in the email lands. -->
+<Page page="verify" title="Verify your email | Flow" bodyClass="login-page verify-page">
+    <aside class="login-photo">
+        <a href="/" class="brand" aria-label="Flow home">flow<i></i></a>
+        <div><p class="login-quote">One last thing before the sun comes up.</p></div>
+    </aside>
+    <main class="login-main">
+        <section class="login-card verify-card" aria-live="polite">
+            <div data-state="sent" hidden>
+                <h1>Check your inbox.</h1>
+                <p class="login-description">We sent a link to <strong id="verify-email"></strong>. Open it on any device to finish setting up your space. It works once, for an hour.</p>
+                <button id="verify-resend" type="button" class="btn btn-lg btn-block">Send it again</button>
+                <p class="login-note">Not there? Check spam, or <a href="/start.html">use a different email</a>.</p>
+            </div>
+            <div data-state="confirm" hidden>
+                <h1>Confirm your email.</h1>
+                <p class="login-description">One tap to finish setting up your space.</p>
+                <button id="verify-confirm" type="button" class="btn btn-primary btn-lg btn-block">Confirm my email</button>
+            </div>
+            <div data-state="checking" hidden>
+                <h1>Confirming your email…</h1>
+                <p class="login-description">One moment.</p>
+            </div>
+            <div data-state="done" hidden>
+                <h1>You’re verified.</h1>
+                <p class="login-description">Signed in as <strong id="verify-account"></strong>. Your space is ready.</p>
+                <a id="verify-continue" href="/room.html" class="btn btn-primary btn-lg btn-block">Open my space</a>
+                <p class="login-note">Not you? <button id="verify-sign-out" type="button" class="link-btn">Log out</button></p>
+            </div>
+            <div data-state="failed" hidden>
+                <h1>This link has expired.</h1>
+                <p class="login-description">Verification links work once, for an hour. Enter your email and we’ll send a fresh one.</p>
+                <form id="verify-form">
+                    <label for="verify-email-input">Email address</label>
+                    <input type="email" id="verify-email-input" class="input" placeholder="you@example.com" autocomplete="email" required>
+                    <button type="submit" class="btn btn-primary btn-lg btn-block">Send a new link</button>
+                </form>
+                <p class="login-note">Already confirmed? <a href="/login.html">Log in</a>.</p>
+            </div>
+            <p id="verify-status" class="verify-status" role="status"></p>
+        </section>
+    </main>
+    <script>import '../client/verify';</script>
+</Page>

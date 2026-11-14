@@ -3,7 +3,7 @@
 import defaults from '../../supabase.config.json';
 interface Props { divider?: string; }
 const { divider = 'or with email' } = Astro.props;
-const enabled = ((defaults as { oauthProviders?: string[] }).oauthProviders ?? []).filter(p => p === 'github' || p === 'google');
+const enabled = ((defaults as { oauthProviders?: string[] }).oauthProviders ?? []).filter(p => ['github', 'google'].includes(p));
 const label = { github: 'GitHub', google: 'Google' } as Record<string, string>;
 ---
 {enabled.length > 0 && (
