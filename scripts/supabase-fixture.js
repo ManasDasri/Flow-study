@@ -114,6 +114,7 @@ window.supabase = { createClient() {
                 // The link in the email: a good token signs the person in, a used or old one doesn't.
                 verifyOtp: async ({ token_hash, type }) => {
                     fixture.calls.push({ action: 'verify', token_hash, type });
+                    if (fixture.authFailure) throw new Error('Network unavailable');
                     if (token_hash !== 'good-token') return { data: { user: null, session: null }, error: { message: 'Email link is invalid or has expired' } };
                     localStorage.setItem('fixture-session', '1');
                     return { data: { user, session: {} }, error: null };

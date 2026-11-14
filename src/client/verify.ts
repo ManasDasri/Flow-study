@@ -7,6 +7,7 @@
 // Forgot password runs through the same page: ?forgot asks for the address, and
 // the reset email's link (?token_hash=…&type=recovery) gets the same one tap
 // before the person chooses a new password.
+import type { User } from '@supabase/supabase-js';
 import { byId } from './dom';
 import supabase from './modules/supabase';
 import { completeSignIn } from './modules/sign-in';
@@ -44,29 +45,44 @@ async function resend(email: string, button: HTMLButtonElement, kind: 'signup' |
     return true;
 }
 
+// Uses a link's single-use token. A dropped connection is not an expired link: the
+// token is still good, so the page says so and the same tap works again.
+const OFFLINE = 'Flow couldn’t be reached. Check your connection, then tap again: your link still works.';
+async function useToken(tokenHash: string, type: 'email' | 'signup' | 'recovery'): Promise<User | 'offline' | null> {
+    try {
+        const { data, error } = await supabase.auth.verifyOtp({ token_hash: tokenHash, type });
+        if (error?.name === 'AuthRetryableFetchError') return 'offline';
+        return error ? null : data.user;
+    } catch { return 'offline'; }
+}
+
 async function confirm(tokenHash: string, type: 'email' | 'signup') {
     show('checking');
-    const { data, error } = await supabase.auth.verifyOtp({ token_hash: tokenHash, type });
-    if (error || !data.user) { show('failed'); return; }
-    const email = data.user.email ?? '';
+    const user = await useToken(tokenHash, type);
+    if (user === 'offline') { show('confirm'); status.textContent = OFFLINE; return; }
+    if (!user) { show('failed'); return; }
+    status.textContent = '';
+    const email = user.email ?? '';
     const ours = !!email && email.toLowerCase() === (pendingEmail() ?? '').toLowerCase();
     try { localStorage.removeItem('flow_verify_email'); } catch { /* nothing to clear */ }
     byId<HTMLElement>('verify-account').textContent = email || 'your account';
-    byId<HTMLAnchorElement>('verify-continue').href = await completeSignIn(data.user, ours);
+    byId<HTMLAnchorElement>('verify-continue').href = await completeSignIn(user, ours);
     show('done');
 }
 
 // The reset link: one tap signs in with the token, then a new password is chosen.
 async function recover(tokenHash: string, button: HTMLButtonElement) {
     button.disabled = true;
-    const { data, error } = await supabase.auth.verifyOtp({ token_hash: tokenHash, type: 'recovery' })
-        .catch(() => ({ data: { user: null }, error: { message: 'unreachable' } }));
-    if (error || !data.user) {
+    const user = await useToken(tokenHash, 'recovery');
+    button.disabled = false;
+    if (user === 'offline') { status.textContent = OFFLINE; return; }
+    if (!user) {
         show('forgot');
         status.textContent = 'That reset link has expired or was already used. Send a new one below.';
         return;
     }
-    byId<HTMLElement>('pw-account').textContent = data.user.email || 'your account';
+    status.textContent = '';
+    byId<HTMLElement>('pw-account').textContent = user.email || 'your account';
     show('new-pw');
     byId<HTMLInputElement>('pw-input').focus();
 }
@@ -77,7 +93,7 @@ const tokenHash = params.get('token_hash');
 if (tokenHash && params.get('type') === 'recovery') {
     history.replaceState(null, '', '/verify.html');
     show('reset');
-    byId<HTMLButtonElement>('reset-go').addEventListener('click', event => recover(tokenHash, event.currentTarget as HTMLButtonElement), { once: true });
+    byId<HTMLButtonElement>('reset-go').addEventListener('click', event => recover(tokenHash, event.currentTarget as HTMLButtonElement));
 }
 else if (params.has('forgot')) {
     try { forgotEmail.value = sessionStorage.getItem('flow_reset_email') ?? ''; } catch { /* typed again instead */ }
@@ -88,7 +104,7 @@ else if (tokenHash) {
     const type = params.get('type') === 'signup' ? 'signup' : 'email';
     history.replaceState(null, '', '/verify.html');
     show('confirm');
-    byId<HTMLButtonElement>('verify-confirm').addEventListener('click', () => confirm(tokenHash, type), { once: true });
+    byId<HTMLButtonElement>('verify-confirm').addEventListener('click', () => confirm(tokenHash, type));
 }
 else if (params.has('error') || params.has('error_description') || !pendingEmail()) show('failed');
 else {
