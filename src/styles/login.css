@@ -22,8 +22,12 @@
 #auth-form .divider { margin: clamp(8px, 1.8svh, 18px) 0; }
 .password-field { position: relative; }
 .password-field .input { padding-right: 70px !important; }
-#toggle-password { position: absolute; right: 8px; top: 8px; padding: 6px 10px; border: 0; border-radius: 6px; background: transparent; color: var(--text-2); font-size: .8rem; cursor: pointer; }
-#toggle-password:hover { background: var(--hover); }
+.pw-label { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; margin-bottom: 6px; }
+.pw-label label { margin-bottom: 0 !important; }
+.pw-label a { color: var(--text-2); font-size: .8rem; }
+.pw-label a:hover { color: var(--text); }
+#toggle-password, #pw-toggle { position: absolute; right: 8px; top: 8px; padding: 6px 10px; border: 0; border-radius: 6px; background: transparent; color: var(--text-2); font-size: .8rem; cursor: pointer; }
+#toggle-password:hover, #pw-toggle:hover { background: var(--hover); }
 .auth-message { display: none; padding: 12px; margin-bottom: 20px; border: 1px solid currentColor; border-radius: 8px; font-size: .88rem; overflow-wrap: anywhere; }
 .error-msg { color: var(--danger); }
 .success-msg { color: var(--ok); }
@@ -47,5 +51,8 @@
 
 /* Email verification reuses the login layout. */
 .verify-card [data-state] .btn { margin-top: 6px; }
-.verify-card #verify-form .input { margin-bottom: 14px; }
+.verify-card form .input { margin-bottom: 14px; }
+.verify-card label { margin-bottom: 6px; }
+.login-note .link-btn { padding: 0; border: 0; background: none; color: inherit; font: inherit; text-decoration: underline; text-underline-offset: 4px; cursor: pointer; }
+.login-note .link-btn:hover { color: var(--text); }
 .verify-status { min-height: 1.4em; margin-top: 14px; color: var(--text-2); font-size: .86rem; text-align: center; }

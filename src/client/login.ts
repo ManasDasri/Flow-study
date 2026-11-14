@@ -3,7 +3,7 @@ import { bindThemePicker } from './theme';
 import { markSignedIn } from './modules/session';
 import { leaveWithLoader } from './loader';
 import supabase from './modules/supabase';
-import { bindSocialButtons, finishOAuth } from './modules/sign-in';
+import { bindSocialButtons, finishOAuth, rememberInvite } from './modules/sign-in';
 
 // DOM Elements
 const emailInput = byId<HTMLInputElement>('email-input');
@@ -94,6 +94,12 @@ byId<HTMLFormElement>('auth-form').addEventListener('submit', event => {
 });
 // Setup keeps an invite: someone invited who has no account still lands in that room.
 byId<HTMLAnchorElement>('signup-link').href = '/start.html' + location.search;
+
+// Forgot password: the reset page starts with the address typed here, and an invite is kept.
+byId<HTMLAnchorElement>('forgot-link').addEventListener('click', () => {
+    rememberInvite();
+    try { sessionStorage.setItem('flow_reset_email', emailInput.value.trim()); } catch { /* typed again there */ }
+});
 
 byId<HTMLButtonElement>('toggle-password').addEventListener('click', event => {
     const visible = passwordInput.type === 'password';

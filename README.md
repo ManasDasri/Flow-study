@@ -76,6 +76,11 @@ Keep `.env` out of version control. Without Groq, rooms still work and AI reques
 
 Enable email/password authentication and configure your site URL, redirect URLs, and confirmation email delivery. The UI supports both immediate sessions and email-confirmation flows.
 
+Both auth emails link to Flow's own `/verify.html`, not to Supabase's page. In **Authentication → URL Configuration**, set the site URL and add `https://<your-site>/verify.html` (and `http://localhost:4321/verify.html` for `npm run dev`) to the allowed redirect URLs; Supabase falls back to the site URL for any redirect not on that list. Then paste the templates from [`emails/`](emails) into **Authentication → Emails → Templates**:
+
+- **Confirm signup:** [`emails/confirm-signup.html`](emails/confirm-signup.html)
+- **Reset password:** [`emails/reset-password.html`](emails/reset-password.html). "Forgot password?" on the login page sends it; its link (`type=recovery`) opens `/verify.html`, which asks for one tap and then a new password.
+
 For a **new, empty database**, run these files in order in the Supabase SQL editor:
 
 1. [`sql/schema.sql`](sql/schema.sql)
