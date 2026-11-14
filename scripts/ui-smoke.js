@@ -126,6 +126,12 @@ async (page) => {
     // A link from someone else's sign-up names their account, and gets none of this browser's setup.
     await page.evaluate(() => localStorage.setItem('flow_verify_email', 'someone-else@example.com'));
     await page.goto(origin + '/verify.html?token_hash=good-token&type=email');
+    // A dropped connection leaves the link usable: back to the same button, saying why.
+    await page.evaluate(() => { window.__fixture.authFailure = true; });
+    await page.getByRole('button', { name: 'Confirm my email', exact: true }).click();
+    await page.waitForFunction(() => document.getElementById('verify-status').textContent.includes('couldn’t be reached'));
+    assert(await page.getByRole('heading', { name: 'Confirm your email.' }).isVisible(), 'After a connection failure the sign-up link can be tapped again');
+    await page.evaluate(() => { window.__fixture.authFailure = false; });
     await page.getByRole('button', { name: 'Confirm my email', exact: true }).click();
     await page.getByRole('heading', { name: 'You’re verified.' }).waitFor();
     assert(await page.locator('#verify-account').innerText() === 'alex@example.com' && await page.evaluate(() => localStorage.getItem('flow_named') === null && localStorage.getItem('flow_pending_name') !== null), 'The account is named, and the setup name is kept back when the address isn\'t the one set up here');
@@ -191,6 +197,12 @@ async (page) => {
     assert(await page.getByRole('button', { name: 'Send reset link', exact: true }).isVisible(), 'An expired reset link offers to send a new one');
     await page.screenshot({ path: 'output/playwright/reset-expired.png' });
     await page.goto(origin + '/verify.html?token_hash=good-token&type=recovery');
+    // A dropped connection isn't an expired link: it says so, and the same tap works again.
+    await page.evaluate(() => { window.__fixture.authFailure = true; });
+    await page.getByRole('button', { name: 'Continue', exact: true }).click();
+    await page.waitForFunction(() => document.getElementById('verify-status').textContent.includes('couldn’t be reached'));
+    assert(await page.getByRole('button', { name: 'Continue', exact: true }).isEnabled(), 'After a connection failure the reset link can be tapped again');
+    await page.evaluate(() => { window.__fixture.authFailure = false; });
     await page.getByRole('button', { name: 'Continue', exact: true }).click();
     await page.getByRole('heading', { name: 'Choose a new password.' }).waitFor();
     assert(await page.evaluate(() => window.__fixture.calls.some(call => call.action === 'verify' && call.type === 'recovery')) && await page.locator('#pw-account').innerText() === 'alex@example.com', 'A good reset link names the account');

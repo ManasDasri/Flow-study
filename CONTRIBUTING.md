@@ -62,7 +62,8 @@ Merging to `main` deploys flow-study.me. Some of what the site needs lives outsi
 **When a change needs the live setup changed too**
 - *A new `sql/` file:* run it in the Supabase SQL editor **before** merging the code that uses it, in number order. Then add a check for it to `scripts/check-live.cjs` (it currently looks for `rooms.timer`, from 017).
 - *A sign-in provider:* switch it on in Supabase (Authentication → Sign In / Providers) first, then add it to `oauthProviders` in `supabase.config.json`.
-- *Auth emails or redirects:* Supabase → Authentication → URL Configuration must have **Site URL** `https://flow-study.me` (never localhost) and redirect URLs for `/login.html` and `/verify.html`. The confirmation template is `emails/confirm-signup.html`; paste it again if it changes.
+- *Auth emails or redirects:* Supabase → Authentication → URL Configuration must have **Site URL** `https://flow-study.me` (never localhost) and redirect URLs for `/login.html` and `/verify.html`. The templates in `emails/` (Confirm signup, Reset password) are pasted into Authentication → Emails → Templates; paste one again whenever it changes. Without them, Supabase's default emails link to its own page and `/verify.html` can't use them.
+- *Password rules:* Authentication → Sign In / Providers → Email keeps **Minimum password length** at 8 (what the site asks for) and **Require current password when updating** off, since a password reset has no current password to give.
 
 **After it deploys**
 - Run `npm run check:live`. It also runs daily and opens a `live-check` issue when something drifts.
