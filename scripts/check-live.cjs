@@ -1,0 +1,62 @@
+// Checks the live site and its Supabase project from the outside, using only public
+// endpoints, so settings that live outside this repository can't drift unnoticed:
+// a missing page, a migration that wasn't run, a sign-in provider that isn't switched
+// on, email confirmation without its page. Run: `npm run check:live` (or daily in CI).
+const config = require('../supabase.config.json');
+
+const SITE = process.env.FLOW_SITE || 'https://flow-study.me';
+const headers = { apikey: config.publishableKey };
+const results = [];
+const check = (ok, text) => { results.push({ ok, text }); };
+const get = (url, init) => fetch(url, { ...init, signal: AbortSignal.timeout(15000) });
+
+async function main() {
+    // Every page loads, including the one verification emails link to.
+    for (const page of ['/', '/start.html', '/login.html', '/room.html', '/groups.html', '/docs.html', '/verify.html']) {
+        const response = await get(SITE + page);
+        check(response.ok, `${page} loads (${response.status})`);
+    }
+    // The security headers are served.
+    const home = await get(SITE + '/');
+    const csp = home.headers.get('content-security-policy') || '';
+    check(csp.includes("script-src 'self'") && csp.includes("require-trusted-types-for 'script'"), 'Content-Security-Policy is served, with Trusted Types');
+
+    // Sign-in: what the site offers is what Supabase has switched on, and confirmation has its page.
+    const settings = await (await get(`${config.url}/auth/v1/settings`, { headers })).json();
+    const enabled = Object.entries(settings.external || {}).filter(([, on]) => on).map(([name]) => name);
+    // Fixed labels, so the report never prints a value read from config.
+    const LABELS = { github: 'GitHub', google: 'Google' };
+    for (const provider of config.oauthProviders || []) check(enabled.includes(provider), `${LABELS[provider] || 'A configured'} sign-in is switched on in Supabase (the site offers it)`);
+    check(enabled.includes('email'), 'Email sign-in is switched on');
+    if (!settings.mailer_autoconfirm) check((await get(SITE + '/verify.html')).ok, 'Email confirmation is on, and its page exists');
+
+    // The database: the public board is readable, everything else is closed to signed-out visitors.
+    const read = (table, columns = '*') => get(`${config.url}/rest/v1/${table}?select=${columns}&limit=1`, { headers });
+    // The same columns the board asks for (src/client/modules/board.ts); a missing grant or migration fails here.
+    const board = await read('open_rooms', 'id,host_id,host_name,topic,subject,camera,vibe,seats,seats_taken,closed,timer_mode,timer_ends_at,last_seen,away_until,acting_name');
+    check(board.ok, `The public board is readable (${board.status})`);
+    check((await read('planned_groups')).ok, 'Planned study groups are readable');
+    for (const table of ['profiles', 'sessions', 'tasks', 'room_participants']) {
+        const response = await read(table);
+        check(!response.ok, `${table} is closed to signed-out visitors (${response.status})`);
+    }
+    // Migrations are in: a recent column exists (a missing one is "column does not exist", 42703).
+    const timer = await get(`${config.url}/rest/v1/rooms?select=timer&limit=1`, { headers });
+    const timerError = timer.ok ? null : (await timer.json()).code;
+    check(timerError !== '42703', 'Migrations are applied through sql/017 (rooms.timer exists)');
+    // Quotas are server-only: browsers can't call them.
+    const quota = await get(`${config.url}/rest/v1/rpc/api_allow`, { method: 'POST', headers: { ...headers, 'Content-Type': 'application/json' }, body: '{"p_kind":"ai"}' });
+    check(quota.status === 401 || quota.status === 403 || quota.status === 404, `The quota function is closed to browsers (${quota.status})`);
+
+    // The API answers without a sign-in only where it should.
+    const post = (path, body) => get(SITE + path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body });
+    check((await post('/api/ai', '{"message":"hi"}')).status === 401, '/api/ai needs a sign-in');
+    check((await post('/api/turn-credentials', '{}')).status === 401, '/api/turn-credentials needs a sign-in');
+}
+
+main().catch(error => check(false, 'The check itself failed: ' + error.message)).finally(() => {
+    for (const { ok, text } of results) console.log(`${ok ? '✅' : '❌'} ${text}`);
+    const failed = results.filter(r => !r.ok).length;
+    console.log(failed ? `\n${failed} problem(s) on ${SITE}.` : `\nAll ${results.length} checks pass on ${SITE}.`);
+    process.exitCode = failed ? 1 : 0;
+});
