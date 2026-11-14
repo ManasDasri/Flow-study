@@ -51,6 +51,25 @@ Both must pass. CI runs the same commands on Node 22, 24, and 26, plus the datab
 
 If you change the database, add a new numbered file in `sql/` (never edit an applied one), make it safe to run twice, and extend `scripts/sql-integration.test.cjs`.
 
+## Merging and releasing (maintainers)
+
+Merging to `main` deploys flow-study.me. Some of what the site needs lives outside this repository, so a green CI run isn't the whole story.
+
+**Merging**
+- Merge only the commit you reviewed: `gh pr merge N --squash --match-head-commit <sha>`, or check the commit list right before pressing the button. If someone pushes after your review, review again.
+- A PR stacked on another branch: merge the base first. Its branch is deleted on merge, and GitHub then retargets the stacked PR to `main`.
+
+**When a change needs the live setup changed too**
+- *A new `sql/` file:* run it in the Supabase SQL editor **before** merging the code that uses it, in number order. Then add a check for it to `scripts/check-live.cjs` (it currently looks for `rooms.timer`, from 017).
+- *A sign-in provider:* switch it on in Supabase (Authentication → Sign In / Providers) first, then add it to `oauthProviders` in `supabase.config.json`.
+- *Auth emails or redirects:* Supabase → Authentication → URL Configuration must have **Site URL** `https://flow-study.me` (never localhost) and redirect URLs for `/login.html` and `/verify.html`. The confirmation template is `emails/confirm-signup.html`; paste it again if it changes.
+
+**After it deploys**
+- Run `npm run check:live`. It also runs daily and opens a `live-check` issue when something drifts.
+- It can't see the settings above that aren't public: the Supabase Site URL, and the domains on Google's OAuth branding page (`flow-study.me` and `mrjtkxwenqswbjplmzko.supabase.co`). After touching either, sign up once with a new address and sign in once with Google.
+- Anything that changes rooms (calls, the timer, hosting, leaving): try it with two windows, one of them incognito.
+- Browser errors from real visitors appear in the Vercel logs as `[client-error]` lines.
+
 ## What a good change looks like
 
 - **Small and focused.** One idea per pull request. Say what changed and why in the description, and add a screenshot for anything visual.
