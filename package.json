@@ -12,6 +12,7 @@
     "dev": "astro dev",
     "test:db": "node --test scripts/sql-integration.test.cjs",
     "test:browser": "node scripts/browser-ci.cjs",
+    "check:live": "node scripts/check-live.cjs",
     "preview:social": "node scripts/generate-social-preview.cjs",
     "icons": "node scripts/generate-app-icons.cjs",
     "build": "astro build",

@@ -1,0 +1,48 @@
+# Daily check of the live site and its Supabase settings (scripts/check-live.cjs).
+# A failure opens one issue labelled live-check (or comments on the open one); it closes
+# itself on the next run that passes.
+name: Live check
+
+on:
+  schedule:
+    - cron: '17 6 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  live:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          sparse-checkout: |
+            scripts/check-live.cjs
+            supabase.config.json
+          sparse-checkout-cone-mode: false
+      - id: check
+        run: node scripts/check-live.cjs | tee report.txt
+        continue-on-error: true
+      - uses: actions/github-script@v9
+        env:
+          OUTCOME: ${{ steps.check.outcome }}
+        with:
+          script: |
+            const fs = require('fs');
+            const report = fs.readFileSync('report.txt', 'utf8');
+            const run = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+            const { data: open } = await github.rest.issues.listForRepo({ ...context.repo, state: 'open', labels: 'live-check' });
+            const issue = open[0];
+            if (process.env.OUTCOME === 'success') {
+              if (issue) {
+                await github.rest.issues.createComment({ ...context.repo, issue_number: issue.number, body: `Fixed: every check passes again ([run](${run})).` });
+                await github.rest.issues.update({ ...context.repo, issue_number: issue.number, state: 'closed' });
+              }
+              return;
+            }
+            const body = `The live check found a problem ([run](${run})):\n\n\`\`\`\n${report}\n\`\`\``;
+            if (issue) await github.rest.issues.createComment({ ...context.repo, issue_number: issue.number, body });
+            else await github.rest.issues.create({ ...context.repo, title: 'Live check: the live setup has drifted', labels: ['live-check'], body });
+            core.setFailed('The live check failed.');
