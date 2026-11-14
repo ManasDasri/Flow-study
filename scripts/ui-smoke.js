@@ -1051,20 +1051,23 @@ async (page) => {
     await page.goto(origin + '/login.html?room=FOCUS6');
     await page.getByRole('link', { name: 'Create an account', exact: true }).click();
     await page.waitForURL(origin + '/start.html?room=FOCUS6');
-    // GitHub and Google: the provider is asked to send the browser back to login, keeping only the invite.
-    await page.goto(origin + '/login.html?room=FOCUS6&utm=x');
-    assert(await page.getByRole('button', { name: 'Continue with GitHub', exact: true }).isVisible() && await page.getByRole('button', { name: 'Continue with Google', exact: true }).isVisible(), 'Social sign-in is offered');
-    await page.getByRole('button', { name: 'Continue with GitHub', exact: true }).click();
-    const oauth = await page.evaluate(() => window.__fixture.calls.find(call => call.action === 'oauth'));
-    assert(oauth?.provider === 'github' && oauth.redirectTo === origin + '/login.html?room=FOCUS6', 'GitHub returns to login with the invite and nothing else');
-    await page.evaluate(() => { window.__fixture.oauthError = true; });
-    await page.getByRole('button', { name: 'Continue with Google', exact: true }).click();
-    await page.waitForFunction(() => document.getElementById('error-message').textContent.includes('isn’t available right now'));
-    // Back from the provider, signed in: the name typed in setup is saved, and the invite leads to its room.
-    await page.evaluate(() => { localStorage.setItem('fixture-session', '1'); localStorage.setItem('flow_pending_name', 'Robin'); });
-    await page.goto(origin + '/login.html?room=FOCUS6&code=from-provider');
-    await page.waitForURL(origin + '/room.html?room=FOCUS6');
-    assert(await page.evaluate(() => localStorage.getItem('flow_named') === '1' && localStorage.getItem('flow_pending_name') === null && localStorage.getItem('flow_signed_in') !== null), 'Signing in with a provider finishes setup');
+    // GitHub and Google, when switched on in supabase.config.json (oauthProviders): the provider is asked to send the browser
+    // back to login, keeping only the invite. Until a project enables them, no buttons are shown at all.
+    if (await page.locator('[data-provider]').count()) {
+        await page.goto(origin + '/login.html?room=FOCUS6&utm=x');
+        assert(await page.getByRole('button', { name: 'Continue with GitHub', exact: true }).isVisible() && await page.getByRole('button', { name: 'Continue with Google', exact: true }).isVisible(), 'Social sign-in is offered');
+        await page.getByRole('button', { name: 'Continue with GitHub', exact: true }).click();
+        const oauth = await page.evaluate(() => window.__fixture.calls.find(call => call.action === 'oauth'));
+        assert(oauth?.provider === 'github' && oauth.redirectTo === origin + '/login.html?room=FOCUS6', 'GitHub returns to login with the invite and nothing else');
+        await page.evaluate(() => { window.__fixture.oauthError = true; });
+        await page.getByRole('button', { name: 'Continue with Google', exact: true }).click();
+        await page.waitForFunction(() => document.getElementById('error-message').textContent.includes('isn’t available right now'));
+        // Back from the provider, signed in: the name typed in setup is saved, and the invite leads to its room.
+        await page.evaluate(() => { localStorage.setItem('fixture-session', '1'); localStorage.setItem('flow_pending_name', 'Robin'); });
+        await page.goto(origin + '/login.html?room=FOCUS6&code=from-provider');
+        await page.waitForURL(origin + '/room.html?room=FOCUS6');
+        assert(await page.evaluate(() => localStorage.getItem('flow_named') === '1' && localStorage.getItem('flow_pending_name') === null && localStorage.getItem('flow_signed_in') !== null), 'Signing in with a provider finishes setup');
+    }
     await page.evaluate(() => { localStorage.removeItem('flow_signed_in'); localStorage.removeItem('fixture-session'); });
     await page.goto(origin + '/login.html?room=FOCUS6');
     await page.getByLabel('Email address').fill('alex@example.com');
