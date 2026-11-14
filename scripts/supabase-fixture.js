@@ -103,7 +103,21 @@ window.supabase = { createClient() {
                 return { data: fixture.rpcError ? null : name === 'join_open_room' ? 'FOCUS6' : 'test-room', error: fixture.rpcError ? { message: fixture.rpcError } : null };
             },
             auth: {
-                signInWithPassword: authResult, signUp: authResult,
+                signInWithPassword: authResult,
+                // With "Confirm email" on, signing up makes no session until the link is opened.
+                signUp: async (args) => {
+                    if (!fixture.requireConfirm) return authResult();
+                    fixture.calls.push({ action: 'signup', redirectTo: args.options?.emailRedirectTo });
+                    return { data: { user: { ...user, identities: [{}] }, session: null }, error: null };
+                },
+                resend: async ({ email }) => { fixture.calls.push({ action: 'resend', email }); return { data: {}, error: null }; },
+                // The link in the email: a good token signs the person in, a used or old one doesn't.
+                verifyOtp: async ({ token_hash }) => {
+                    fixture.calls.push({ action: 'verify', token_hash });
+                    if (token_hash !== 'good-token') return { data: { user: null, session: null }, error: { message: 'Email link is invalid or has expired' } };
+                    localStorage.setItem('fixture-session', '1');
+                    return { data: { user, session: {} }, error: null };
+                },
                 // GitHub and Google: record where the provider would send the browser back to.
                 signInWithOAuth: async ({ provider, options }) => {
                     fixture.calls.push({ action: 'oauth', provider, redirectTo: options?.redirectTo });

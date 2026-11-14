@@ -7,7 +7,8 @@ import { saveDisplayName } from './modules/profile';
 import { loadUser, markSignedIn } from './modules/session';
 import { showLoader, hideLoader, leaveWithLoader } from './loader';
 import { playSound, stopSound, setSoundVolume, type Sound } from './modules/soundscape';
-import { bindSocialButtons } from './modules/oauth';
+import { bindSocialButtons, rememberInvite } from './modules/sign-in';
+import { looksLikeEmail, suggestEmail } from './modules/email-check';
 
 // Read the session before building the steps: someone signed in skips the account step.
 const signedIn = await loadUser();
@@ -126,17 +127,27 @@ async function finish(user: { id: string; email?: string }) {
 }
 
 async function createAccount() {
-    const email = byId<HTMLInputElement>('start-email').value.trim();
+    const emailInput = byId<HTMLInputElement>('start-email');
+    const email = emailInput.value.trim();
     const password = byId<HTMLInputElement>('start-password').value;
-    if (!email.includes('@')) return say('Enter a valid email address.');
+    if (!looksLikeEmail(email)) return say('Enter a valid email address.');
+    const typo = suggestEmail(email);
+    if (typo && emailInput.dataset.checked !== email) {
+        // Asked once: pressing the button again with the same address goes ahead.
+        emailInput.dataset.checked = email;
+        return say(`Did you mean ${typo}? Fix it, or press the button again to use ${email}.`);
+    }
     if (password.length < 8) return say('Use a password with at least 8 characters.');
-    const { data, error } = await supabase.auth.signUp({ email, password });
-    if (error) return say(/already registered|already exists|user already/i.test(error.message) ? 'An account with this email already exists. Use “Log in” at the top instead.' : error.message);
+    rememberInvite();
+    // The verification email links to /verify.html, which finishes the sign-up (see emails/).
+    const { data, error } = await supabase.auth.signUp({ email, password, options: { emailRedirectTo: location.origin + '/verify.html' } });
+    const taken = /already registered|already exists|user already/i.test(error?.message ?? '') || (data?.user && data.user.identities?.length === 0);
+    if (taken) return say('An account with this email already exists. Use “Log in” at the top instead.');
+    if (error) return say(error.message);
     if (data.session && data.user) return finish(data.user);
-    // Some projects create the user without a session; signing in covers "confirm email" being off.
-    const signIn = await supabase.auth.signInWithPassword({ email, password });
-    if (signIn.data?.session && signIn.data.user) return finish(signIn.data.user);
-    say('Check your email for a confirmation link, then log in. Your setup is saved on this device.', true);
+    // Projects with "Confirm email" on make no session until the link is opened.
+    try { localStorage.setItem('flow_verify_email', email); } catch { /* the inbox page asks for it instead */ }
+    leaveWithLoader('/verify.html', 'Sending your link…');
 }
 
 form.addEventListener('submit', async event => {

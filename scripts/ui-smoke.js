@@ -97,9 +97,40 @@ async (page) => {
     await page.getByRole('button', { name: 'Continue', exact: true }).click();
     await page.getByRole('button', { name: 'Create my account', exact: true }).click();
     assert((await page.locator('#start-message').innerText()).includes('email') && await page.evaluate(() => window.__fixture.calls.length) === 0, 'Setup must validate before reaching auth');
-    await page.getByLabel('Email address').fill('alex@example.com');
+    // With "Confirm email" on: a typo is caught, the address is verified by a link, and only then is there an account.
+    await page.evaluate(() => { window.__fixture.requireConfirm = true; });
+    await page.getByLabel('Email address').fill('alex@gmial.com');
     await page.getByLabel('Password', { exact: true }).fill('test-password');
     await page.getByRole('button', { name: 'Create my account', exact: true }).click();
+    assert((await page.locator('#start-message').innerText()).includes('Did you mean alex@gmail.com?') && !await page.evaluate(() => window.__fixture.calls.some(call => call.action === 'signup')), 'A likely typo is questioned before anything is sent');
+    await page.getByLabel('Email address').fill('alex@example.com');
+    await page.evaluate(() => addEventListener('pagehide', () => sessionStorage.setItem('test-signup', JSON.stringify(window.__fixture.calls.find(call => call.action === 'signup')))));
+    await page.getByRole('button', { name: 'Create my account', exact: true }).click();
+    await page.waitForURL(origin + '/verify.html');
+    assert(await page.evaluate(() => JSON.parse(sessionStorage.getItem('test-signup') || '{}').redirectTo) === origin + '/verify.html', 'The email links back to Flow\'s own page');
+    assert(await page.getByRole('heading', { name: 'Check your inbox.' }).isVisible() && await page.locator('#verify-email').innerText() === 'alex@example.com', 'Signing up says where the link went');
+    await page.getByRole('button', { name: 'Send it again', exact: true }).click();
+    await page.waitForFunction(() => document.getElementById('verify-status').textContent.startsWith('Sent.') && document.getElementById('verify-resend').disabled);
+    assert(await page.evaluate(() => window.__fixture.calls.some(call => call.action === 'resend' && call.email === 'alex@example.com')), 'The link can be sent again, then waits a minute');
+    // Opening a link only asks: scanners can't spend the token, and nothing happens without a tap.
+    await page.goto(origin + '/verify.html?token_hash=used-token&type=email');
+    await page.getByRole('heading', { name: 'Confirm your email.' }).waitFor();
+    assert(new URL(page.url()).search === '' && !await page.evaluate(() => window.__fixture.calls.some(call => call.action === 'verify')), 'Opening the link takes the token out of the address and confirms nothing yet');
+    await page.getByRole('button', { name: 'Confirm my email', exact: true }).click();
+    await page.getByRole('heading', { name: 'This link has expired.' }).waitFor();
+    // A link from someone else's sign-up names their account, and gets none of this browser's setup.
+    await page.evaluate(() => localStorage.setItem('flow_verify_email', 'someone-else@example.com'));
+    await page.goto(origin + '/verify.html?token_hash=good-token&type=email');
+    await page.getByRole('button', { name: 'Confirm my email', exact: true }).click();
+    await page.getByRole('heading', { name: 'You’re verified.' }).waitFor();
+    assert(await page.locator('#verify-account').innerText() === 'alex@example.com' && await page.evaluate(() => localStorage.getItem('flow_named') === null && localStorage.getItem('flow_pending_name') !== null), 'The account is named, and the setup name is kept back when the address isn\'t the one set up here');
+    // This browser's own link: confirmed, signed in, and the name from setup is saved.
+    await page.evaluate(() => { localStorage.setItem('flow_verify_email', 'alex@example.com'); localStorage.removeItem('fixture-session'); });
+    await page.goto(origin + '/verify.html?token_hash=good-token&type=email');
+    await page.getByRole('button', { name: 'Confirm my email', exact: true }).click();
+    await page.getByRole('heading', { name: 'You’re verified.' }).waitFor();
+    assert(await page.evaluate(() => localStorage.getItem('flow_named') === '1' && localStorage.getItem('flow_signed_in') !== null), 'Confirming your own link signs in and keeps the name from setup');
+    await page.getByRole('link', { name: 'Open my space', exact: true }).click();
     await page.waitForURL(origin + '/room.html');
     await visible('#join-modal');
     assert(await page.locator('#lobby-step').isVisible(), 'A name given during setup must not be asked for again');
@@ -1020,20 +1051,23 @@ async (page) => {
     await page.goto(origin + '/login.html?room=FOCUS6');
     await page.getByRole('link', { name: 'Create an account', exact: true }).click();
     await page.waitForURL(origin + '/start.html?room=FOCUS6');
-    // GitHub and Google: the provider is asked to send the browser back to login, keeping only the invite.
-    await page.goto(origin + '/login.html?room=FOCUS6&utm=x');
-    assert(await page.getByRole('button', { name: 'Continue with GitHub', exact: true }).isVisible() && await page.getByRole('button', { name: 'Continue with Google', exact: true }).isVisible(), 'Social sign-in is offered');
-    await page.getByRole('button', { name: 'Continue with GitHub', exact: true }).click();
-    const oauth = await page.evaluate(() => window.__fixture.calls.find(call => call.action === 'oauth'));
-    assert(oauth?.provider === 'github' && oauth.redirectTo === origin + '/login.html?room=FOCUS6', 'GitHub returns to login with the invite and nothing else');
-    await page.evaluate(() => { window.__fixture.oauthError = true; });
-    await page.getByRole('button', { name: 'Continue with Google', exact: true }).click();
-    await page.waitForFunction(() => document.getElementById('error-message').textContent.includes('isn’t available right now'));
-    // Back from the provider, signed in: the name typed in setup is saved, and the invite leads to its room.
-    await page.evaluate(() => { localStorage.setItem('fixture-session', '1'); localStorage.setItem('flow_pending_name', 'Robin'); });
-    await page.goto(origin + '/login.html?room=FOCUS6&code=from-provider');
-    await page.waitForURL(origin + '/room.html?room=FOCUS6');
-    assert(await page.evaluate(() => localStorage.getItem('flow_named') === '1' && localStorage.getItem('flow_pending_name') === null && localStorage.getItem('flow_signed_in') !== null), 'Signing in with a provider finishes setup');
+    // GitHub and Google, when switched on in supabase.config.json (oauthProviders): the provider is asked to send the browser
+    // back to login, keeping only the invite. Until a project enables them, no buttons are shown at all.
+    if (await page.locator('[data-provider]').count()) {
+        await page.goto(origin + '/login.html?room=FOCUS6&utm=x');
+        assert(await page.getByRole('button', { name: 'Continue with GitHub', exact: true }).isVisible() && await page.getByRole('button', { name: 'Continue with Google', exact: true }).isVisible(), 'Social sign-in is offered');
+        await page.getByRole('button', { name: 'Continue with GitHub', exact: true }).click();
+        const oauth = await page.evaluate(() => window.__fixture.calls.find(call => call.action === 'oauth'));
+        assert(oauth?.provider === 'github' && oauth.redirectTo === origin + '/login.html?room=FOCUS6', 'GitHub returns to login with the invite and nothing else');
+        await page.evaluate(() => { window.__fixture.oauthError = true; });
+        await page.getByRole('button', { name: 'Continue with Google', exact: true }).click();
+        await page.waitForFunction(() => document.getElementById('error-message').textContent.includes('isn’t available right now'));
+        // Back from the provider, signed in: the name typed in setup is saved, and the invite leads to its room.
+        await page.evaluate(() => { localStorage.setItem('fixture-session', '1'); localStorage.setItem('flow_pending_name', 'Robin'); });
+        await page.goto(origin + '/login.html?room=FOCUS6&code=from-provider');
+        await page.waitForURL(origin + '/room.html?room=FOCUS6');
+        assert(await page.evaluate(() => localStorage.getItem('flow_named') === '1' && localStorage.getItem('flow_pending_name') === null && localStorage.getItem('flow_signed_in') !== null), 'Signing in with a provider finishes setup');
+    }
     await page.evaluate(() => { localStorage.removeItem('flow_signed_in'); localStorage.removeItem('fixture-session'); });
     await page.goto(origin + '/login.html?room=FOCUS6');
     await page.getByLabel('Email address').fill('alex@example.com');
