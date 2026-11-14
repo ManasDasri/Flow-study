@@ -6,6 +6,7 @@ import { SKIES as skies } from '../client/theme';
 import { SOUNDS } from '../client/modules/soundscape';
 
 const sounds = [['', 'Silence', 'Just the room.'], ...SOUNDS];
+import SocialSignIn from '../components/SocialSignIn.astro';
 ---
 <Page title="Set up your space | Flow" bodyClass="start">
     <Sky />
@@ -49,11 +50,12 @@ const sounds = [['', 'Silence', 'Just the room.'], ...SOUNDS];
 
         <section class="step" data-step="account" hidden>
             <h1>Last step<span data-name></span>: save your space.</h1>
+            <SocialSignIn />
             <div class="account-fields">
                 <div><label for="start-email">Email address</label><input type="email" id="start-email" class="input" placeholder="you@example.com" autocomplete="email"></div>
                 <div><label for="start-password">Password</label><input type="password" id="start-password" class="input" placeholder="At least 8 characters" autocomplete="new-password" minlength="8"></div>
             </div>
-            <p class="step-hint">Flow stores your email, display name, tasks, and focus history. Nothing else.</p>
+            <p class="step-hint">Flow stores your email, display name, tasks, and focus history. With GitHub or Google, also the name and picture link they share, which Flow doesn’t use.</p>
         </section>
 
         <p id="start-message" class="inline-error hidden" role="alert"></p>

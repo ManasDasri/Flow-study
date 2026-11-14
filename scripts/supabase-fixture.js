@@ -103,7 +103,12 @@ window.supabase = { createClient() {
                 return { data: fixture.rpcError ? null : name === 'join_open_room' ? 'FOCUS6' : 'test-room', error: fixture.rpcError ? { message: fixture.rpcError } : null };
             },
             auth: {
-                signInWithPassword: authResult, signUp: authResult, signOut: async () => { localStorage.removeItem('fixture-session'); },
+                signInWithPassword: authResult, signUp: authResult,
+                // GitHub and Google: record where the provider would send the browser back to.
+                signInWithOAuth: async ({ provider, options }) => {
+                    fixture.calls.push({ action: 'oauth', provider, redirectTo: options?.redirectTo });
+                    return fixture.oauthError ? { data: null, error: { message: 'Unsupported provider: provider is not enabled' } } : { data: {}, error: null };
+                }, signOut: async () => { localStorage.removeItem('fixture-session'); },
                 getSession: async () => ({ data: { session: localStorage.getItem('fixture-session') ? { access_token: 'fixture-token', user } : null }, error: null }),
                 onAuthStateChange: () => ({ data: { subscription: { unsubscribe() {} } } })
             }

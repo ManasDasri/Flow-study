@@ -7,6 +7,7 @@ import { saveDisplayName } from './modules/profile';
 import { loadUser, markSignedIn } from './modules/session';
 import { showLoader, hideLoader, leaveWithLoader } from './loader';
 import { playSound, stopSound, setSoundVolume, type Sound } from './modules/soundscape';
+import { bindSocialButtons } from './modules/oauth';
 
 // Read the session before building the steps: someone signed in skips the account step.
 const signedIn = await loadUser();
@@ -155,5 +156,7 @@ form.addEventListener('submit', async event => {
     }
 });
 back.addEventListener('click', () => show(index - 1));
+// GitHub or Google on the last step: your choices are kept on this device for the round trip.
+bindSocialButtons(message => say(message), savePreferences);
 if (signedIn) byId<HTMLElement>('start-login').remove();
 show(0);

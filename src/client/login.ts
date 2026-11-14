@@ -3,6 +3,7 @@ import { bindThemePicker } from './theme';
 import { markSignedIn } from './modules/session';
 import { leaveWithLoader } from './loader';
 import supabase from './modules/supabase';
+import { bindSocialButtons, finishOAuth } from './modules/oauth';
 
 // DOM Elements
 const emailInput = byId<HTMLInputElement>('email-input');
@@ -94,3 +95,12 @@ byId<HTMLButtonElement>('toggle-password').addEventListener('click', event => {
     (event.currentTarget as HTMLButtonElement).setAttribute('aria-label', visible ? 'Hide password' : 'Show password');
     (event.currentTarget as HTMLButtonElement).setAttribute('aria-pressed', String(visible));
 });
+
+// GitHub and Google: start from the buttons, and finish here when the provider sends us back.
+bindSocialButtons(showError);
+finishOAuth().then(next => {
+    if (!next) return;
+    redirectPending = true;
+    showSuccess('Signed in.');
+    leaveWithLoader(next, 'Opening your space…');
+}, () => {});
