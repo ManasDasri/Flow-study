@@ -2,6 +2,7 @@
 import { reveal } from './motion';
 import { showLoader, hideLoader, leaveWithLoader, loaderText } from './loader';
 import { setMarkup } from './modules/markup';
+import { resolveHost, hostChangeNote, awayCopy, welcomeBack, type HostState } from './modules/host-state';
 import type { Participants, ProfileStats, TimerMode, TimerState } from './types';
 import { byId } from './dom';
 import { bindThemePicker } from './theme';
@@ -563,15 +564,15 @@ let awaySince = 0;
 let toldLate = false;
 let lastTimer: TimerState | null = null;
 const focusRunning = () => !!lastTimer?.isRunning && lastTimer.mode === 'focus';
-const awayStatus = () => focusRunning() ? 'Stepped away' : 'Back for the next block';
+const awayStatus = () => awayCopy(true, focusRunning()).status;
 function updateAwayButton() {
     const button = byId<HTMLButtonElement>('toggle-away');
+    const copy = awayCopy(away, focusRunning());
     button.setAttribute('aria-pressed', String(away));
-    button.textContent = away ? 'I’m back' : focusRunning() ? 'Be right back' : 'Back next block';
+    button.textContent = copy.button;
     // Shown as a hint on hover and focus (room.css), and read out by screen readers.
-    const hint = away ? 'Let the room know you’re back.' : focusRunning() ? 'Dims your tile and pauses your focus time. The room’s timer keeps going.' : 'Need a longer break? The room can start the next block without you.';
-    button.dataset.tip = hint;
-    button.setAttribute('aria-description', hint);
+    button.dataset.tip = copy.hint;
+    button.setAttribute('aria-description', copy.hint);
 }
 function setAwayState(on: boolean) {
     if (on === away) return;
@@ -580,8 +581,8 @@ function setAwayState(on: boolean) {
     setAway(on ? awayStatus() : null);
     setAwayTile(getMyUserId(), on);
     updateAwayButton();
-    if (on || !lastTimer) return;
-    notify(focusRunning() ? `Welcome back. ${Math.ceil(lastTimer.timeLeft / 60)} min left in this block.` : lastTimer.isRunning ? 'Welcome back. The room is on a break.' : 'Welcome back.');
+    const welcome = on ? null : welcomeBack(lastTimer);
+    if (welcome) notify(welcome);
 }
 // Coming back to the keyboard, or to the tab, ends it, after a moment so a stray key doesn't.
 const backOnReturn = (event: Event) => {
@@ -596,12 +597,8 @@ document.addEventListener('visibilitychange', event => { if (!document.hidden) b
 // One place that decides who the host is, for the tiles, the remove buttons, and the leave dialog.
 // While the host is away, whoever stands in is shown as host, but cannot remove people,
 // hand the room on, or end it: those stay with the person who made it.
-function applyHost(owner: string, away = false, acting = '') {
-    const me = currentUser()?.id;
-    hostAway = !!owner && away;
-    hostId = hostAway ? acting : owner;
-    isHost = !!owner && owner === me && !hostAway;
-    isActing = hostAway && !!acting && acting === me;
+function applyHost(state: HostState) {
+    ({ hostId, hostAway, isHost, isActing } = state);
     document.body.classList.toggle('is-host', isHost);
     setHost(hostId);
 }
@@ -613,25 +610,15 @@ async function syncHost(name = '', announce = true) {
     let { data, error } = await room();
     // Before sql/012 there is no stepping away; fall back to whoever created the room.
     if (error) ({ data } = await supabase.from('rooms').select('created_by').eq('room_code', currentRoomCode).maybeSingle());
-    const [wasHost, wasActing, wasAway, was] = [isHost, isActing, hostAway, hostId];
-    applyHost(data?.created_by ?? '', !!data?.host_away, data?.acting_host ?? '');
+    const before: HostState = { hostId, hostAway, isHost, isActing };
+    applyHost(resolveHost(data, currentUser()?.id));
     if (hostAway && !hostId) claimHost(); // nobody is hosting: offer to
-    if (!announce || (was === hostId && wasAway === hostAway)) return;
-    const who = name || partners[hostId]?.username || 'Someone';
-    if (isActing) {
-        pushNote('You’re the room host for now.');
-        notify('You’re the room host for now. The host gets the role back when they return.');
-    } else if (isHost && !wasHost) {
-        pushNote('You’re the host now.');
-        notify('You’re the host now. You can remove people, and hand the room on when you leave.');
-        adoptListing();
-    } else if (!isHost) {
-        listed = false;
-        if (hostAway && !hostId) pushNote(wasActing ? 'You’re no longer hosting.' : 'The host stepped away. The room stays open.');
-        else if (hostAway) pushNote(`${who} is hosting for now.`);
-        else if (wasAway) pushNote(`${who} is back and hosting again.`);
-        else pushNote(`${who} is the host now.`);
-    }
+    const change = announce ? hostChangeNote(before, { hostId, hostAway, isHost, isActing }, name || partners[hostId]?.username || 'Someone') : null;
+    if (!change) return;
+    pushNote(change.note);
+    if (change.toast) notify(change.toast);
+    if (change.becameHost) adoptListing();
+    if (!isHost && !isActing) listed = false; // the listing, if any, is the host's
 }
 
 // Only one person stands in at a time; the database decides who.
