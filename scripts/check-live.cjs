@@ -24,7 +24,9 @@ async function main() {
     // Sign-in: what the site offers is what Supabase has switched on, and confirmation has its page.
     const settings = await (await get(`${config.url}/auth/v1/settings`, { headers })).json();
     const enabled = Object.entries(settings.external || {}).filter(([, on]) => on).map(([name]) => name);
-    for (const provider of config.oauthProviders || []) check(enabled.includes(provider), `${provider} sign-in is switched on in Supabase (the site offers it)`);
+    // Fixed labels, so the report never prints a value read from config.
+    const LABELS = { github: 'GitHub', google: 'Google' };
+    for (const provider of config.oauthProviders || []) check(enabled.includes(provider), `${LABELS[provider] || 'A configured'} sign-in is switched on in Supabase (the site offers it)`);
     check(enabled.includes('email'), 'Email sign-in is switched on');
     if (!settings.mailer_autoconfirm) check((await get(SITE + '/verify.html')).ok, 'Email confirmation is on, and its page exists');
 
