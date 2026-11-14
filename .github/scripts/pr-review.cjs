@@ -9,7 +9,7 @@ const linkedIssue = body => {
     return match ? Number(match[1]) : null;
 };
 
-function review({ pr, author, maintainer, issue, additions, deletions }) {
+function review({ pr, author, maintainer, issue, additions, deletions, reviewer = null }) {
     const body = pr.body || '';
     const checks = [];
     const add = (ok, text, required = true) => checks.push({ ok, text, required });
@@ -25,6 +25,8 @@ function review({ pr, author, maintainer, issue, additions, deletions }) {
     add(summary, summary ? 'Explains what changed and why.' : 'Fill in "What changed and why" in the description.');
     const boxes = (body.match(/- \[[ xX]\]/g) || []).length, ticked = (body.match(/- \[[xX]\]/g) || []).length;
     add(boxes > 0 && ticked === boxes, boxes ? `Checklist: ${ticked} of ${boxes} ticked.` : 'Keep the checklist from the pull request template.', false);
+    // Contributors working from a fork can't request reviewers themselves, so the workflow does.
+    if (reviewer) add(true, `Review requested from @${reviewer}.`, false);
     const size = additions + deletions;
     add(size <= LARGE, size <= LARGE ? `Size: +${additions} −${deletions}.` : `Size: +${additions} −${deletions}. Large changes are slow to review; consider splitting this up.`, false);
     const failed = checks.some(c => c.required && !c.ok);

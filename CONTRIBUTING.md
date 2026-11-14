@@ -37,7 +37,7 @@ To work against a real backend, copy `.env.example` to `.env`, set your own Supa
 2. Then comment **`/take`**. The bot assigns the issue to you, but only once your approach is there, and only if nobody else has it. That way an issue goes to the clearest plan, not the fastest reply.
 3. Can't finish it? Comment **`/drop`** so someone else can pick it up.
 
-Every pull request gets an automatic comment checking that it links its issue (`Closes #12`), that the issue is assigned to you, and that the description is filled in. The **Style** check in CI looks only at the lines you add: no trailing whitespace or tabs, no leftover `console.log` or `debugger`.
+Every pull request gets an automatic comment checking that it links its issue (`Closes #12`), that the issue is assigned to you, and that the description is filled in. A review from the maintainer is requested for you automatically, so you don't need to ask for one. The **Style** check in CI looks only at the lines you add: no trailing whitespace or tabs, no leftover `console.log` or `debugger`.
 
 ## Before you open a pull request
 

@@ -1,7 +1,8 @@
 name: Pull request check
 
 # Posts one comment on each pull request: is an issue linked, is it assigned to the
-# author (via /take), is the description filled in, how big is the change.
+# author (via /take), is the description filled in, how big is the change. It also
+# requests a review from the maintainer, since contributors on forks can't do that themselves.
 # pull_request_target lets this comment on pull requests from forks. It never checks
 # out the pull request's code: only the base branch's rules, and API reads.
 on:
@@ -32,7 +33,14 @@ jobs:
             const number = linkedIssue(pr.body);
             let issue = null;
             if (number) try { issue = (await github.rest.issues.get({ ...context.repo, issue_number: number })).data; } catch { issue = null; }
-            const result = review({ pr, author, maintainer, issue, additions: pr.additions, deletions: pr.deletions });
+            // Every contributor's pull request gets a reviewer: the repository owner, unless one is already asked.
+            const owner = context.repo.owner;
+            let reviewer = (pr.requested_reviewers || []).map(r => r.login).find(Boolean) || null;
+            if (!reviewer && author !== owner) {
+              try { await github.rest.pulls.requestReviewers({ ...context.repo, pull_number: pr.number, reviewers: [owner] }); reviewer = owner; }
+              catch (error) { core.warning('Could not request a review: ' + error.message); }
+            }
+            const result = review({ pr, author, maintainer, issue, additions: pr.additions, deletions: pr.deletions, reviewer });
             const comments = await github.paginate(github.rest.issues.listComments, { ...context.repo, issue_number: pr.number, per_page: 100 });
             const mine = comments.find(c => c.user.type === 'Bot' && (c.body || '').startsWith(MARKER));
             if (mine) await github.rest.issues.updateComment({ ...context.repo, comment_id: mine.id, body: result.comment });

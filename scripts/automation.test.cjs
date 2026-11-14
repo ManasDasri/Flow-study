@@ -40,6 +40,7 @@ test('the pull request check wants a linked issue assigned to its author', () =>
     assert(review({ pr: pr(body().replace('Fixes the reload bug.', '<!-- One or two sentences. -->')), author: 'ana', maintainer: false, issue: issue(['ana']), additions: 1, deletions: 0 }).failed, 'An empty description fails');
     assert.equal(review({ pr: pr('## What changed and why\n\nA tidy-up.'), author: 'owner', maintainer: true, issue: null, additions: 1, deletions: 0 }).failed, false, 'Maintainers need no issue');
     assert.match(review({ pr: pr(body()), author: 'ana', maintainer: false, issue: issue(['ana']), additions: 900, deletions: 10 }).comment, /⚠️ Size/, 'A large change is flagged, not failed');
+    assert.match(review({ pr: pr(body()), author: 'ana', maintainer: false, issue: issue(['ana']), additions: 1, deletions: 0, reviewer: 'ManasDasri' }).comment, /✅ Review requested from @ManasDasri/, 'The comment says who will review');
 });
 
 test('style looks only at added lines, and only for real problems', () => {
