@@ -2,6 +2,8 @@
 
 <!-- One or two sentences. Add a screenshot for anything visual. -->
 
+Closes #<!-- the issue number; take it first with /take, after describing your approach on the issue -->
+
 ## Checks
 
 - [ ] `npm test` passes

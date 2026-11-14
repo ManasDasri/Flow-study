@@ -31,6 +31,14 @@ To work against a real backend, copy `.env.example` to `.env`, set your own Supa
 | `scripts` | Tests, the Supabase fixture, and the social-preview generator |
 | `server.js`, `api/` | The two server endpoints (assistant and TURN credentials) |
 
+## Picking up an issue
+
+1. Read the issue, then **describe your approach in a comment**: what you'd change, where, and how you'd test it. A few sentences is plenty.
+2. Then comment **`/take`**. The bot assigns the issue to you, but only once your approach is there, and only if nobody else has it. That way an issue goes to the clearest plan, not the fastest reply.
+3. Can't finish it? Comment **`/drop`** so someone else can pick it up.
+
+Every pull request gets an automatic comment checking that it links its issue (`Closes #12`), that the issue is assigned to you, and that the description is filled in. The **Style** check in CI looks only at the lines you add: no trailing whitespace or tabs, no leftover `console.log` or `debugger`.
+
 ## Before you open a pull request
 
 ```sh
