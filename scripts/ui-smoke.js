@@ -1000,6 +1000,17 @@ async (page) => {
     assert(await page.getByRole('button', { name: 'Start a new room', exact: true }).isVisible(), 'It offers the way on');
     await page.evaluate(() => { window.__fixture.rpcError = null; document.getElementById('lobby-error').classList.add('hidden'); document.getElementById('room-code-input').value = ''; });
 
+    // A new account names itself first, and Home greets it by that name straight away.
+    await page.evaluate(() => localStorage.removeItem('flow_named'));
+    await page.goto(origin + '/room.html?fresh');
+    await page.getByRole('heading', { name: 'First, what should we call you?' }).waitFor();
+    await page.getByLabel('Your name', { exact: true }).fill('Sam');
+    await page.getByRole('button', { name: 'Save and continue', exact: true }).click();
+    await page.waitForFunction(() => document.getElementById('join-title').textContent === 'Hi, Sam.');
+    assert(await page.locator('#home-avatar').innerText() === 'S', 'Home shows the name chosen on the welcome step, not the email');
+    await page.goto(origin + '/room.html');
+    await visible('#join-modal');
+
     // Home: who you are, and one place to start a private room, open a listed one, join by code, or sit in a group.
     assert(await page.locator('#join-title').innerText() === 'Hi, Alex.', 'Home should greet the signed-in person by name');
     await page.getByRole('button', { name: 'Change name', exact: true }).click();
