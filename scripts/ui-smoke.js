@@ -112,12 +112,24 @@ async (page) => {
     await page.getByRole('button', { name: 'Send it again', exact: true }).click();
     await page.waitForFunction(() => document.getElementById('verify-status').textContent.startsWith('Sent.') && document.getElementById('verify-resend').disabled);
     assert(await page.evaluate(() => window.__fixture.calls.some(call => call.action === 'resend' && call.email === 'alex@example.com')), 'The link can be sent again, then waits a minute');
+    // Opening a link only asks: scanners can't spend the token, and nothing happens without a tap.
     await page.goto(origin + '/verify.html?token_hash=used-token&type=email');
+    await page.getByRole('heading', { name: 'Confirm your email.' }).waitFor();
+    assert(new URL(page.url()).search === '' && !await page.evaluate(() => window.__fixture.calls.some(call => call.action === 'verify')), 'Opening the link takes the token out of the address and confirms nothing yet');
+    await page.getByRole('button', { name: 'Confirm my email', exact: true }).click();
     await page.getByRole('heading', { name: 'This link has expired.' }).waitFor();
-    assert(new URL(page.url()).search === '', 'A token never stays in the address');
+    // A link from someone else's sign-up names their account, and gets none of this browser's setup.
+    await page.evaluate(() => localStorage.setItem('flow_verify_email', 'someone-else@example.com'));
     await page.goto(origin + '/verify.html?token_hash=good-token&type=email');
+    await page.getByRole('button', { name: 'Confirm my email', exact: true }).click();
     await page.getByRole('heading', { name: 'You’re verified.' }).waitFor();
-    assert(new URL(page.url()).search === '' && await page.evaluate(() => localStorage.getItem('flow_named') === '1' && localStorage.getItem('flow_signed_in') !== null), 'Opening the link confirms the address, signs in, and keeps the name from setup');
+    assert(await page.locator('#verify-account').innerText() === 'alex@example.com' && await page.evaluate(() => localStorage.getItem('flow_named') === null && localStorage.getItem('flow_pending_name') !== null), 'The account is named, and the setup name is kept back when the address isn\'t the one set up here');
+    // This browser's own link: confirmed, signed in, and the name from setup is saved.
+    await page.evaluate(() => { localStorage.setItem('flow_verify_email', 'alex@example.com'); localStorage.removeItem('fixture-session'); });
+    await page.goto(origin + '/verify.html?token_hash=good-token&type=email');
+    await page.getByRole('button', { name: 'Confirm my email', exact: true }).click();
+    await page.getByRole('heading', { name: 'You’re verified.' }).waitFor();
+    assert(await page.evaluate(() => localStorage.getItem('flow_named') === '1' && localStorage.getItem('flow_signed_in') !== null), 'Confirming your own link signs in and keeps the name from setup');
     await page.getByRole('link', { name: 'Open my space', exact: true }).click();
     await page.waitForURL(origin + '/room.html');
     await visible('#join-modal');

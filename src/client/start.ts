@@ -146,7 +146,7 @@ async function createAccount() {
     if (error) return say(error.message);
     if (data.session && data.user) return finish(data.user);
     // Projects with "Confirm email" on make no session until the link is opened.
-    try { sessionStorage.setItem('flow_verify_email', email); } catch { /* the inbox page asks for it instead */ }
+    try { localStorage.setItem('flow_verify_email', email); } catch { /* the inbox page asks for it instead */ }
     leaveWithLoader('/verify.html', 'Sending your link…');
 }
 

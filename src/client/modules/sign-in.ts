@@ -37,9 +37,10 @@ export async function finishOAuth(): Promise<string | null> {
 }
 
 // Someone is now signed in: note it, save the name from setup, and return where to go next.
-export async function completeSignIn(user: { id: string }): Promise<string> {
+// `keepName` is false when this browser can't tell the account is the one it set up.
+export async function completeSignIn(user: { id: string }, keepName = true): Promise<string> {
     markSignedIn();
-    const pendingName = localStorage.getItem('flow_pending_name');
+    const pendingName = keepName ? localStorage.getItem('flow_pending_name') : null;
     if (pendingName && await saveDisplayName(user.id, pendingName)) {
         localStorage.setItem('flow_named', '1');
         localStorage.removeItem('flow_pending_name');

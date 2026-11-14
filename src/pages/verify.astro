@@ -16,14 +16,20 @@ import '../styles/login.css';
                 <button id="verify-resend" type="button" class="btn btn-lg btn-block">Send it again</button>
                 <p class="login-note">Not there? Check spam, or <a href="/start.html">use a different email</a>.</p>
             </div>
+            <div data-state="confirm" hidden>
+                <h1>Confirm your email.</h1>
+                <p class="login-description">One tap to finish setting up your space.</p>
+                <button id="verify-confirm" type="button" class="btn btn-primary btn-lg btn-block">Confirm my email</button>
+            </div>
             <div data-state="checking" hidden>
                 <h1>Confirming your email…</h1>
                 <p class="login-description">One moment.</p>
             </div>
             <div data-state="done" hidden>
                 <h1>You’re verified.</h1>
-                <p class="login-description">Your email is confirmed and your space is ready.</p>
+                <p class="login-description">Signed in as <strong id="verify-account"></strong>. Your space is ready.</p>
                 <a id="verify-continue" href="/room.html" class="btn btn-primary btn-lg btn-block">Open my space</a>
+                <p class="login-note">Not you? <button id="verify-sign-out" type="button" class="link-btn">Log out</button></p>
             </div>
             <div data-state="failed" hidden>
                 <h1>This link has expired.</h1>

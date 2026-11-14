@@ -67,7 +67,7 @@ const logIn = async () => {
         if (error && /confirm|verif/i.test(error.message)) {
             // Not confirmed yet: offer the inbox page, which can send the link again.
             showError('Confirm your email first: open the link we sent you. ');
-            try { sessionStorage.setItem('flow_verify_email', email); } catch { /* the inbox page asks for it instead */ }
+            try { localStorage.setItem('flow_verify_email', email); } catch { /* the inbox page asks for it instead */ }
             const resend = Object.assign(document.createElement('a'), { href: '/verify.html' + location.search, textContent: 'Send it again' });
             errorMsg.append(resend);
             return;
