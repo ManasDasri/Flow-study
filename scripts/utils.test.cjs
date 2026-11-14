@@ -153,3 +153,23 @@ test('likely email typos are caught, and nothing else is', async () => {
     assert.equal(suggestEmail('not-an-email'), null);
     assert(looksLikeEmail('a.b+c@example.co') && !looksLikeEmail('abc@gmail') && !looksLikeEmail('a b@x.com') && !looksLikeEmail('@x.com'));
 });
+
+test('error reports keep where it broke and drop anything personal', async () => {
+    const source = compile('src/client/modules/error-report.ts');
+    const { describeError } = await import('data:text/javascript;base64,' + Buffer.from(source).toString('base64'));
+    const here = { origin: 'https://flow-study.me', pathname: '/room.html' };
+    const report = describeError({
+        kind: 'error', message: 'Failed to load https://flow-study.me/room.html?room=SECRET1#token',
+        source: 'https://flow-study.me/_astro/room.js?v=1', line: 12, column: 4,
+        stack: 'Error: x\n    at join (https://flow-study.me/_astro/room.js?v=1:12:4)\n    at https://evil.example/steal?code=1:1:1'
+    }, here);
+    assert.equal(report.message, 'Failed to load /room.html', 'Query and fragment are removed');
+    assert.equal(report.source, '/_astro/room.js');
+    assert.match(report.stack, /at join \(\/_astro\/room\.js:12:4\)/, 'Line numbers in our own files are kept');
+    assert(!/SECRET1|token|code=1|steal/.test(JSON.stringify(report)), 'Nothing from query strings, and other sites by host only');
+    assert.equal(report.page, '/room.html');
+    assert.equal(describeError({ kind: 'error', message: 'Script error.' }, here), null, 'Cross-origin noise is dropped');
+    assert.equal(describeError({ kind: 'error', message: 'x', source: 'chrome-extension://abc/content.js' }, here), null, 'Extensions are not our bugs');
+    assert.equal(describeError({ kind: 'rejection', message: 'y'.repeat(1000) }, here).message.length, 300, 'Messages are capped');
+    assert.equal(describeError({ kind: 'error', message: 'z', line: -3 }, here).line, 0);
+});

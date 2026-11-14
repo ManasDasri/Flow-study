@@ -1,0 +1,48 @@
+name: Pull request check
+
+# Posts one comment on each pull request: is an issue linked, is it assigned to the
+# author (via /take), is the description filled in, how big is the change. It also
+# requests a review from the maintainer, since contributors on forks can't do that themselves.
+# pull_request_target lets this comment on pull requests from forks. It never checks
+# out the pull request's code: only the base branch's rules, and API reads.
+on:
+  pull_request_target:
+    types: [opened, edited, synchronize, reopened]
+
+permissions:
+  pull-requests: write
+  issues: read
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          sparse-checkout: .github/scripts
+      - uses: actions/github-script@v9
+        with:
+          script: |
+            const { review, linkedIssue, MARKER } = require('./.github/scripts/pr-review.cjs');
+            const pr = context.payload.pull_request;
+            const author = pr.user.login;
+            if (pr.user.type === 'Bot') return;
+            const maintainer = ['OWNER', 'MEMBER', 'COLLABORATOR'].includes(pr.author_association);
+            const number = linkedIssue(pr.body);
+            let issue = null;
+            if (number) try { issue = (await github.rest.issues.get({ ...context.repo, issue_number: number })).data; } catch { issue = null; }
+            // Every contributor's pull request gets a reviewer: the repository owner, unless one is already asked.
+            const owner = context.repo.owner;
+            let reviewer = (pr.requested_reviewers || []).map(r => r.login).find(Boolean) || null;
+            if (!reviewer && author !== owner) {
+              try { await github.rest.pulls.requestReviewers({ ...context.repo, pull_number: pr.number, reviewers: [owner] }); reviewer = owner; }
+              catch (error) { core.warning('Could not request a review: ' + error.message); }
+            }
+            const result = review({ pr, author, maintainer, issue, additions: pr.additions, deletions: pr.deletions, reviewer });
+            const comments = await github.paginate(github.rest.issues.listComments, { ...context.repo, issue_number: pr.number, per_page: 100 });
+            const mine = comments.find(c => c.user.type === 'Bot' && (c.body || '').startsWith(MARKER));
+            if (mine) await github.rest.issues.updateComment({ ...context.repo, comment_id: mine.id, body: result.comment });
+            else await github.rest.issues.createComment({ ...context.repo, issue_number: pr.number, body: result.comment });
+            if (result.failed) core.setFailed('Pull request check: see the comment on the pull request.');

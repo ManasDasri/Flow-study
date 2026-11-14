@@ -135,6 +135,25 @@ test('HTTP boundaries and bounded local concurrency', async t => {
             }
         }
     });
+    await t.test('browser error reports are logged as one line each, within limits', async () => {
+        const logged = [];
+        const original = console.error;
+        console.error = line => logged.push(String(line));
+        try {
+            const send = body => fetch(origin + '/api/errors', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+            assert.equal((await send({ kind: 'error', message: 'Boom', source: '/_astro/room.js', line: 3, column: 7, stack: 'at x', page: '/room.html', extra: 'dropped' })).status, 204);
+            assert.equal((await send({ message: '' })).status, 400, 'An empty report is refused');
+            assert.equal((await send({ message: 'm'.repeat(5000), line: '3', stack: 's'.repeat(9000) })).status, 204);
+            assert.equal((await send({ message: 'forged\n[client-error] {"message":"fake"}' })).status, 204);
+        } finally { console.error = original; }
+        const reports = logged.filter(line => line.startsWith('[client-error] ')).map(line => JSON.parse(line.slice(15)));
+        assert.deepEqual(reports[0], { kind: 'error', message: 'Boom', source: '/_astro/room.js', line: 3, column: 7, stack: 'at x', page: '/room.html' }, 'Only known fields are kept');
+        assert.equal(reports[1].message.length, 300);
+        assert.equal(reports[1].stack.length, 2000);
+        assert.equal(reports[1].line, 0, 'A line that is not a number becomes 0');
+        assert.equal(logged.filter(line => line.startsWith('[client-error] ')).length, 3, 'Each report is exactly one log line');
+        assert(!logged.some(line => line.split('\n').length > 1), 'A message cannot add lines to the log');
+    });
     await t.test('an account over its quota is refused, and a server without the quota function still checks sign-in', async t => {
         delete require.cache[require.resolve('../server')];
         const fresh = require('../server').listen(0, '127.0.0.1');

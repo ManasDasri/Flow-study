@@ -46,7 +46,8 @@ const app = require('../server');
         await context.tracing.start({ screenshots: true, snapshots: true, sources: true });
         page = await context.newPage();
         page.setDefaultTimeout(15000);
-        page.on('pageerror', error => errors.push(error.message));
+        // The error-reporting test throws one on purpose; every other uncaught error fails the run.
+        page.on('pageerror', error => { if (!error.message.includes('Smoke test error')) errors.push(error.message); });
         const origin = externalOrigin || 'http://127.0.0.1:' + server.address().port;
         await page.route(origin + '/login.html', route => route.fulfill({ body: '<!doctype html><title>Flow test setup</title>', contentType: 'text/html' }), { times: 1 });
         await page.goto(origin + '/login.html');
