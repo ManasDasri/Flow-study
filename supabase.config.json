@@ -2,5 +2,5 @@
   "url": "https://mrjtkxwenqswbjplmzko.supabase.co",
   "publishableKey": "sb_publishable_KbaspJKanVVEPMzUxMSmXw_nQyzfNyf",
   "privateRoomChannels": true,
-  "oauthProviders": []
+  "oauthProviders": ["github", "google"]
 }
