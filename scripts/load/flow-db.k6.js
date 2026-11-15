@@ -64,6 +64,7 @@ export function setup() {
         let id = null;
         for (let k = 0; k < GROUP; k++) id = http.post(rest('rpc/join_room'), JSON.stringify({ p_room_code: code, p_pin: '' }), api(people[r * GROUP + k].token)).json();
         rooms.push({ code, id });
+        for (let k = 0; k < GROUP; k++) people[r * GROUP + k].room = r;
     }
     return { people, rooms };
 }
@@ -71,7 +72,7 @@ export function setup() {
 export default function (data) {
     const i = randomInt(PEOPLE);
     const me = data.people[i];
-    const room = data.rooms[Math.floor(i / GROUP)];
+    const room = data.rooms[me.room];
     // Nine in ten requests are room messages, as in a busy room; one in ten is a join's reads.
     if (randomInt(10) < 9) {
         const response = http.post(rest('rpc/room_send'), JSON.stringify({ p_room: room.id, p_event: 'presence-heartbeat', p_payload: { userId: me.id, username: 'Load', isDummyMedia: true } }), api(me.token));
