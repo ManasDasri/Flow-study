@@ -6,8 +6,14 @@
 import http from 'k6/http';
 import { sleep } from 'k6';
 import { Trend, Rate } from 'k6/metrics';
-// A number in [0, 1) from the Web Crypto API rather than Math.random (CodeQL js/insecure-randomness).
-const random = () => crypto.getRandomValues(new Uint32Array(1))[0] / 2 ** 32;
+// A whole number in [0, n) from the Web Crypto API, without modulo bias: draws past the
+// last full multiple of n are thrown away (CodeQL js/insecure-randomness, js/biased-cryptographic-random).
+const randomInt = (n) => {
+    const limit = 2 ** 32 - (2 ** 32 % n);
+    let x;
+    do x = crypto.getRandomValues(new Uint32Array(1))[0]; while (x >= limit);
+    return x % n;
+};
 
 const URL = __ENV.SUPABASE_URL;
 const KEY = __ENV.SUPABASE_KEY;
@@ -50,7 +56,7 @@ export function setup() {
         people.push({ token: response.json().access_token, id: response.json().user.id });
         sleep(0.15);
     }
-    const run = 'D' + String.fromCharCode(65 + Math.floor(random() * 26));
+    const run = 'D' + String.fromCharCode(65 + randomInt(26));
     const rooms = [];
     for (let r = 0; r * GROUP < PEOPLE; r++) {
         const code = run + String(r).padStart(4, '0');
@@ -63,11 +69,11 @@ export function setup() {
 }
 
 export default function (data) {
-    const i = Math.floor(random() * PEOPLE);
+    const i = randomInt(PEOPLE);
     const me = data.people[i];
     const room = data.rooms[Math.floor(i / GROUP)];
     // Nine in ten requests are room messages, as in a busy room; one in ten is a join's reads.
-    if (random() < 0.9) {
+    if (randomInt(10) < 9) {
         const response = http.post(rest('rpc/room_send'), JSON.stringify({ p_room: room.id, p_event: 'presence-heartbeat', p_payload: { userId: me.id, username: 'Load', isDummyMedia: true } }), api(me.token));
         sendMs.add(response.timings.duration);
         failed.add(response.status >= 300);

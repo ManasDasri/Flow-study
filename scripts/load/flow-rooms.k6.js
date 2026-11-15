@@ -16,8 +16,14 @@ import { WebSocket } from 'k6/websockets';
 import { setInterval, setTimeout, clearInterval } from 'k6/timers';
 import { Trend, Counter, Rate } from 'k6/metrics';
 import exec from 'k6/execution';
-// A number in [0, 1) from the Web Crypto API rather than Math.random (CodeQL js/insecure-randomness).
-const random = () => crypto.getRandomValues(new Uint32Array(1))[0] / 2 ** 32;
+// A whole number in [0, n) from the Web Crypto API, without modulo bias: draws past the
+// last full multiple of n are thrown away (CodeQL js/insecure-randomness, js/biased-cryptographic-random).
+const randomInt = (n) => {
+    const limit = 2 ** 32 - (2 ** 32 % n);
+    let x;
+    do x = crypto.getRandomValues(new Uint32Array(1))[0]; while (x >= limit);
+    return x % n;
+};
 
 const URL = __ENV.SUPABASE_URL;
 const KEY = __ENV.SUPABASE_KEY;
@@ -78,7 +84,7 @@ export function setup() {
         people.push({ token: body.access_token, id: body.user.id });
         sleep(0.15);
     }
-    const run = String.fromCharCode(65 + Math.floor(random() * 26)) + String.fromCharCode(65 + Math.floor(random() * 26));
+    const run = String.fromCharCode(65 + randomInt(26)) + String.fromCharCode(65 + randomInt(26));
     const rooms = [];
     for (let r = 0; r * GROUP < PEOPLE; r++) {
         const host = people[r * GROUP];
