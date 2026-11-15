@@ -15,6 +15,8 @@ import { sleep } from 'k6';
 import { WebSocket } from 'k6/websockets';
 import { setInterval, setTimeout, clearInterval } from 'k6/timers';
 import { Trend, Counter, Rate } from 'k6/metrics';
+// A number in [0, 1) from the Web Crypto API rather than Math.random (CodeQL js/insecure-randomness).
+const random = () => crypto.getRandomValues(new Uint32Array(1))[0] / 2 ** 32;
 import exec from 'k6/execution';
 
 const URL = __ENV.SUPABASE_URL;
@@ -76,7 +78,7 @@ export function setup() {
         people.push({ token: body.access_token, id: body.user.id });
         sleep(0.15);
     }
-    const run = String.fromCharCode(65 + Math.floor(Math.random() * 26)) + String.fromCharCode(65 + Math.floor(Math.random() * 26));
+    const run = String.fromCharCode(65 + Math.floor(random() * 26)) + String.fromCharCode(65 + Math.floor(random() * 26));
     const rooms = [];
     for (let r = 0; r * GROUP < PEOPLE; r++) {
         const host = people[r * GROUP];
