@@ -207,15 +207,23 @@ export const initMedia = async (videoEl: HTMLVideoElement) => {
 };
 
 // A camera can stop under a live call: the laptop sleeps, another app takes it, a USB
-// camera drops. The browser ends the track without a word, so the tile went black while
-// the button still said "on". A fresh camera is picked up and swapped into every call.
+// camera drops. The browser ends the track, or leaves it live but muted (no frames), without
+// a word, so the tile went black while the button still said "on". A fresh camera is picked
+// up and swapped into every call. A short mute (a camera switching settings) is left alone.
 let onCameraLost: (() => void) | undefined;
 export const whenCameraLost = (run: () => void) => { onCameraLost = run; };
-const watchCamera = (track?: MediaStreamTrack) => track?.addEventListener('ended', () => { recoverCamera(); }, { once: true });
+const MUTED_TOO_LONG_MS = 4000;
+const watchCamera = (track?: MediaStreamTrack) => {
+    if (!track) return;
+    let mutedTimer: ReturnType<typeof setTimeout> | undefined;
+    track.addEventListener('ended', () => { recoverCamera(); }, { once: true });
+    track.addEventListener('mute', () => { clearTimeout(mutedTimer); mutedTimer = setTimeout(recoverCamera, MUTED_TOO_LONG_MS); });
+    track.addEventListener('unmute', () => clearTimeout(mutedTimer));
+};
 let recovering: Promise<void> | null = null;
 export const recoverCamera = () => recovering ??= (async () => {
     const old = localStream?.getVideoTracks()[0];
-    if (!localStream || isDummyMedia || !old || old.readyState !== 'ended') return;
+    if (!localStream || isDummyMedia || !old || (old.readyState !== 'ended' && !old.muted)) return;
     const stream = localStream, generation = mediaGeneration;
     try {
         const [track] = (await navigator.mediaDevices.getUserMedia({ video: true })).getVideoTracks();
@@ -223,6 +231,7 @@ export const recoverCamera = () => recovering ??= (async () => {
         track.enabled = old.enabled;
         stream.removeTrack(old);
         stream.addTrack(track);
+        old.stop(); // a muted one still holds the camera
         watchCamera(track);
         await Promise.all(Object.values(peers).map(pc => pc.getSenders().find(sender => sender.track === old)?.replaceTrack(track)));
         document.querySelectorAll('video').forEach(video => {

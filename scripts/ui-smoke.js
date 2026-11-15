@@ -880,14 +880,24 @@ async (page) => {
             const fresh = video.srcObject.getVideoTracks()[0];
             const sent = pc.getSenders().find(sender => sender.track?.kind === 'video').track;
             const replaced = fresh !== old && fresh.readyState === 'live' && sent === fresh && rtc.isVideoActive();
+            // Live but muted (no frames, as after sleep) for too long: replaced as well. A blip is not.
+            const blip = fresh;
+            Object.defineProperty(blip, 'muted', { configurable: true, value: true });
+            blip.dispatchEvent(new Event('mute'));
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            const keptThroughBlip = video.srcObject.getVideoTracks()[0] === blip;
+            for (let waited = 0; waited < 5000 && video.srcObject.getVideoTracks()[0] === blip; waited += 100) await new Promise(resolve => setTimeout(resolve, 100));
+            const unmuted = video.srcObject.getVideoTracks()[0];
+            const replacedMuted = keptThroughBlip && unmuted !== blip && !unmuted.muted && blip.readyState === 'ended'
+                && pc.getSenders().find(sender => sender.track?.kind === 'video').track === unmuted;
             // When no camera can be had, it says so instead of showing a black tile marked "on".
             let lost = false;
             rtc.whenCameraLost(() => { lost = true; });
             navigator.mediaDevices.getUserMedia = async () => { throw new Error('Camera in use'); };
-            fresh.stop();
-            fresh.dispatchEvent(new Event('ended'));
+            unmuted.stop();
+            unmuted.dispatchEvent(new Event('ended'));
             await rtc.recoverCamera();
-            return { replaced, lost, offAfterLoss: !rtc.isVideoActive() };
+            return { replaced, replacedMuted, lost, offAfterLoss: !rtc.isVideoActive() };
         } finally {
             rtc.removePeer('camera-test');
             video.srcObject?.getTracks().forEach(track => track.stop());
@@ -896,6 +906,7 @@ async (page) => {
         }
     });
     assert(cameraResult.replaced, 'A camera that stops mid-call must be replaced in the tile and the call');
+    assert(cameraResult.replacedMuted, 'A camera muted for seconds must be replaced, and a short mute left alone');
     assert(cameraResult.lost && cameraResult.offAfterLoss, 'A camera that cannot be restarted must show as off');
 
     // 16 simulated participants exercise tile creation and name handling.
