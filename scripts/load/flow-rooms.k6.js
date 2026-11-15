@@ -15,9 +15,9 @@ import { sleep } from 'k6';
 import { WebSocket } from 'k6/websockets';
 import { setInterval, setTimeout, clearInterval } from 'k6/timers';
 import { Trend, Counter, Rate } from 'k6/metrics';
+import exec from 'k6/execution';
 // A number in [0, 1) from the Web Crypto API rather than Math.random (CodeQL js/insecure-randomness).
 const random = () => crypto.getRandomValues(new Uint32Array(1))[0] / 2 ** 32;
-import exec from 'k6/execution';
 
 const URL = __ENV.SUPABASE_URL;
 const KEY = __ENV.SUPABASE_KEY;
