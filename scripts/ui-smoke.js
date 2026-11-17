@@ -1201,7 +1201,9 @@ async (page) => {
     const enterNewRoom = async () => {
         await page.locator('input[name="audience"][value="private"]').check();
         await page.getByRole('button', { name: 'Create a room', exact: true }).click();
-        await page.waitForFunction(() => !document.getElementById('new-task-input').disabled && document.body.classList.contains('is-host'));
+        // On a fresh lobby page the task box starts enabled and the host flag is set on click, before joining
+        // begins, so those alone can pass too early. The room's presence handler only exists once it's in.
+        await page.waitForFunction(() => typeof window.__fixture.handlers['presence:join'] === 'function' && !document.getElementById('new-task-input').disabled && document.body.classList.contains('is-host'));
         await page.evaluate(() => window.__fixture.handlers['presence:join']({ key: 'zz-next', newPresences: [{ username: 'Riya', isDummyMedia: true }] }));
     };
     await enterNewRoom();
