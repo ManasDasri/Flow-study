@@ -16,6 +16,12 @@ import { here } from './state';
 // still running. Only numbers and dates go into the markup.
 const LEVELS = [0, 1, 30, 60, 120]; // minutes: none, a little, half an hour, an hour, two hours+
 const WEEKS = 26;
+// Phones have no hover: a tap shows a square's tip, and a tap anywhere else hides it.
+document.addEventListener('click', event => {
+    const cell = event.target instanceof Element ? event.target.closest('.heatmap-grid i') : null;
+    document.querySelectorAll('.heatmap-grid i.tip-open').forEach(open => { if (open !== cell) open.classList.remove('tip-open'); });
+    cell?.classList.toggle('tip-open');
+});
 export function heatmap(stats: ProfileStats) {
     const today = new Date();
     today.setHours(0, 0, 0, 0);

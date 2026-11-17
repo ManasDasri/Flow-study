@@ -614,6 +614,11 @@ async (page) => {
     const tipCell = page.locator(`#profile-modal .heatmap-grid i[data-tip$="1h 30m focused"]`);
     await tipCell.hover();
     await page.waitForFunction(cell => getComputedStyle(cell, '::after').opacity === '1', await tipCell.elementHandle());
+    // A tap shows it too (phones have no hover), and a tap elsewhere hides it.
+    await tipCell.click();
+    assert(await tipCell.evaluate(cell => cell.classList.contains('tip-open')), 'Tapping a heatmap square should show its time');
+    await page.locator('#profile-modal .heatmap figcaption').click();
+    assert(await page.locator('#profile-modal .heatmap-grid i.tip-open').count() === 0, 'Tapping elsewhere should hide the heatmap tip');
     await page.screenshot({ path: 'output/playwright/profile-heatmap.png' });
     await page.getByRole('button', { name: 'Close profile', exact: true }).click();
     // Dialogs trap focus and restore it on Escape.
