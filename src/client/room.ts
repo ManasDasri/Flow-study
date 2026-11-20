@@ -761,7 +761,7 @@ async function start() {
     const invited = new URLSearchParams(location.search).get('room')?.toUpperCase() ?? '';
     roomCodeInput.value = invited || sessionStorage.getItem('flow_last_room') || '';
     // Arriving from an invite link: say so, and make joining the obvious next step.
-    // (The person still presses Join; a link never puts anyone in a room by itself.)
+    // The link goes straight on to "Ready to join?" (see the end of start), where the person still chooses.
     if (/^[A-Z0-9]{6}$/.test(invited)) {
         byId<HTMLElement>('join-heading').textContent = 'You’re invited';
         byId<HTMLElement>('join-hint').textContent = `Room ${invited} is waiting for you. Press Join to go in.`;
@@ -803,8 +803,7 @@ async function start() {
     showHome(user, { join: code => { roomCodeInput.value = code; pinInput.value = ''; return joinRoom(); }, create: createRoom, showError: showLobbyError });
 
     // Arriving from the study-groups board: either to host a new group, or with a seat already taken.
-    // Both are one-time notes left by the board page in this tab. A URL alone never joins a room:
-    // an invite link only fills in the code, and the person still presses Join.
+    // Both are one-time notes left by the board page in this tab.
     const hosting = sessionStorage.getItem('flow_host');
     const seat = sessionStorage.getItem('flow_join');
     sessionStorage.removeItem('flow_host');
@@ -815,6 +814,10 @@ async function start() {
     } else if (seat && /^[A-Z0-9]{6}$/.test(seat)) {
         setFromBoard(true);
         roomCodeInput.value = seat;
+        await joinRoom();
+    } else if (/^[A-Z0-9]{6}$/.test(invited) && previewWanted()) {
+        // An invite link opens its room's "Ready to join?" screen, so nobody sees you until you press Join now.
+        // With that screen turned off, the link only fills in the code: a link alone never turns on a camera in a room.
         await joinRoom();
     }
     // The page held the loader through start-up; the home screen (or the room) is ready now.
