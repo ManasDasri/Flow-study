@@ -204,6 +204,9 @@ async function createRoom(open?: Omit<GroupDetails, 'host_name'> & { planId?: st
     }
 }
 
+// Set when an invite link's preview was answered before joining (start): joinRoom skips its own.
+let previewedAlready = false;
+
 async function joinRoom() {
     if (here.busy) return;
     const roomCode = roomCodeInput.value.trim().toUpperCase();
@@ -248,8 +251,8 @@ async function joinRoom() {
         // A saved display name overrides the email-derived default.
         here.username = (await getMyProfile(user.id))?.display_name || user.email.split('@')[0];
         // Ready to join? Your camera first, before your presence reaches anyone in the room.
-        const previewed = previewWanted();
-        if (previewed) {
+        const previewed = previewedAlready || previewWanted();
+        if (previewed && !previewedAlready) {
             if (!await preview(roomCode, here.username)) {
                 Object.assign(here, { id: '', code: '', pin: '', listed: false });
                 openModal('join-modal');
@@ -265,6 +268,9 @@ async function joinRoom() {
         openModal('join-modal');
         showLobbyError('Could not open the room. Check your connection and try again.');
     } finally {
+        // The invite's camera was started before join_room answered; a join that failed must not leave it on.
+        if (previewedAlready && !here.id) cleanupMedia();
+        previewedAlready = false;
         setRoomBusy(false);
         hideLoader();
     }
@@ -816,9 +822,12 @@ async function start() {
         roomCodeInput.value = seat;
         await joinRoom();
     } else if (/^[A-Z0-9]{6}$/.test(invited) && previewWanted()) {
-        // An invite link opens its room's "Ready to join?" screen, so nobody sees you until you press Join now.
-        // With that screen turned off, the link only fills in the code: a link alone never turns on a camera in a room.
-        await joinRoom();
+        // An invite link opens its room's "Ready to join?" screen. The room is only joined (join_room) once
+        // the person presses Join now, so a link alone never adds anyone to a room or uses up their attempts.
+        // With that screen turned off, the link only fills in the code.
+        const name = (await getMyProfile(user.id))?.display_name || user.email.split('@')[0];
+        if (await preview(invited, name)) { previewedAlready = true; await joinRoom(); }
+        else openModal('join-modal');
     }
     // The page held the loader through start-up; the home screen (or the room) is ready now.
     hideLoader();

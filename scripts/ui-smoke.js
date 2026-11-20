@@ -1455,6 +1455,7 @@ async (page) => {
     await page.evaluate(() => localStorage.setItem('flow_preview', '1'));
     await page.goto(origin + '/room.html?room=FOCUS6');
     await visible('#preview-modal');
+    assert(await page.evaluate(() => !window.__fixture.calls.some(call => call.name === 'join_room')), 'Opening an invite link must not join the room before Join now');
     assert(await page.locator('#app').isHidden() && await page.locator('#preview-room').innerText() === 'FOCUS6', 'An invite link opens its room\u2019s preview');
     await page.locator('#preview-back').click();
     await visible('#join-modal');
