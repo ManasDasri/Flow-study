@@ -1474,13 +1474,15 @@ async (page) => {
     await page.waitForFunction(() => !document.getElementById('preview-join').disabled);
     await page.locator('#preview-join').click();
     await visible('#app');
-    // An old link whose room has ended, or a code that matches no room, says so on Home: no invite, no preview.
-    for (const [status, heading] of [['ended', 'This room has ended'], ['missing', 'This link doesn\u2019t work']]) {
+    // A room that ended in the last 15 minutes says so, and when; any other dead link opens a plain Home
+    // with the code filled in (it may be a PIN room). Neither offers the preview or tries to join.
+    for (const [status, heading, code] of [['ended:3', 'This room has ended', ''], ['unknown', 'Join with a code', 'FOCUS6']]) {
         await page.evaluate(value => localStorage.setItem('fixture-link-status', value), status);
         await page.goto(origin + '/room.html?room=FOCUS6');
         await visible('#join-modal');
-        assert(await page.locator('#join-heading').innerText() === heading && (await page.locator('#join-hint').innerText()).includes('FOCUS6'), 'An old link should say ' + heading);
-        assert(await page.locator('#preview-modal').isHidden() && await page.locator('#room-code-input').inputValue() === (status === 'missing' ? 'FOCUS6' : '') && new URL(page.url()).search === '', 'A dead link is not offered as an invite; a possible PIN room keeps its code');
+        const hint = await page.locator('#join-hint').innerText();
+        assert(await page.locator('#join-heading').innerText() === heading && (status === 'unknown' ? !hint.includes('FOCUS6') : hint.includes('3 minutes ago')), 'An old link: ' + status);
+        assert(await page.locator('#preview-modal').isHidden() && await page.locator('#room-code-input').inputValue() === code && new URL(page.url()).search === '', 'A dead link is not offered as an invite');
         assert(await page.evaluate(() => !window.__fixture.calls.some(call => call.name === 'join_room')), 'A dead link never tries to join');
     }
     await page.evaluate(() => localStorage.removeItem('fixture-link-status'));

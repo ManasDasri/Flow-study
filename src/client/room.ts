@@ -767,18 +767,19 @@ async function start() {
 
     let invited = new URLSearchParams(location.search).get('room')?.toUpperCase() ?? '';
     if (!/^[A-Z0-9]{6}$/.test(invited)) invited = '';
-    // An old link: say its room has ended, or never existed, instead of inviting (sql/022).
-    // Older servers have no check, and a failed check carries on as an invite; Join still reports what's wrong.
-    const linkStatus = invited ? await supabase.rpc('room_link_status', { p_room_code: invited }).then(({ data }) => data, () => null) : null;
-    if (linkStatus === 'ended' || linkStatus === 'missing') {
-        byId<HTMLElement>('join-heading').textContent = linkStatus === 'ended' ? 'This room has ended' : 'This link doesn’t work';
-        byId<HTMLElement>('join-hint').textContent = linkStatus === 'ended'
-            ? `Room ${invited} was ended by its host, so its link no longer works. Start a room of your own, or ask for a new link.`
-            : `No open room has the code ${invited}. If the room has a PIN, enter it above and press Join; otherwise check the link with whoever sent it.`;
-        if (linkStatus === 'ended' && sessionStorage.getItem('flow_last_room') === invited) sessionStorage.removeItem('flow_last_room');
+    // A link to a room that ended in the last 15 minutes says so (sql/022). Any other dead link, or a PIN
+    // room not joined yet, opens a plain Home with the code filled in. Older servers have no check, and a
+    // failed check carries on as an invite; Join still reports what's wrong.
+    const link = invited ? await supabase.rpc('room_link_status', { p_room_code: invited }).then(({ data }) => data, () => null) : null;
+    if (link && link.status !== 'open') {
         history.replaceState(null, '', '/room.html');
-        // A PIN room looks the same as no room until the PIN is given, so the code stays filled in.
-        roomCodeInput.value = linkStatus === 'missing' ? invited : '';
+        if (link.status === 'ended') {
+            const minutes = link.minutes ?? 0;
+            byId<HTMLElement>('join-heading').textContent = 'This room has ended';
+            byId<HTMLElement>('join-hint').textContent = `Room ${invited} was ended by its host ${minutes < 1 ? 'just now' : minutes === 1 ? 'a minute ago' : minutes + ' minutes ago'}. Start a room of your own, or ask for a new link.`;
+            if (sessionStorage.getItem('flow_last_room') === invited) sessionStorage.removeItem('flow_last_room');
+        }
+        roomCodeInput.value = link.status === 'ended' ? '' : invited;
         invited = '';
     } else roomCodeInput.value = invited || sessionStorage.getItem('flow_last_room') || '';
     // Arriving from an invite link: say so, and make joining the obvious next step.
