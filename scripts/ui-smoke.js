@@ -1480,7 +1480,7 @@ async (page) => {
         await page.goto(origin + '/room.html?room=FOCUS6');
         await visible('#join-modal');
         assert(await page.locator('#join-heading').innerText() === heading && (await page.locator('#join-hint').innerText()).includes('FOCUS6'), 'An old link should say ' + heading);
-        assert(await page.locator('#preview-modal').isHidden() && await page.locator('#room-code-input').inputValue() === '' && new URL(page.url()).search === '', 'A dead link is not offered as an invite');
+        assert(await page.locator('#preview-modal').isHidden() && await page.locator('#room-code-input').inputValue() === (status === 'missing' ? 'FOCUS6' : '') && new URL(page.url()).search === '', 'A dead link is not offered as an invite; a possible PIN room keeps its code');
         assert(await page.evaluate(() => !window.__fixture.calls.some(call => call.name === 'join_room')), 'A dead link never tries to join');
     }
     await page.evaluate(() => localStorage.removeItem('fixture-link-status'));

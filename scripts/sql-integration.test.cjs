@@ -441,6 +441,11 @@ test('compatibility migration on legacy TEXT and current UUID schemas', async t 
             assert.equal(asUser(two, "SELECT public.room_link_status('LIVE01');"), 'open');
             assert.equal(asUser(two, "SELECT public.room_link_status('NOPE99');"), 'missing');
             assert.equal(run(database, `SELECT count(*) FROM public.join_failures WHERE user_id = '${two}';`).trim(), '1', 'Only a miss counts as a wrong attempt');
+            run(database, `INSERT INTO public.rooms(room_code, created_by, is_locked, pin, ended_at) VALUES ('LOCKD1', '${one}', true, '1234', now());`);
+            assert.equal(asUser(two, "SELECT public.room_link_status('LOCKD1');"), 'missing', 'A PIN room says no more than join_room would without the PIN');
+            run(database, `INSERT INTO public.room_participants(room_id, user_id) SELECT id, '${two}' FROM public.rooms WHERE room_code = 'LOCKD1';`);
+            assert.equal(asUser(two, "SELECT public.room_link_status('LOCKD1');"), 'ended', 'Its members are told it ended');
+            run(database, `DELETE FROM public.room_participants WHERE user_id = '${two}' AND room_id = (SELECT id FROM public.rooms WHERE room_code = 'LOCKD1'); DELETE FROM public.join_failures WHERE user_id = '${two}'; INSERT INTO public.join_failures(user_id) VALUES ('${two}');`);
             assert.equal(run(database, `SELECT count(*) FROM public.room_participants rp JOIN public.rooms r ON r.id = rp.room_id WHERE r.room_code IN ('ENDED1','LIVE01') AND rp.user_id = '${two}';`).trim(), '0', 'Checking a link never joins its room');
             run(database, `INSERT INTO public.join_failures(user_id) SELECT '${two}' FROM generate_series(1, 9);`);
             assert.throws(() => asUser(two, "SELECT public.room_link_status('LIVE01');"), /Command failed/, 'Too many misses stop the check, as they stop join_room');

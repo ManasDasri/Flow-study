@@ -774,12 +774,13 @@ async function start() {
         byId<HTMLElement>('join-heading').textContent = linkStatus === 'ended' ? 'This room has ended' : 'This link doesn’t work';
         byId<HTMLElement>('join-hint').textContent = linkStatus === 'ended'
             ? `Room ${invited} was ended by its host, so its link no longer works. Start a room of your own, or ask for a new link.`
-            : `No room has the code ${invited}. Check the link with whoever sent it, or start a room of your own.`;
-        if (sessionStorage.getItem('flow_last_room') === invited) sessionStorage.removeItem('flow_last_room');
+            : `No open room has the code ${invited}. If the room has a PIN, enter it above and press Join; otherwise check the link with whoever sent it.`;
+        if (linkStatus === 'ended' && sessionStorage.getItem('flow_last_room') === invited) sessionStorage.removeItem('flow_last_room');
         history.replaceState(null, '', '/room.html');
+        // A PIN room looks the same as no room until the PIN is given, so the code stays filled in.
+        roomCodeInput.value = linkStatus === 'missing' ? invited : '';
         invited = '';
-    }
-    roomCodeInput.value = invited || sessionStorage.getItem('flow_last_room') || '';
+    } else roomCodeInput.value = invited || sessionStorage.getItem('flow_last_room') || '';
     // Arriving from an invite link: say so, and make joining the obvious next step.
     // The link goes straight on to "Ready to join?" (see the end of start), where the person still chooses.
     if (invited) {
