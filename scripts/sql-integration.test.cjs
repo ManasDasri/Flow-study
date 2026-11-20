@@ -432,6 +432,19 @@ test('compatibility migration on legacy TEXT and current UUID schemas', async t 
             const listed = asUser(two, `SELECT email || ' ' || provider || ' ' || verified || ' ' || focus_hours FROM public.platform_accounts() WHERE email IS NOT NULL;`);
             assert.deepEqual(listed, `one@example.com google true ${run(database, `SELECT round(coalesce(sum(duration_seconds),0)/3600.0,1) FROM public.sessions WHERE user_id = '${one}' AND mode LIKE 'focus%';`).trim()}`, 'Email, sign-in method, verified, focus hours');
             assert.equal(asUser(two, `SELECT count(*) FROM public.platform_accounts() WHERE email IS NULL AND verified;`), '0', 'The owner is not listed');
+
+            // 022: what a room link leads to, before joining. A miss counts as a wrong attempt.
+            run(database, readFileSync('sql/022_room_link_status.sql', 'utf8'));
+            run(database, readFileSync('sql/022_room_link_status.sql', 'utf8'));
+            run(database, `DELETE FROM public.join_failures; INSERT INTO public.rooms(room_code, created_by, ended_at) VALUES ('ENDED1', '${one}', now()), ('LIVE01', '${one}', NULL);`);
+            assert.equal(asUser(two, "SELECT public.room_link_status('ended1');"), 'ended', 'An ended room says so, to anyone signed in');
+            assert.equal(asUser(two, "SELECT public.room_link_status('LIVE01');"), 'open');
+            assert.equal(asUser(two, "SELECT public.room_link_status('NOPE99');"), 'missing');
+            assert.equal(run(database, `SELECT count(*) FROM public.join_failures WHERE user_id = '${two}';`).trim(), '1', 'Only a miss counts as a wrong attempt');
+            assert.equal(run(database, `SELECT count(*) FROM public.room_participants rp JOIN public.rooms r ON r.id = rp.room_id WHERE r.room_code IN ('ENDED1','LIVE01') AND rp.user_id = '${two}';`).trim(), '0', 'Checking a link never joins its room');
+            run(database, `INSERT INTO public.join_failures(user_id) SELECT '${two}' FROM generate_series(1, 9);`);
+            assert.throws(() => asUser(two, "SELECT public.room_link_status('LIVE01');"), /Command failed/, 'Too many misses stop the check, as they stop join_room');
+            assert.throws(() => run(database, "SET ROLE anon; SELECT public.room_link_status('LIVE01');"), /Command failed/, 'Signed-out visitors cannot check codes');
         } finally {
             run('postgres', 'DROP DATABASE ' + database + ' WITH (FORCE);');
         }

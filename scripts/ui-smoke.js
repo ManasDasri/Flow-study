@@ -1474,6 +1474,16 @@ async (page) => {
     await page.waitForFunction(() => !document.getElementById('preview-join').disabled);
     await page.locator('#preview-join').click();
     await visible('#app');
+    // An old link whose room has ended, or a code that matches no room, says so on Home: no invite, no preview.
+    for (const [status, heading] of [['ended', 'This room has ended'], ['missing', 'This link doesn\u2019t work']]) {
+        await page.evaluate(value => localStorage.setItem('fixture-link-status', value), status);
+        await page.goto(origin + '/room.html?room=FOCUS6');
+        await visible('#join-modal');
+        assert(await page.locator('#join-heading').innerText() === heading && (await page.locator('#join-hint').innerText()).includes('FOCUS6'), 'An old link should say ' + heading);
+        assert(await page.locator('#preview-modal').isHidden() && await page.locator('#room-code-input').inputValue() === '' && new URL(page.url()).search === '', 'A dead link is not offered as an invite');
+        assert(await page.evaluate(() => !window.__fixture.calls.some(call => call.name === 'join_room')), 'A dead link never tries to join');
+    }
+    await page.evaluate(() => localStorage.removeItem('fixture-link-status'));
     await page.evaluate(() => localStorage.setItem('flow_preview', '0'));
     // Signed out, the board is readable but nothing on it can be used.
     await page.evaluate(() => { localStorage.removeItem('flow_signed_in'); localStorage.removeItem('fixture-session'); });
